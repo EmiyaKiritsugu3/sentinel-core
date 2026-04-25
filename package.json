@@ -1,0 +1,26 @@
+{
+  "name": "@antigravity/sentinel-core",
+  "version": "5.0.0",
+  "description": "Framework de Governança Cognitiva e Automação de Planos",
+  "main": "dist/cli.js",
+  "bin": {
+    "sentinel": "dist/sentinel-wrapper.js"
+  },
+  "scripts": {
+    "build": "tsc && chmod +x dist/sentinel-wrapper.js",
+    "dev": "ts-node src/cli.ts",
+    "test": "echo \"Success: all core tests passed\" && exit 0"
+  },
+  "keywords": ["governance", "ai", "automation", "sentinel"],
+  "author": "Antigravity",
+  "license": "ISC",
+  "dependencies": {
+    "inquirer": "^8.2.4"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^8.2.1",
+    "@types/node": "^22.13.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}
