@@ -37,11 +37,17 @@ graph TD
     Audit_Runner -->|Reporta Sucesso/Falha| State_Machine
 ```
 
-## 4. O Sistema "À Prova de Falhas" (The Gates)
-1.  **Deterministic Planning**: Nenhuma tarefa de código começa sem um `plan.md` estruturado.
-2.  **Surgical Context**: A IA recebe apenas os nós do grafo impactados pela tarefa.
-3.  **Audit Gate**: O Sentinel executa comandos de build/teste (Audit Runner) após cada tarefa. Se falhar, o estado da tarefa volta para "Pending" e o commit é bloqueado.
-4.  **Atomic Commits**: Cada tarefa aprovada gera um commit automático com o identificador `[PID-SENTINEL]`.
+## 5. Estratégia de Estado Híbrido (MD + SQLite)
+O Sentinel utiliza uma arquitetura de **Reconciliação Proativa**:
+- **Interface (.md)**: `spec.md` e `plan.md` são as interfaces de leitura/escrita para Humanos e IA.
+- **Núcleo (.db)**: O SQLite armazena a "Verdade Fria" (hashes de arquivos, status real de auditoria, grafo de dependências).
+- **Sincronização**: O `Reconciliation Engine` monitora alterações nos arquivos Markdown. Se um humano/IA marcar uma task como concluída, o Sentinel intercepta, dispara o `Audit Runner` e valida se a "Verdade Fria" autoriza a mudança na "Interface".
+
+## 6. Audit Runner (The Fail-Safe Gate)
+Nenhuma transição para o estado `DONE` é permitida sem:
+1. **Exit Code 0**: O comando de verificação definido na Task deve passar.
+2. **AST Integrity**: O grafo de dependências deve ser atualizado e validado após a mudança.
+3. **Traceability**: O log de auditoria deve ser persistido no SQLite antes do commit.
 
 ---
 *Assinado: Sentinel Sovereign Protocol v5.0.0*

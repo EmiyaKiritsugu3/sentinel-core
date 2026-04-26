@@ -21,14 +21,33 @@ func NewManager(db *sqlite.DB) *Manager {
 }
 
 // CreateTask cria uma nova tarefa no banco
-func (m *Manager) CreateTask(description string, tier string) (string, error) {
-	id := uuid.New().String()[:8] // ID curto para facilidade no CLI
-	query := `INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)`
-	_, err := m.db.Conn.Exec(query, id, description, "PENDING", tier)
+func (m *Manager) CreateTask(description string, tier string, verificationCmd string) (string, error) {
+	id := uuid.New().String()[:8]
+	query := `INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)`
+	_, err := m.db.Conn.Exec(query, id, description, "PENDING", tier, verificationCmd)
 	if err != nil {
 		return "", err
 	}
 	return id, nil
+}
+
+// StartTask marca a tarefa como em progresso
+func (m *Manager) StartTask(id string) error {
+	query := `UPDATE tasks SET status = 'IN_PROGRESS', updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+	_, err := m.db.Conn.Exec(query, id)
+	return err
+}
+
+// GetTaskByID busca uma tarefa específica
+func (m *Manager) GetTaskByID(id string) (*Task, string, error) {
+	query := `SELECT id, description, status, tier, verification_command FROM tasks WHERE id = ?`
+	var t Task
+	var cmd string
+	err := m.db.Conn.QueryRow(query, id).Scan(&t.ID, &t.Description, &t.Status, &t.Tier, &cmd)
+	if err != nil {
+		return nil, "", err
+	}
+	return &t, cmd, nil
 }
 
 // UpdateStatus muda o estado da tarefa garantindo que não se pule etapas
