@@ -49,5 +49,12 @@ Nenhuma transição para o estado `DONE` é permitida sem:
 2. **AST Integrity**: O grafo de dependências deve ser atualizado e validado após a mudança.
 3. **Traceability**: O log de auditoria deve ser persistido no SQLite antes do commit.
 
+## 7. The Subagent Triad Architecture
+Para evitar a poluição de contexto e garantir a escalabilidade, o Sentinel opera sob a **Tríade de Engenharia**:
+
+1.  **The Warden (Sentinel Core Go)**: O Guardião do Estado. Gerencia o SQLite, extrai o contexto AST (Corte Cirúrgico), gera o Prompt de Instrução e executa o Audit Runner (Gate). Ele não escreve código.
+2.  **The Chief Engineer (Gemini CLI Main)**: O Orquestrador. Ele lê os planos do Sentinel, toma decisões de alto nível e despacha tarefas para os Operários via ferramenta `invoke_agent`.
+3.  **The Operators (Subagents)**: Os Operários Efêmeros. IAs especializadas e descartáveis que recebem uma única instrução do Sentinel, modificam o código e retornam o controle. Seus erros são capturados pelo Warden e reportados ao Chief Engineer.
+
 ---
 *Assinado: Sentinel Sovereign Protocol v5.0.0*

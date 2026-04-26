@@ -2,8 +2,10 @@ package audit
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os/exec"
+	"time"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 )
@@ -16,13 +18,17 @@ func NewRunner(db *sqlite.DB) *Runner {
 	return &Runner{db: db}
 }
 
-// ExecuteAudit roda o comando de verificação para uma tarefa específica
+// ExecuteAudit roda o comando de verificação para uma tarefa específica com timeout
 func (r *Runner) ExecuteAudit(taskID string, command string) (bool, error) {
 	fmt.Printf("🛡️ Sentinel: Auditing Task [%s]...\n", taskID)
-	fmt.Printf("Executing: %s\n", command)
+	fmt.Printf("Executing: %s (Timeout: 30s)\n", command)
 
-	// Executa o comando de shell
-	cmd := exec.Command("sh", "-c", command)
+	// Cria contexto com timeout de 30 segundos
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Executa o comando de shell usando o contexto
+	cmd := exec.CommandContext(ctx, "sh", "-c", command)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -32,7 +38,10 @@ func (r *Runner) ExecuteAudit(taskID string, command string) (bool, error) {
 	success := true
 
 	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
+		if ctx.Err() == context.DeadlineExceeded {
+			fmt.Println("🛑 ERROR: Audit Timeout Exceeded.")
+			exitCode = 124 // Padrão coreutils para timeout
+		} else if exitError, ok := err.(*exec.ExitError); ok {
 			exitCode = exitError.ExitCode()
 		} else {
 			exitCode = 1

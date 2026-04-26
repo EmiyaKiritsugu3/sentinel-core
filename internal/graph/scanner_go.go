@@ -25,9 +25,9 @@ func NewGoScanner(db *sqlite.DB) *GoScanner {
 func (s *GoScanner) ScanProject(root string) error {
 	fset := token.NewFileSet()
 
-	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return fmt.Errorf("error accessing path %s: %w", path, err)
 		}
 
 		// Ignora diretórios e arquivos que não são .go
@@ -40,8 +40,16 @@ func (s *GoScanner) ScanProject(root string) error {
 			return nil
 		}
 
-		return s.scanFile(fset, path)
+		if err := s.scanFile(fset, path); err != nil {
+			return fmt.Errorf("failed to scan file %s: %w", path, err)
+		}
+		return nil
 	})
+
+	if err != nil {
+		return fmt.Errorf("project scan failed: %w", err)
+	}
+	return nil
 }
 
 func (s *GoScanner) scanFile(fset *token.FileSet, path string) error {
@@ -50,38 +58,55 @@ func (s *GoScanner) scanFile(fset *token.FileSet, path string) error {
 		return fmt.Errorf("could not parse file %s: %w", path, err)
 	}
 
-	hash, _ := calculateHash(path)
+	hash, err := calculateHash(path)
+	if err != nil {
+		return fmt.Errorf("hash calculation failed for %s: %w", path, err)
+	}
+
 	fileID := "file:" + path
 
 	// 1. Indexa o Arquivo (Node)
 	err = s.upsertNode(fileID, filepath.Base(path), "file", path, 0, 0, hash)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to upsert file node %s: %w", fileID, err)
 	}
 
 	// 2. Indexa Símbolos Granulares (Functions, Structs)
+	var astErr error
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch x := n.(type) {
 		case *ast.FuncDecl:
 			funcID := fmt.Sprintf("func:%s:%s", path, x.Name.Name)
 			start := fset.Position(x.Pos()).Line
 			end := fset.Position(x.End()).Line
-			s.upsertNode(funcID, x.Name.Name, "function", path, start, end, "")
-			s.createEdge(fileID, funcID, "contains")
+			if err := s.upsertNode(funcID, x.Name.Name, "function", path, start, end, ""); err != nil {
+				astErr = fmt.Errorf("failed to upsert function node %s: %w", funcID, err)
+				return false
+			}
+			if err := s.createEdge(fileID, funcID, "contains"); err != nil {
+				astErr = fmt.Errorf("failed to create edge from %s to %s: %w", fileID, funcID, err)
+				return false
+			}
 
 		case *ast.TypeSpec:
 			if _, ok := x.Type.(*ast.StructType); ok {
 				structID := fmt.Sprintf("struct:%s:%s", path, x.Name.Name)
 				start := fset.Position(x.Pos()).Line
 				end := fset.Position(x.End()).Line
-				s.upsertNode(structID, x.Name.Name, "struct", path, start, end, "")
-				s.createEdge(fileID, structID, "contains")
+				if err := s.upsertNode(structID, x.Name.Name, "struct", path, start, end, ""); err != nil {
+					astErr = fmt.Errorf("failed to upsert struct node %s: %w", structID, err)
+					return false
+				}
+				if err := s.createEdge(fileID, structID, "contains"); err != nil {
+					astErr = fmt.Errorf("failed to create edge from %s to %s: %w", fileID, structID, err)
+					return false
+				}
 			}
 		}
 		return true
 	})
 
-	return nil
+	return astErr
 }
 
 func (s *GoScanner) upsertNode(id, name, nType, path string, start, end int, hash string) error {
@@ -97,13 +122,19 @@ func (s *GoScanner) upsertNode(id, name, nType, path string, start, end int, has
 		last_indexed=CURRENT_TIMESTAMP
 	`
 	_, err := s.db.Conn.Exec(query, id, name, nType, path, start, end, hash)
-	return err
+	if err != nil {
+		return fmt.Errorf("database error during upsertNode: %w", err)
+	}
+	return nil
 }
 
 func (s *GoScanner) createEdge(from, to, rel string) error {
 	query := `INSERT OR IGNORE INTO edges (from_node_id, to_node_id, relation_type) VALUES (?, ?, ?)`
 	_, err := s.db.Conn.Exec(query, from, to, rel)
-	return err
+	if err != nil {
+		return fmt.Errorf("database error during createEdge: %w", err)
+	}
+	return nil
 }
 
 func isIgnored(path string) bool {
@@ -119,13 +150,13 @@ func isIgnored(path string) bool {
 func calculateHash(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("could not open file for hash: %w", err)
 	}
 	defer f.Close()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
-		return "", err
+		return "", fmt.Errorf("could not copy file content to hash: %w", err)
 	}
 
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
