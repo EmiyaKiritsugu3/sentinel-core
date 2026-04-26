@@ -3,6 +3,7 @@ module github.com/EmiyaKiritsugu3/sentinel-core
 go 1.26.2
 
 require (
+	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.10.2
 	modernc.org/sqlite v1.49.1

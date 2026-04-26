@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/state"
 	"github.com/spf13/cobra"
@@ -16,11 +15,12 @@ var startCmd = &cobra.Command{
 	Use:   "start [task_id]",
 	Short: "Start a specific task",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		mgr := state.NewManager(DBInstance)
 		if err := mgr.StartTask(args[0]); err != nil {
-			log.Fatalf("❌ Failed to start task: %v", err)
+			return fmt.Errorf("start: failed to start task %s: %w", args[0], err)
 		}
 		fmt.Printf("🚀 Task [%s] is now IN_PROGRESS.\n", args[0])
+		return nil
 	},
 }

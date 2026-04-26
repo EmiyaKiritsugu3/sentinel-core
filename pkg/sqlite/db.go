@@ -13,33 +13,42 @@ type DB struct {
 	Conn *sql.DB
 }
 
-// Init inicializa a conexão com o SQLite e cria as pastas necessárias
+// Init inicializa a conexão com o SQLite e configura as Pragmas de Elite
 func Init() (*DB, error) {
 	sentinelDir := ".sentinel"
 	if _, err := os.Stat(sentinelDir); os.IsNotExist(err) {
 		err := os.Mkdir(sentinelDir, 0755)
 		if err != nil {
-			return nil, fmt.Errorf("could not create .sentinel directory: %w", err)
+			return nil, fmt.Errorf("sqlite: could not create .sentinel directory: %w", err)
 		}
 	}
 
 	dbPath := filepath.Join(sentinelDir, "graph.db")
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not open sqlite db: %w", err)
+		return nil, fmt.Errorf("sqlite: could not open db: %w", err)
 	}
 
-	// 1. Habilita o modo WAL para permitir leitura simultânea com escrita
-	_, err = db.Exec("PRAGMA journal_mode=WAL;")
-	if err != nil {
-		return nil, fmt.Errorf("failed to enable WAL mode: %w", err)
+	// Configuração de Pragmas para Performance e Integridade
+	pragmas := []string{
+		"PRAGMA journal_mode=WAL;",
+		"PRAGMA foreign_keys = ON;",
+		"PRAGMA busy_timeout = 5000;",
+		"PRAGMA synchronous = NORMAL;",
 	}
 
-	// 2. Configura os limites do Pool para evitar contenção no SQLite
-	db.SetMaxOpenConns(1) // SQLite é single-writer, garantimos 1 conexão para escrita atômica
+	for _, p := range pragmas {
+		if _, err := db.Exec(p); err != nil {
+			return nil, fmt.Errorf("sqlite: failed to apply pragma %s: %w", p, err)
+		}
+	}
+
+	// Configuração de Pool para Concorrência (WAL permite múltiplos leitores)
+	db.SetMaxOpenConns(8)
+	db.SetMaxIdleConns(8)
 
 	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("could not ping sqlite db: %w", err)
+		return nil, fmt.Errorf("sqlite: could not ping db: %w", err)
 	}
 
 	return &DB{Conn: db}, nil

@@ -8,9 +8,9 @@
 | Métrica | Valor |
 | :--- | :--- |
 | **Engineering Success Rate** | 50.00% |
-| **Total Architecture Nodes** | 72 |
-| **Files Tracked** | 18 |
-| **Functions & Structs** | 54 |
+| **Total Architecture Nodes** | 87 |
+| **Files Tracked** | 21 |
+| **Functions & Structs** | 66 |
 
 ## 🛡️ Task Lifecycle Status
 

@@ -46,7 +46,7 @@ const promptTemplate = `
 Your response must conclude with a **Sovereign Audit Report** (Standard #08) using exactly these 5 points:
 1. ✨ **The Good**: (What is now solid)
 2. ⚠️ **The Bad**: (Technical debt introduced)
-3. 💥 **The Ugly**: (Risks and fragilities)
+3. 💥 **The Ugly**: (Riscos e fragilidades detectadas)
 4. 💡 **The Lesson**: (What was learned/standardized)
 5. 🚀 **The Next**: (Next optimization)
 
@@ -96,20 +96,16 @@ func (f *Factory) GenerateInstruction(taskID string) (string, error) {
 		return "", fmt.Errorf("bridge: failed to get task %s: %w", taskID, err)
 	}
 
-	// 1. Coleta ADRs relevantes
 	adrs, err := f.loadADRs()
 	if err != nil {
 		return "", fmt.Errorf("bridge: failed to load ADRs: %w", err)
 	}
 
-	// 2. Coleta Standards de Elite (O Motor de Aprendizado)
-	// Standard #01: Buffered Read via extractLines
 	standards, err := extractLines("docs/process/ENGINEERING-STANDARDS.md", 1, 100)
 	if err != nil {
 		return "", fmt.Errorf("bridge: failed to load standards: %w", err)
 	}
 
-	// 3. Coleta Contexto Cirúrgico
 	nodes, err := f.loadSurgicalContext(taskID)
 	if err != nil {
 		return "", fmt.Errorf("bridge: failed to load surgical context: %w", err)
@@ -137,7 +133,6 @@ func (f *Factory) GenerateInstruction(taskID string) (string, error) {
 
 func (f *Factory) loadADRs() ([]ADR, error) {
 	path := "docs/architecture/SENTINEL-SYSTEM-DESIGN.md"
-	// Standard #01: Buffered Read via extractLines
 	content, err := extractLines(path, 1, 500)
 	if err != nil {
 		return nil, fmt.Errorf("bridge: failed to read ADR file: %w", err)
@@ -146,7 +141,13 @@ func (f *Factory) loadADRs() ([]ADR, error) {
 }
 
 func (f *Factory) loadSurgicalContext(taskID string) ([]ContextNode, error) {
-	rows, err := f.db.Conn.Query("SELECT name, type, file_path, start_line, end_line FROM nodes WHERE type IN ('struct', 'function') LIMIT 10")
+	mgr := state.NewManager(f.db)
+	_, _, err := mgr.GetTaskByID(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("bridge: failed to find task context: %w", err)
+	}
+
+	rows, err := f.db.Conn.Query("SELECT name, type, file_path, start_line, end_line FROM nodes WHERE type IN ('struct', 'function') ORDER BY last_indexed DESC LIMIT 10")
 	if err != nil {
 		return nil, fmt.Errorf("bridge: db query error: %w", err)
 	}
@@ -156,7 +157,7 @@ func (f *Factory) loadSurgicalContext(taskID string) ([]ContextNode, error) {
 	for rows.Next() {
 		var n ContextNode
 		if err := rows.Scan(&n.Name, &n.Type, &n.FilePath, &n.StartLine, &n.EndLine); err != nil {
-			continue
+			return nil, fmt.Errorf("bridge: row scan error: %w", err)
 		}
 
 		snippet, err := extractLines(n.FilePath, n.StartLine, n.EndLine)
