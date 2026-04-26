@@ -8,10 +8,12 @@ Este documento registra as fissuras estruturais e ideias de vanguarda descoberta
 - [x] **Context Continuity**: Implementado o **Sovereign Handover Protocol** para trocas de sessão.
 - [x] **Evidence Enforcement**: Institucionalizado o **Standard #13 (Verify, Never Assume)**.
 - [ ] **Task Metadata Anemia**: A struct de Tarefa no `internal/state` carece de contexto sobre o ambiente de execução e logs de erro passados.
-- [ ] **Dependency Injection**: Comandos CLI utilizam a global `DBInstance`. Refatorar para injeção de dependência via construtores para viabilizar testes unitários.
+- [x] **Dependency Injection**: Refatorado para injeção via construtores, eliminando o acoplamento da global `DBInstance`.
 - [ ] **Cascading Pruning**: O scan atual não limpa arestas de arquivos que foram deletados (apenas modificados).
+- [ ] **Scanner Robustness**: Implementar buffer de 1MB para lidar com linhas gigantes.
 
 ## 🧊 The Icebox (Potential Evolutions)
+- **Compiled Knowledge Engine**: Sistema de injeção automática de erros passados no prompt (vacinando a IA contra retrocessos).
 - **Modo Entrevista**: Iniciar o Sentinel em pastas vazias com perguntas de produto para o usuário leigo.
 - **WebSocket Live View**: Servidor em Go para atualizar diagramas no browser em tempo real (Fase 5).
 - **Atomic Commits**: O comando `sentinel audit` deve executar o git commit automaticamente após o sucesso.

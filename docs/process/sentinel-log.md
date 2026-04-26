@@ -19,6 +19,19 @@
 - Worker Pool Pattern & WAL SQLite.
 - Sovereign Handover Protocol (v1).
 
+## [2026-04-26] Milestone: Hardening & Dependency Injection (Fase 2.6/2.10)
+
+**Status**: COMPLETED
+**Impact**: ARCHITECTURAL (Critical)
+
+### 🔍 Analysis (Epiphanies)
+1.  **Dependency Sovereignty**: A remoção da variável global `DBInstance` permitiu um binário testável e desacoplado, seguindo o padrão de vanguarda de construtores de comando.
+2.  **External Audit Triage**: A integração do feedback do CodeRabbit revelou que ferramentas externas são vitais para encontrar "rachaduras" sutis (como a falta de `ORDER BY` ou `sh -c` vulnerability).
+3.  **Immune System**: A implementação do `Sovereign Validator` como um Hard Gate transformou o Sentinel de um assistente em um juiz de qualidade.
+
+### 💡 Key Learning
+"A blindagem de segurança e integridade (Foreign Keys, Transactions, Shlex) é o que separa um projeto de brinquedo de uma ferramenta de infraestrutura de elite."
+
 ---
 
 ## 🏁 SOVEREIGN HANDOVER [S01 -> S02]

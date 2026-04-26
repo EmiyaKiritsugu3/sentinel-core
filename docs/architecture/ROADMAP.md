@@ -11,6 +11,10 @@ Este documento define a trajetória oficial de desenvolvimento do Sentinel Core.
   - Scanner de AST (Go) paralelo via Worker Pool.
   - Persistência em SQLite (CGO-free).
   - Extração cirúrgica de linhas de código real.
+- [x] **Fase 2.10: Sovereign Hardening**
+  - Refatoração para Injeção de Dependência (Fim das Globais).
+  - Blindagem de Segurança (shlex, Foreign Keys, Transactions).
+  - Implementação do Sovereign Validator (Hard Gates).
 
 ## 🚀 Próximas Frentes (O Plano Concreto)
 
