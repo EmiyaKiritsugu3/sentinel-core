@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/audit"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/reflect"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/state"
 	"github.com/spf13/cobra"
 )
@@ -23,6 +24,25 @@ var auditCmd = &cobra.Command{
 			log.Fatal("❌ No active task found to audit. Run 'sentinel start <id>' first.")
 		}
 
+		// 1. Sovereign Gate: Validação de Padrões (Linter Semântico)
+		fmt.Println("🛡️  Sentinel: Running Sovereign Validator...")
+		validator := reflect.NewValidator(DBInstance)
+		violations, err := validator.ValidateProject(".")
+		if err != nil {
+			log.Fatalf("❌ Validator internal error: %v", err)
+		}
+
+		if len(violations) > 0 {
+			fmt.Printf("🛑 ARCHITECTURAL VIOLATIONS DETECTED (%d):\n", len(violations))
+			for _, v := range violations {
+				fmt.Printf("   - [%s] %s:%d: %s\n", v.StandardID, v.FilePath, v.Line, v.Reason)
+			}
+			mgr.UpdateStatus(task.ID, "FAILED")
+			fmt.Println("\n🛑 Task REJECTED by Sovereign Validator. Fix the standards and try again.")
+			return
+		}
+
+		// 2. Technical Gate: Build & Tests
 		_, verifyCmd, err := mgr.GetTaskByID(task.ID)
 		if err != nil {
 			log.Fatalf("❌ Task record corrupted: %v", err)

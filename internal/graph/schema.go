@@ -46,6 +46,15 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 	timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS standards (
+	id TEXT PRIMARY KEY,
+	description TEXT NOT NULL,
+	pattern_query TEXT, -- Regra semântica ou regex
+	status TEXT NOT NULL DEFAULT 'PROPOSED', -- PROPOSED, AUDITED, SEALED
+	confidence_score INTEGER DEFAULT 0,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 `
 
 func Migrate(db *sqlite.DB) error {
