@@ -10,19 +10,9 @@ graph TD
     func_internal_audit_runner_go_NewRunner["NewRunner (function)"]:::func
     func_internal_audit_runner_go_ExecuteAudit["ExecuteAudit (function)"]:::func
     file_cmd_sentinel_main_go["main.go (file)"]
-    func_cmd_sentinel_main_go_main["main (function)"]:::func
     file_internal_graph_schema_go["schema.go (file)"]
     func_internal_graph_schema_go_Migrate["Migrate (function)"]:::func
     file_internal_bridge_prompt_factory_go["prompt_factory.go (file)"]
-    struct_internal_bridge_prompt_factory_go_ADR["ADR (struct)"]:::struct
-    struct_internal_bridge_prompt_factory_go_ContextNode["ContextNode (struct)"]:::struct
-    struct_internal_bridge_prompt_factory_go_PromptData["PromptData (struct)"]:::struct
-    struct_internal_bridge_prompt_factory_go_Factory["Factory (struct)"]:::struct
-    func_internal_bridge_prompt_factory_go_NewFactory["NewFactory (function)"]:::func
-    func_internal_bridge_prompt_factory_go_GenerateInstruction["GenerateInstruction (function)"]:::func
-    func_internal_bridge_prompt_factory_go_loadADRs["loadADRs (function)"]:::func
-    func_internal_bridge_prompt_factory_go_loadSurgicalContext["loadSurgicalContext (function)"]:::func
-    func_internal_bridge_prompt_factory_go_extractLines["extractLines (function)"]:::func
     file_internal_state_manager_go["manager.go (file)"]
     struct_internal_state_manager_go_Task["Task (struct)"]:::struct
     struct_internal_state_manager_go_Manager["Manager (struct)"]:::struct
@@ -47,6 +37,36 @@ graph TD
     func_internal_graph_visualizer_go_getNodes["getNodes (function)"]:::func
     func_internal_graph_visualizer_go_getEdges["getEdges (function)"]:::func
     func_internal_graph_visualizer_go_formatMermaid["formatMermaid (function)"]:::func
+    file_pkg_utils_text_go["text.go (file)"]
+    func_pkg_utils_text_go_SanitizeID["SanitizeID (function)"]:::func
+    file_pkg_utils_hash_go["hash.go (file)"]
+    func_pkg_utils_hash_go_CalculateHash["CalculateHash (function)"]:::func
+    file_cmd_sentinel_commands_audit_go["audit.go (file)"]
+    func_cmd_sentinel_commands_audit_go_init["init (function)"]:::func
+    file_cmd_sentinel_commands_start_go["start.go (file)"]
+    func_cmd_sentinel_commands_start_go_init["init (function)"]:::func
+    file_cmd_sentinel_commands_visualize_go["visualize.go (file)"]
+    func_cmd_sentinel_commands_visualize_go_init["init (function)"]:::func
+    file_cmd_sentinel_commands_plan_go["plan.go (file)"]
+    func_cmd_sentinel_commands_plan_go_init["init (function)"]:::func
+    func_cmd_sentinel_main_go_main["main (function)"]:::func
+    file_cmd_sentinel_commands_status_go["status.go (file)"]
+    func_cmd_sentinel_commands_status_go_init["init (function)"]:::func
+    file_cmd_sentinel_commands_instruct_go["instruct.go (file)"]
+    func_cmd_sentinel_commands_instruct_go_init["init (function)"]:::func
+    file_cmd_sentinel_commands_root_go["root.go (file)"]
+    func_cmd_sentinel_commands_root_go_Execute["Execute (function)"]:::func
+    file_cmd_sentinel_commands_scan_go["scan.go (file)"]
+    func_cmd_sentinel_commands_scan_go_init["init (function)"]:::func
+    struct_internal_bridge_prompt_factory_go_ADR["ADR (struct)"]:::struct
+    struct_internal_bridge_prompt_factory_go_ContextNode["ContextNode (struct)"]:::struct
+    struct_internal_bridge_prompt_factory_go_PromptData["PromptData (struct)"]:::struct
+    struct_internal_bridge_prompt_factory_go_Factory["Factory (struct)"]:::struct
+    func_internal_bridge_prompt_factory_go_NewFactory["NewFactory (function)"]:::func
+    func_internal_bridge_prompt_factory_go_GenerateInstruction["GenerateInstruction (function)"]:::func
+    func_internal_bridge_prompt_factory_go_loadADRs["loadADRs (function)"]:::func
+    func_internal_bridge_prompt_factory_go_loadSurgicalContext["loadSurgicalContext (function)"]:::func
+    func_internal_bridge_prompt_factory_go_extractLines["extractLines (function)"]:::func
     struct_internal_graph_scanner_go_go_GoScanner["GoScanner (struct)"]:::struct
     func_internal_graph_scanner_go_go_NewGoScanner["NewGoScanner (function)"]:::func
     struct_internal_graph_scanner_go_go_scanResult["scanResult (struct)"]:::struct
@@ -54,13 +74,9 @@ graph TD
     struct_internal_graph_scanner_go_go_edgeData["edgeData (struct)"]:::struct
     func_internal_graph_scanner_go_go_ScanProject["ScanProject (function)"]:::func
     func_internal_graph_scanner_go_go_scanFile["scanFile (function)"]:::func
-    func_internal_graph_scanner_go_go_upsertNode["upsertNode (function)"]:::func
-    func_internal_graph_scanner_go_go_createEdge["createEdge (function)"]:::func
+    func_internal_graph_scanner_go_go_upsertNodeTx["upsertNodeTx (function)"]:::func
+    func_internal_graph_scanner_go_go_createEdgeTx["createEdgeTx (function)"]:::func
     func_internal_graph_scanner_go_go_isIgnored["isIgnored (function)"]:::func
-    file_pkg_utils_text_go["text.go (file)"]
-    func_pkg_utils_text_go_SanitizeID["SanitizeID (function)"]:::func
-    file_pkg_utils_hash_go["hash.go (file)"]
-    func_pkg_utils_hash_go_CalculateHash["CalculateHash (function)"]:::func
     file_internal_audit_runner_go -->|contains| struct_internal_audit_runner_go_Runner
     file_internal_audit_runner_go -->|contains| func_internal_audit_runner_go_NewRunner
     file_internal_audit_runner_go -->|contains| func_internal_audit_runner_go_ExecuteAudit
@@ -99,14 +115,22 @@ graph TD
     file_internal_graph_scanner_go_go -->|contains| struct_internal_graph_scanner_go_go_edgeData
     file_internal_graph_scanner_go_go -->|contains| func_internal_graph_scanner_go_go_ScanProject
     file_internal_graph_scanner_go_go -->|contains| func_internal_graph_scanner_go_go_scanFile
-    file_internal_graph_scanner_go_go -->|contains| func_internal_graph_scanner_go_go_upsertNode
-    file_internal_graph_scanner_go_go -->|contains| func_internal_graph_scanner_go_go_createEdge
     file_internal_graph_scanner_go_go -->|contains| func_internal_graph_scanner_go_go_isIgnored
     file_pkg_sqlite_db_go -->|contains| struct_pkg_sqlite_db_go_DB
     file_pkg_sqlite_db_go -->|contains| func_pkg_sqlite_db_go_Init
     file_pkg_sqlite_db_go -->|contains| func_pkg_sqlite_db_go_Close
     file_pkg_utils_text_go -->|contains| func_pkg_utils_text_go_SanitizeID
     file_pkg_utils_hash_go -->|contains| func_pkg_utils_hash_go_CalculateHash
+    file_cmd_sentinel_commands_audit_go -->|contains| func_cmd_sentinel_commands_audit_go_init
+    file_cmd_sentinel_commands_start_go -->|contains| func_cmd_sentinel_commands_start_go_init
+    file_cmd_sentinel_commands_visualize_go -->|contains| func_cmd_sentinel_commands_visualize_go_init
+    file_cmd_sentinel_commands_plan_go -->|contains| func_cmd_sentinel_commands_plan_go_init
+    file_cmd_sentinel_commands_status_go -->|contains| func_cmd_sentinel_commands_status_go_init
+    file_cmd_sentinel_commands_instruct_go -->|contains| func_cmd_sentinel_commands_instruct_go_init
+    file_cmd_sentinel_commands_root_go -->|contains| func_cmd_sentinel_commands_root_go_Execute
+    file_cmd_sentinel_commands_scan_go -->|contains| func_cmd_sentinel_commands_scan_go_init
+    file_internal_graph_scanner_go_go -->|contains| func_internal_graph_scanner_go_go_upsertNodeTx
+    file_internal_graph_scanner_go_go -->|contains| func_internal_graph_scanner_go_go_createEdgeTx
 
     classDef struct fill:#f9f,stroke:#333,stroke-width:2px;
     classDef func fill:#bbf,stroke:#333,stroke-width:1px;

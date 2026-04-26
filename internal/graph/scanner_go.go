@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"database/sql"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -43,7 +44,7 @@ func (s *GoScanner) ScanProject(root string) error {
 	resultsChan := make(chan scanResult)
 	var wg sync.WaitGroup
 
-	// 1. Inicia o Worker Pool (Concorrência de CPU)
+	// 1. Inicia o Worker Pool
 	numWorkers := 8
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
@@ -56,7 +57,7 @@ func (s *GoScanner) ScanProject(root string) error {
 		}()
 	}
 
-	// 2. Inicia o Coletor (Escrita no DB serializada para segurança)
+	// 2. Inicia o Coletor (Escrita no DB serializada e Atômica)
 	var scanErr error
 	done := make(chan bool)
 	go func() {
@@ -66,25 +67,49 @@ func (s *GoScanner) ScanProject(root string) error {
 				continue
 			}
 			if len(res.nodes) == 0 {
-				continue // Nada mudou neste arquivo
+				continue // Nada mudou
 			}
 
-			// Se houver nós, o arquivo mudou. Limpamos os símbolos antigos dele.
-			// (Filtramos para não deletar outros arquivos acidentalmente)
+			tx, err := s.db.Conn.Begin()
+			if err != nil {
+				scanErr = fmt.Errorf("could not start transaction: %w", err)
+				continue
+			}
+
 			filePath := res.nodes[0].path
-			s.db.Conn.Exec("DELETE FROM nodes WHERE file_path = ? AND type != 'file'", filePath)
+			_, err = tx.Exec("DELETE FROM nodes WHERE file_path = ? AND type != 'file'", filePath)
+			if err != nil {
+				tx.Rollback()
+				scanErr = fmt.Errorf("failed to prune old symbols: %w", err)
+				continue
+			}
 
 			for _, n := range res.nodes {
-				s.upsertNode(n.id, n.name, n.nType, n.path, n.start, n.end, n.hash)
+				err = s.upsertNodeTx(tx, n.id, n.name, n.nType, n.path, n.start, n.end, n.hash)
+				if err != nil {
+					break
+				}
 			}
-			for _, e := range res.edges {
-				s.createEdge(e.from, e.to, e.rel)
+			if err == nil {
+				for _, e := range res.edges {
+					err = s.createEdgeTx(tx, e.from, e.to, e.rel)
+					if err != nil {
+						break
+					}
+				}
+			}
+
+			if err != nil {
+				tx.Rollback()
+				scanErr = fmt.Errorf("transaction failed for %s: %w", filePath, err)
+			} else {
+				tx.Commit()
 			}
 		}
 		done <- true
 	}()
 
-	// 3. Varre os arquivos (File System Walk)
+	// 3. Varre os arquivos
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || filepath.Ext(path) != ".go" || isIgnored(path) {
 			return nil
@@ -110,17 +135,13 @@ func (s *GoScanner) scanFile(fset *token.FileSet, path string) scanResult {
 		return scanResult{err: fmt.Errorf("hash calculation failed: %w", err)}
 	}
 
-	// 1. Verifica se o hash já existe no banco
 	var existingHash string
 	fileID := "file:" + path
 	err = s.db.Conn.QueryRow("SELECT hash FROM nodes WHERE id = ?", fileID).Scan(&existingHash)
-	
 	if err == nil && existingHash == hash {
-		// O arquivo não mudou, podemos pular o parsing do AST
 		return scanResult{} 
 	}
 
-	// 2. Se mudou (ou é novo), executa o parsing
 	f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 	if err != nil {
 		return scanResult{err: fmt.Errorf("could not parse file %s: %w", path, err)}
@@ -153,7 +174,7 @@ func (s *GoScanner) scanFile(fset *token.FileSet, path string) scanResult {
 	return res
 }
 
-func (s *GoScanner) upsertNode(id, name, nType, path string, start, end int, hash string) error {
+func (s *GoScanner) upsertNodeTx(tx *sql.Tx, id, name, nType, path string, start, end int, hash string) error {
 	query := `
 	INSERT INTO nodes (id, name, type, file_path, start_line, end_line, hash)
 	VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -165,13 +186,13 @@ func (s *GoScanner) upsertNode(id, name, nType, path string, start, end int, has
 		hash=excluded.hash,
 		last_indexed=CURRENT_TIMESTAMP
 	`
-	_, err := s.db.Conn.Exec(query, id, name, nType, path, start, end, hash)
+	_, err := tx.Exec(query, id, name, nType, path, start, end, hash)
 	return err
 }
 
-func (s *GoScanner) createEdge(from, to, rel string) error {
+func (s *GoScanner) createEdgeTx(tx *sql.Tx, from, to, rel string) error {
 	query := `INSERT OR IGNORE INTO edges (from_node_id, to_node_id, relation_type) VALUES (?, ?, ?)`
-	_, err := s.db.Conn.Exec(query, from, to, rel)
+	_, err := tx.Exec(query, from, to, rel)
 	return err
 }
 
