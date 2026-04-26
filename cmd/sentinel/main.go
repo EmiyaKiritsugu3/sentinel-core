@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/audit"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/bridge"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/state"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
@@ -81,6 +82,20 @@ func main() {
 				log.Fatalf("❌ Failed to start task: %v", err)
 			}
 			fmt.Printf("🚀 Task [%s] is now IN_PROGRESS.\n", args[0])
+		},
+	})
+
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "instruct [task_id]",
+		Short: "Generate the sovereign instruction prompt for an AI agent",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			f := bridge.NewFactory(db)
+			prompt, err := f.GenerateInstruction(args[0])
+			if err != nil {
+				log.Fatalf("❌ Failed to generate instruction: %v", err)
+			}
+			fmt.Println(prompt)
 		},
 	})
 
