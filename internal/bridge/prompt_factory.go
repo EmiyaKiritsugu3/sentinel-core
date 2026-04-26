@@ -25,6 +25,9 @@ const promptTemplate = `
 {{.Content}}
 {{end}}
 
+## 💎 ENGINEERING STANDARDS (MANDATORY)
+{{.Standards}}
+
 ## 🕸️ SURGICAL CONTEXT (AST NODES)
 {{range .ContextNodes}}
 ---
@@ -64,6 +67,7 @@ type ContextNode struct {
 type PromptData struct {
 	Task                *state.Task
 	ADRs                []ADR
+	Standards           string
 	ContextNodes        []ContextNode
 	VerificationCommand string
 }
@@ -87,12 +91,16 @@ func (f *Factory) GenerateInstruction(taskID string) (string, error) {
 	// 1. Coleta ADRs relevantes
 	adrs, _ := f.loadADRs()
 
-	// 2. Coleta Contexto Cirúrgico
+	// 2. Coleta Standards de Elite (O Motor de Aprendizado)
+	standards, _ := os.ReadFile("docs/process/ENGINEERING-STANDARDS.md")
+
+	// 3. Coleta Contexto Cirúrgico
 	nodes, _ := f.loadSurgicalContext(taskID)
 
 	data := PromptData{
 		Task:                task,
 		ADRs:                adrs,
+		Standards:           string(standards),
 		ContextNodes:        nodes,
 		VerificationCommand: verifyCmd,
 	}
@@ -127,7 +135,6 @@ func (f *Factory) loadSurgicalContext(taskID string) ([]ContextNode, error) {
 			continue
 		}
 
-		// Extração Real do Código com buffers otimizados
 		snippet, err := extractLines(n.FilePath, n.StartLine, n.EndLine)
 		if err == nil {
 			n.CodeSnippet = snippet
