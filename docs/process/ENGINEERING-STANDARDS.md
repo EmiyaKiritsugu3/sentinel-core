@@ -33,7 +33,11 @@ Este documento define os padrões técnicos inegociáveis do Sentinel Core. Toda
 
 *   **Standard #13 (Verify, Never Assume)**: É PROIBIDO realizar afirmações de sucesso ou conclusão sem evidência física verificável. Toda resposta de "OK" deve vir acompanhada de um Log, Exit Code ou Prova de Estado.
 
-*   **Standard #14 (Just-In-Time Documentation)**: A documentação (sentinel-log, evolution-insights, ADRs) deve ser atualizada OBRIGATORIAMENTE ao final de cada tarefa individual, e não apenas ao final de sprints ou sessões. Nenhuma tarefa é considerada concluída enquanto sua pegada intelectual não estiver persistida no repositório.
+*   **Standard #14 (Proportional Documentation)**: A documentação deve ser atualizada de forma proporcional ao impacto da tarefa (Tiers):
+    - **T1 (Trivial)**: Documentação opcional. O commit semântico é evidência suficiente.
+    - **T2 (Feature)**: Atualização obrigatória do `sentinel-log.md`.
+    - **T3 (Arquitetura)**: Atualização obrigatória de Logs, Evolution Insights e ADRs.
+    Nenhuma mudança estrutural pode ser selada sem o registro de sua pegada intelectual.
 
 ---
 *Última Atualização: 2026-04-26*

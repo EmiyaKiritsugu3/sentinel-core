@@ -45,8 +45,8 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
   5. Use CodeRabbit (or similar) to audit every PR before finalizing.
 
 - **🛡️ PROTOCOLO DE EPIFANIA (Sessão de Reflexão)**:
-  1. **BLOQUEIO CRÍTICO**: Toda tarefa individual DEVE atualizar a documentação pertinente (logs, insights, standards) IMEDIATAMENTE após a conclusão técnica e antes de iniciar a próxima.
-  2. **DELTA CHECK**: O agente deve comparar o estado intelectual inicial com o final de cada tarefa e registrar cada "salto de consciência" em `docs/process/EVOLUTION-INSIGHTS.md`.
+  1. **RIGOR PROPORCIONAL**: A atualização de documentação deve seguir os Tiers do Standard #14. Tarefas Trivial (T1) não exigem logs. Mudanças de arquitetura (T3) exigem auditoria completa.
+  2. **DELTA CHECK**: O agente deve registrar insights significativos em `docs/process/EVOLUTION-INSIGHTS.md` sempre que uma nova "lição universal" for aprendida.
   3. O `sentinel-log.md` deve ser atualizado com a síntese das decisões tomadas.
   4. **OBRIGATÓRIO**: Toda entrega final deve conter o **Sovereign Audit Framework (Standard #08)**.
 
