@@ -3,6 +3,7 @@ package audit
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"time"
@@ -23,7 +24,6 @@ func NewRunner(db *sqlite.DB) *Runner {
 func (r *Runner) ExecuteAudit(taskID string, command string) (bool, error) {
 	fmt.Printf("🛡️ Sentinel: Auditing Task [%s]...\n", taskID)
 
-	// 1. Safe Parsing: Remove dependência de shell e evita injeção
 	args, err := shlex.Split(command)
 	if err != nil {
 		return false, fmt.Errorf("audit: failed to parse command: %w", err)
@@ -34,11 +34,9 @@ func (r *Runner) ExecuteAudit(taskID string, command string) (bool, error) {
 
 	fmt.Printf("Executing: %v (Timeout: 30s)\n", args)
 
-	// Cria contexto com timeout de 30 segundos
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// 2. Invocação Direta: Sem wrapper de shell
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -49,22 +47,25 @@ func (r *Runner) ExecuteAudit(taskID string, command string) (bool, error) {
 	success := true
 
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			fmt.Println("🛑 ERROR: Audit Timeout Exceeded.")
 			exitCode = 124 
-		} else if exitError, ok := err.(*exec.ExitError); ok {
-			exitCode = exitError.ExitCode()
 		} else {
-			exitCode = 1
+			// Uso do errors.As para detecção robusta de erro de saída
+			var exitError *exec.ExitError
+			if errors.As(err, &exitError) {
+				exitCode = exitError.ExitCode()
+			} else {
+				exitCode = 1
+			}
 		}
 		success = false
 	}
 
-	// 3. Registro de Auditoria
 	logQuery := `INSERT INTO audit_logs (task_id, command, output, exit_code) VALUES (?, ?, ?, ?)`
 	_, dbErr := r.db.Conn.Exec(logQuery, taskID, command, out.String(), exitCode)
 	if dbErr != nil {
-		return false, fmt.Errorf("audit: failed to save log: %w", dbErr)
+		return false, fmt.Errorf("audit: failed to save log for task %s: %w", taskID, dbErr)
 	}
 
 	if success {

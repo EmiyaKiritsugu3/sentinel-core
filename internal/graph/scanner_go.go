@@ -67,12 +67,12 @@ func (s *GoScanner) ScanProject(root string) error {
 				continue
 			}
 			if len(res.nodes) == 0 {
-				continue // Nada mudou
+				continue
 			}
 
 			tx, err := s.db.Conn.Begin()
 			if err != nil {
-				scanErr = fmt.Errorf("could not start transaction: %w", err)
+				scanErr = fmt.Errorf("scan: could not start transaction: %w", err)
 				continue
 			}
 
@@ -80,7 +80,7 @@ func (s *GoScanner) ScanProject(root string) error {
 			_, err = tx.Exec("DELETE FROM nodes WHERE file_path = ? AND type != 'file'", filePath)
 			if err != nil {
 				tx.Rollback()
-				scanErr = fmt.Errorf("failed to prune old symbols: %w", err)
+				scanErr = fmt.Errorf("scan: failed to prune old symbols in %s: %w", filePath, err)
 				continue
 			}
 
@@ -101,7 +101,7 @@ func (s *GoScanner) ScanProject(root string) error {
 
 			if err != nil {
 				tx.Rollback()
-				scanErr = fmt.Errorf("transaction failed for %s: %w", filePath, err)
+				scanErr = fmt.Errorf("scan: transaction failed for %s: %w", filePath, err)
 			} else {
 				tx.Commit()
 			}
@@ -124,7 +124,7 @@ func (s *GoScanner) ScanProject(root string) error {
 	<-done
 
 	if err != nil {
-		return fmt.Errorf("walk failed: %w", err)
+		return fmt.Errorf("scan: walk failed: %w", err)
 	}
 	return scanErr
 }
@@ -132,7 +132,7 @@ func (s *GoScanner) ScanProject(root string) error {
 func (s *GoScanner) scanFile(fset *token.FileSet, path string) scanResult {
 	hash, err := utils.CalculateHash(path)
 	if err != nil {
-		return scanResult{err: fmt.Errorf("hash calculation failed: %w", err)}
+		return scanResult{err: fmt.Errorf("scan: hash failed for %s: %w", path, err)}
 	}
 
 	var existingHash string
@@ -144,7 +144,7 @@ func (s *GoScanner) scanFile(fset *token.FileSet, path string) scanResult {
 
 	f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 	if err != nil {
-		return scanResult{err: fmt.Errorf("could not parse file %s: %w", path, err)}
+		return scanResult{err: fmt.Errorf("scan: parse error in %s: %w", path, err)}
 	}
 
 	res := scanResult{}
@@ -153,7 +153,17 @@ func (s *GoScanner) scanFile(fset *token.FileSet, path string) scanResult {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch x := n.(type) {
 		case *ast.FuncDecl:
-			funcID := fmt.Sprintf("func:%s:%s", path, x.Name.Name)
+			// Corrigindo Bug de Colisão de ID: Adicionando o Receiver (se existir)
+			receiver := ""
+			if x.Recv != nil && len(x.Recv.List) > 0 {
+				if t, ok := x.Recv.List[0].Type.(*ast.StarExpr); ok {
+					receiver = fmt.Sprintf("%s.", t.X)
+				} else if t, ok := x.Recv.List[0].Type.(*ast.Ident); ok {
+					receiver = fmt.Sprintf("%s.", t.Name)
+				}
+			}
+			
+			funcID := fmt.Sprintf("func:%s:%s%s", path, receiver, x.Name.Name)
 			start := fset.Position(x.Pos()).Line
 			end := fset.Position(x.End()).Line
 			res.nodes = append(res.nodes, nodeData{id: funcID, name: x.Name.Name, nType: "function", path: path, start: start, end: end})
@@ -187,13 +197,19 @@ func (s *GoScanner) upsertNodeTx(tx *sql.Tx, id, name, nType, path string, start
 		last_indexed=CURRENT_TIMESTAMP
 	`
 	_, err := tx.Exec(query, id, name, nType, path, start, end, hash)
-	return err
+	if err != nil {
+		return fmt.Errorf("db: upsert failed for %s: %w", id, err)
+	}
+	return nil
 }
 
 func (s *GoScanner) createEdgeTx(tx *sql.Tx, from, to, rel string) error {
 	query := `INSERT OR IGNORE INTO edges (from_node_id, to_node_id, relation_type) VALUES (?, ?, ?)`
 	_, err := tx.Exec(query, from, to, rel)
-	return err
+	if err != nil {
+		return fmt.Errorf("db: edge creation failed: %w", err)
+	}
+	return nil
 }
 
 func isIgnored(path string) bool {
