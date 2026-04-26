@@ -85,46 +85,62 @@ func (f *Factory) GenerateInstruction(taskID string) (string, error) {
 	mgr := state.NewManager(f.db)
 	task, verifyCmd, err := mgr.GetTaskByID(taskID)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("bridge: failed to get task %s: %w", taskID, err)
 	}
 
 	// 1. Coleta ADRs relevantes
-	adrs, _ := f.loadADRs()
+	adrs, err := f.loadADRs()
+	if err != nil {
+		return "", fmt.Errorf("bridge: failed to load ADRs: %w", err)
+	}
 
 	// 2. Coleta Standards de Elite (O Motor de Aprendizado)
-	standards, _ := os.ReadFile("docs/process/ENGINEERING-STANDARDS.md")
+	// Standard #01: Buffered Read via extractLines
+	standards, err := extractLines("docs/process/ENGINEERING-STANDARDS.md", 1, 100)
+	if err != nil {
+		return "", fmt.Errorf("bridge: failed to load standards: %w", err)
+	}
 
 	// 3. Coleta Contexto Cirúrgico
-	nodes, _ := f.loadSurgicalContext(taskID)
+	nodes, err := f.loadSurgicalContext(taskID)
+	if err != nil {
+		return "", fmt.Errorf("bridge: failed to load surgical context: %w", err)
+	}
 
 	data := PromptData{
 		Task:                task,
 		ADRs:                adrs,
-		Standards:           string(standards),
+		Standards:           standards,
 		ContextNodes:        nodes,
 		VerificationCommand: verifyCmd,
 	}
 
 	tmpl, err := template.New("prompt").Parse(promptTemplate)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("bridge: template parse error: %w", err)
 	}
 
 	var out strings.Builder
-	err = tmpl.Execute(&out, data)
-	return out.String(), err
+	if err := tmpl.Execute(&out, data); err != nil {
+		return "", fmt.Errorf("bridge: template execution error: %w", err)
+	}
+	return out.String(), nil
 }
 
 func (f *Factory) loadADRs() ([]ADR, error) {
 	path := "docs/architecture/SENTINEL-SYSTEM-DESIGN.md"
-	content, _ := os.ReadFile(path)
-	return []ADR{{Title: "System Design", Content: string(content)}}, nil
+	// Standard #01: Buffered Read via extractLines
+	content, err := extractLines(path, 1, 500)
+	if err != nil {
+		return nil, fmt.Errorf("bridge: failed to read ADR file: %w", err)
+	}
+	return []ADR{{Title: "System Design", Content: content}}, nil
 }
 
 func (f *Factory) loadSurgicalContext(taskID string) ([]ContextNode, error) {
 	rows, err := f.db.Conn.Query("SELECT name, type, file_path, start_line, end_line FROM nodes WHERE type IN ('struct', 'function') LIMIT 10")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bridge: db query error: %w", err)
 	}
 	defer rows.Close()
 
@@ -148,19 +164,21 @@ func (f *Factory) loadSurgicalContext(taskID string) ([]ContextNode, error) {
 
 func extractLines(path string, start, end int) (string, error) {
 	if start <= 0 || end <= 0 {
-		return "", fmt.Errorf("invalid line range")
+		return "", fmt.Errorf("extract: invalid line range %d-%d", start, end)
 	}
 
 	file, err := os.Open(path)
 	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
+		return "", fmt.Errorf("extract: failed to open %s: %w", path, err)
 	}
 	defer file.Close()
 
 	var result []string
 	scanner := bufio.NewScanner(file)
-	currentLine := 1
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
 
+	currentLine := 1
 	for scanner.Scan() {
 		if currentLine >= start && currentLine <= end {
 			result = append(result, scanner.Text())
@@ -172,7 +190,7 @@ func extractLines(path string, start, end int) (string, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("error reading lines: %w", err)
+		return "", fmt.Errorf("extract: error scanning %s: %w", path, err)
 	}
 
 	return strings.Join(result, "\n"), nil

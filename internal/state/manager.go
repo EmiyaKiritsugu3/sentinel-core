@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/google/uuid"
 )
@@ -26,7 +27,7 @@ func (m *Manager) CreateTask(description string, tier string, verificationCmd st
 	query := `INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)`
 	_, err := m.db.Conn.Exec(query, id, description, "PENDING", tier, verificationCmd)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("state: failed to create task: %w", err)
 	}
 	return id, nil
 }
@@ -35,7 +36,10 @@ func (m *Manager) CreateTask(description string, tier string, verificationCmd st
 func (m *Manager) StartTask(id string) error {
 	query := `UPDATE tasks SET status = 'IN_PROGRESS', updated_at = CURRENT_TIMESTAMP WHERE id = ?`
 	_, err := m.db.Conn.Exec(query, id)
-	return err
+	if err != nil {
+		return fmt.Errorf("state: failed to start task %s: %w", id, err)
+	}
+	return nil
 }
 
 // GetTaskByID busca uma tarefa específica
@@ -45,18 +49,19 @@ func (m *Manager) GetTaskByID(id string) (*Task, string, error) {
 	var cmd string
 	err := m.db.Conn.QueryRow(query, id).Scan(&t.ID, &t.Description, &t.Status, &t.Tier, &cmd)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("state: task %s not found: %w", id, err)
 	}
 	return &t, cmd, nil
 }
 
-// UpdateStatus muda o estado da tarefa garantindo que não se pule etapas
+// UpdateStatus muda o estado da tarefa
 func (m *Manager) UpdateStatus(id string, nextStatus string) error {
-	// Aqui poderíamos adicionar a lógica de "Gate": 
-	// Só pode ir para DONE se o Audit_Runner der OK.
 	query := `UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
 	_, err := m.db.Conn.Exec(query, nextStatus, id)
-	return err
+	if err != nil {
+		return fmt.Errorf("state: failed to update status of task %s to %s: %w", id, nextStatus, err)
+	}
+	return nil
 }
 
 // GetActiveTask retorna a tarefa que está em progresso
@@ -65,7 +70,7 @@ func (m *Manager) GetActiveTask() (*Task, error) {
 	var t Task
 	err := m.db.Conn.QueryRow(query).Scan(&t.ID, &t.Description, &t.Status, &t.Tier)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("state: no active task: %w", err)
 	}
 	return &t, nil
 }

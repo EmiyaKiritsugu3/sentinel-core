@@ -22,11 +22,11 @@ func NewVisualizer(db *sqlite.DB) *Visualizer {
 func (v *Visualizer) GenerateMasterDiagram() error {
 	nodes, err := v.getNodes("")
 	if err != nil {
-		return err
+		return fmt.Errorf("viz: failed to fetch master nodes: %w", err)
 	}
 	edges, err := v.getEdges()
 	if err != nil {
-		return err
+		return fmt.Errorf("viz: failed to fetch master edges: %w", err)
 	}
 
 	content := "# Project Master Architecture [PID-SENTINEL]\n\n"
@@ -36,19 +36,30 @@ func (v *Visualizer) GenerateMasterDiagram() error {
 	content += "```\n"
 
 	path := "docs/architecture/MASTER-GRAPH.md"
-	os.MkdirAll(filepath.Dir(path), 0755)
-	return os.WriteFile(path, []byte(content), 0644)
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("viz: failed to create architecture dir: %w", err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return fmt.Errorf("viz: failed to write master graph: %w", err)
+	}
+	return nil
 }
 
 // GenerateTaskSnapshot gera um diagrama focado nos nós impactados por uma tarefa
 func (v *Visualizer) GenerateTaskSnapshot(taskID, description string, impactFiles []string) error {
 	var nodes []Node
 	for _, file := range impactFiles {
-		fileNodes, _ := v.getNodes(file)
+		fileNodes, err := v.getNodes(file)
+		if err != nil {
+			return fmt.Errorf("viz: failed to fetch nodes for file %s: %w", file, err)
+		}
 		nodes = append(nodes, fileNodes...)
 	}
 	
-	edges, _ := v.getEdges()
+	edges, err := v.getEdges()
+	if err != nil {
+		return fmt.Errorf("viz: failed to fetch snapshot edges: %w", err)
+	}
 
 	content := fmt.Sprintf("# Task Snapshot: %s [PID-SENTINEL]\n\n", taskID)
 	content += fmt.Sprintf("## Goal: %s\n\n", description)
@@ -57,8 +68,13 @@ func (v *Visualizer) GenerateTaskSnapshot(taskID, description string, impactFile
 	content += "```\n"
 
 	path := fmt.Sprintf("docs/architecture/tasks/%s-GRAPH.md", taskID)
-	os.MkdirAll(filepath.Dir(path), 0755)
-	return os.WriteFile(path, []byte(content), 0644)
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("viz: failed to create task dir: %w", err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return fmt.Errorf("viz: failed to write task snapshot: %w", err)
+	}
+	return nil
 }
 
 type Node struct {
@@ -83,7 +99,7 @@ func (v *Visualizer) getNodes(filterFile string) ([]Node, error) {
 
 	rows, err := v.db.Conn.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("viz: db query error (nodes): %w", err)
 	}
 	defer rows.Close()
 
@@ -91,7 +107,7 @@ func (v *Visualizer) getNodes(filterFile string) ([]Node, error) {
 	for rows.Next() {
 		var n Node
 		if err := rows.Scan(&n.ID, &n.Name, &n.Type); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("viz: row scan error (node): %w", err)
 		}
 		nodes = append(nodes, n)
 	}
@@ -101,7 +117,7 @@ func (v *Visualizer) getNodes(filterFile string) ([]Node, error) {
 func (v *Visualizer) getEdges() ([]Edge, error) {
 	rows, err := v.db.Conn.Query("SELECT from_node_id, to_node_id, relation_type FROM edges")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("viz: db query error (edges): %w", err)
 	}
 	defer rows.Close()
 
@@ -109,7 +125,7 @@ func (v *Visualizer) getEdges() ([]Edge, error) {
 	for rows.Next() {
 		var e Edge
 		if err := rows.Scan(&e.From, &e.To, &e.Rel); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("viz: row scan error (edge): %w", err)
 		}
 		edges = append(edges, e)
 	}
