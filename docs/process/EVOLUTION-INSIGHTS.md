@@ -5,6 +5,8 @@ Este documento registra as fissuras estruturais e ideias de vanguarda descoberta
 ## 🔍 Gaps Estruturais (Technical Debt)
 - [x] **String Sanitization Leak**: Centralizado em `pkg/utils/text.go`.
 - [x] **Full-Scan Bottleneck**: Implementado Scan Incremental via hashes SHA256.
+- [x] **Context Continuity**: Implementado o **Sovereign Handover Protocol** para trocas de sessão.
+- [x] **Evidence Enforcement**: Institucionalizado o **Standard #13 (Verify, Never Assume)**.
 - [ ] **Task Metadata Anemia**: A struct de Tarefa no `internal/state` carece de contexto sobre o ambiente de execução e logs de erro passados.
 - [ ] **Dependency Injection**: Comandos CLI utilizam a global `DBInstance`. Refatorar para injeção de dependência via construtores para viabilizar testes unitários.
 - [ ] **Cascading Pruning**: O scan atual não limpa arestas de arquivos que foram deletados (apenas modificados).
