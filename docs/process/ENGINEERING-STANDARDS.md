@@ -31,9 +31,9 @@ Este documento define os padrões técnicos inegociáveis do Sentinel Core. Toda
     4. 💡 **The Lesson**: O aprendizado universal ou novo padrão extraído.
     5. 🚀 **The Next**: O próximo passo de otimização ou evolução arquitetural.
 
-*   **Standard #13 (Verify, Never Assume)**: É PROIBIDO realizar afirmações de sucesso ou conclusão sem evidência física verificável. 
-    - Toda resposta de "OK" deve vir acompanhada de um Log, Exit Code ou Prova de Estado. 
-    - O uso de termos como "deve funcionar", "parece correto" ou "provavelmente" é sinal de falha no rigor técnico.
+*   **Standard #13 (Verify, Never Assume)**: É PROIBIDO realizar afirmações de sucesso ou conclusão sem evidência física verificável. Toda resposta de "OK" deve vir acompanhada de um Log, Exit Code ou Prova de Estado.
+
+*   **Standard #14 (Just-In-Time Documentation)**: A documentação (sentinel-log, evolution-insights, ADRs) deve ser atualizada OBRIGATORIAMENTE ao final de cada tarefa individual, e não apenas ao final de sprints ou sessões. Nenhuma tarefa é considerada concluída enquanto sua pegada intelectual não estiver persistida no repositório.
 
 ---
 *Última Atualização: 2026-04-26*
