@@ -29,6 +29,15 @@ func Init() (*DB, error) {
 		return nil, fmt.Errorf("could not open sqlite db: %w", err)
 	}
 
+	// 1. Habilita o modo WAL para permitir leitura simultânea com escrita
+	_, err = db.Exec("PRAGMA journal_mode=WAL;")
+	if err != nil {
+		return nil, fmt.Errorf("failed to enable WAL mode: %w", err)
+	}
+
+	// 2. Configura os limites do Pool para evitar contenção no SQLite
+	db.SetMaxOpenConns(1) // SQLite é single-writer, garantimos 1 conexão para escrita atômica
+
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("could not ping sqlite db: %w", err)
 	}
