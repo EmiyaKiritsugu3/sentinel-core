@@ -17,5 +17,13 @@ Este documento define os padrões técnicos inegociáveis do Sentinel Core. Toda
 ## 🚀 CLI & UX
 *   **Standard #07 (Command Isolation)**: A lógica de execução dos comandos não deve residir no `main.go`. Cada comando deve ter seu próprio arquivo no pacote `internal/commands` ou `cmd/sentinel/commands`.
 
+## 🏛️ Continuous Learning & Self-Correction
+*   **Standard #08 (The Sovereign Audit Framework)**: É MANDATÓRIO que toda conclusão de tarefa ou sprint seja acompanhada de um Relatório de Auditoria de 5 pontos:
+    1. ✨ **The Good**: Vitórias técnicas e o que agora é sólido.
+    2. ⚠️ **The Bad**: Dívidas técnicas ou hacks aceitos conscientemente.
+    3. 💥 **The Ugly**: Fragilidades, riscos e inconsistências detectadas.
+    4. 💡 **The Lesson**: O aprendizado universal ou novo padrão extraído.
+    5. 🚀 **The Next**: O próximo passo de otimização ou evolução arquitetural.
+
 ---
 *Última Atualização: 2026-04-26*

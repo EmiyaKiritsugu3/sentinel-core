@@ -48,6 +48,7 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
   1. Toda conclusão de tarefa ou sprint DEVE ser precedida por uma auditoria de "Gaps Estruturais".
   2. Novos insights, dívidas técnicas ou padrões obsoletos descobertos devem ser registrados em `docs/process/EVOLUTION-INSIGHTS.md`.
   3. O `sentinel-log.md` deve ser atualizado com a síntese das decisões tomadas.
+  4. **OBRIGATÓRIO**: Toda entrega final deve conter o **Sovereign Audit Framework (Standard #08)** com os 5 pontos: The Good, The Bad, The Ugly, The Lesson, The Next.
 
 
 ## graphify

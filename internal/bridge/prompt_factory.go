@@ -42,6 +42,14 @@ const promptTemplate = `
 3. **Traceability**: All logic must align with the ADRs provided above.
 4. **No Devanios**: Do not refactor unrelated code. Do not add undocumented features.
 
+## 🏁 OUTPUT FORMAT (MANDATORY)
+Your response must conclude with a **Sovereign Audit Report** (Standard #08) using exactly these 5 points:
+1. ✨ **The Good**: (What is now solid)
+2. ⚠️ **The Bad**: (Technical debt introduced)
+3. 💥 **The Ugly**: (Risks and fragilities)
+4. 💡 **The Lesson**: (What was learned/standardized)
+5. 🚀 **The Next**: (Next optimization)
+
 ## 🏁 VERIFICATION GATE
 Upon completion, I will execute: 
 ` + "`{{.VerificationCommand}}`" + `
