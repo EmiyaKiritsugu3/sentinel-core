@@ -50,6 +50,11 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
   3. O `sentinel-log.md` deve ser atualizado com a síntese das decisões tomadas.
   4. **OBRIGATÓRIO**: Toda entrega final deve conter o **Sovereign Audit Framework (Standard #08)** com os 5 pontos: The Good, The Bad, The Ugly, The Lesson, The Next.
 
+- **🏁 PROTOCOLO DE ENCERRAMENTO (Sovereign Handover)**:
+  1. Antes de fechar uma sessão, o agente deve gerar um **Handover Packet** no `sentinel-log.md`.
+  2. O pacote deve conter o *Current Vector*, *Technical Snag* e o *First Command* para o próximo agente.
+  3. Limpar arquivos de planos concluídos para evitar poluição de contexto futuro.
+
 
 ## graphify
 
