@@ -12,6 +12,7 @@ Este documento registra as fissuras estruturais e ideias de vanguarda descoberta
 - **Modo Entrevista**: Iniciar o Sentinel em pastas vazias com perguntas de produto para o usuário leigo.
 - **WebSocket Live View**: Servidor em Go para atualizar diagramas no browser em tempo real (Fase 5).
 - **Atomic Commits**: O comando `sentinel audit` deve executar o git commit automaticamente após o sucesso.
+- **Integrated Linter**: O comando `sentinel audit` deve rodar o `golangci-lint` (ou similar) internamente para automatizar as mesmas checagens de vanguarda que o CodeRabbit realiza.
 
 ---
 *Última Auditoria de Gaps: 2026-04-26*
