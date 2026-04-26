@@ -9,15 +9,21 @@ Este documento define os padrões técnicos inegociáveis do Sentinel Core. Toda
 ## 🗄️ Database & Consistency
 *   **Standard #03 (Atomic Transactions)**: Toda operação de escrita que envolva mais de um comando SQL ou que impacte o estado de um arquivo deve ser envolvida em uma transação (`db.BeginTx`).
 *   **Standard #04 (WAL Mode)**: O SQLite deve operar sempre em modo WAL para permitir alta concorrência entre workers de scan e leituras da UI.
-
 ## 🛡️ Error Governance
 *   **Standard #05 (Error Wrapping)**: Erros devem ser retornados com contexto utilizando `fmt.Errorf("contexto: %w", err)`. Nunca silencie erros com `_` a menos que seja um descarte intencional e documentado.
 *   **Standard #06 (Fail-Fast)**: Em operações concorrentes, utilize `errgroup` ou monitoramento de canais para interromper a execução imediatamente após a primeira falha crítica.
 
 ## 🚀 CLI & UX
 *   **Standard #07 (Command Isolation)**: A lógica de execução dos comandos não deve residir no `main.go`. Cada comando deve ter seu próprio arquivo no pacote `internal/commands` ou `cmd/sentinel/commands`.
+*   **Standard #09 (Clean Shutdown)**: Nunca use `log.Fatalf` ou `os.Exit` dentro de subcomandos. Use `RunE` para retornar o erro ao `Execute()` do Cobra, garantindo que os `PersistentPostRun` e `defers` de limpeza de banco sejam executados.
+
+## 🔒 Security & Portability
+*   **Standard #10 (Shell-Less Execution)**: Evite `exec.Command("sh", "-c", ...)`. Use parsers de argumentos (como `shlex`) para invocar binários diretamente. Isso previne Command Injection e garante compatibilidade cross-platform (Windows/Linux).
+*   **Standard #11 (Explicit DB State)**: Nunca assuma o estado padrão do SQLite. Toda conexão deve explicitamente ativar `PRAGMA foreign_keys = ON` e configurar `busy_timeout` para evitar bloqueios em ambiente concorrente.
 
 ## 🏛️ Continuous Learning & Self-Correction
+...
+
 *   **Standard #08 (The Sovereign Audit Framework)**: É MANDATÓRIO que toda conclusão de tarefa ou sprint seja acompanhada de um Relatório de Auditoria de 5 pontos:
     1. ✨ **The Good**: Vitórias técnicas e o que agora é sólido.
     2. ⚠️ **The Bad**: Dívidas técnicas ou hacks aceitos conscientemente.
