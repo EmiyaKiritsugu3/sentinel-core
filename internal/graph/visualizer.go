@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
+	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/utils"
 )
 
 type Visualizer struct {
@@ -41,14 +42,13 @@ func (v *Visualizer) GenerateMasterDiagram() error {
 
 // GenerateTaskSnapshot gera um diagrama focado nos nós impactados por uma tarefa
 func (v *Visualizer) GenerateTaskSnapshot(taskID, description string, impactFiles []string) error {
-	// Filtra nós que pertencem aos arquivos impactados
 	var nodes []Node
 	for _, file := range impactFiles {
 		fileNodes, _ := v.getNodes(file)
 		nodes = append(nodes, fileNodes...)
 	}
 	
-	edges, _ := v.getEdges() // Por simplicidade no MVP, pegamos todas e formatMermaid filtrará
+	edges, _ := v.getEdges()
 
 	content := fmt.Sprintf("# Task Snapshot: %s [PID-SENTINEL]\n\n", taskID)
 	content += fmt.Sprintf("## Goal: %s\n\n", description)
@@ -129,16 +129,14 @@ func (v *Visualizer) formatMermaid(nodes []Node, edges []Edge) string {
 			style = ":::func"
 		}
 		
-		// Sanitiza ID para Mermaid (troca / e : por _)
-		safeID := strings.NewReplacer(":", "_", "/", "_", ".", "_", "-", "_").Replace(n.ID)
+		safeID := utils.SanitizeID(n.ID)
 		sb.WriteString(fmt.Sprintf("    %s[\"%s (%s)\"]%s\n", safeID, n.Name, n.Type, style))
 	}
 
 	for _, e := range edges {
-		safeFrom := strings.NewReplacer(":", "_", "/", "_", ".", "_", "-", "_").Replace(e.From)
-		safeTo := strings.NewReplacer(":", "_", "/", "_", ".", "_", "-", "_").Replace(e.To)
+		safeFrom := utils.SanitizeID(e.From)
+		safeTo := utils.SanitizeID(e.To)
 		
-		// Só desenha a aresta se ambos os nós estiverem no set filtrado
 		if nodeMap[e.From] && nodeMap[e.To] {
 			sb.WriteString(fmt.Sprintf("    %s -->|%s| %s\n", safeFrom, e.Rel, safeTo))
 		}

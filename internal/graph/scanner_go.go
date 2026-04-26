@@ -1,17 +1,16 @@
 package graph
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
+	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/utils"
 )
 
 type GoScanner struct {
@@ -66,6 +65,15 @@ func (s *GoScanner) ScanProject(root string) error {
 				scanErr = res.err
 				continue
 			}
+			if len(res.nodes) == 0 {
+				continue // Nada mudou neste arquivo
+			}
+
+			// Se houver nós, o arquivo mudou. Limpamos os símbolos antigos dele.
+			// (Filtramos para não deletar outros arquivos acidentalmente)
+			filePath := res.nodes[0].path
+			s.db.Conn.Exec("DELETE FROM nodes WHERE file_path = ? AND type != 'file'", filePath)
+
 			for _, n := range res.nodes {
 				s.upsertNode(n.id, n.name, n.nType, n.path, n.start, n.end, n.hash)
 			}
@@ -97,13 +105,26 @@ func (s *GoScanner) ScanProject(root string) error {
 }
 
 func (s *GoScanner) scanFile(fset *token.FileSet, path string) scanResult {
+	hash, err := utils.CalculateHash(path)
+	if err != nil {
+		return scanResult{err: fmt.Errorf("hash calculation failed: %w", err)}
+	}
+
+	// 1. Verifica se o hash já existe no banco
+	var existingHash string
+	fileID := "file:" + path
+	err = s.db.Conn.QueryRow("SELECT hash FROM nodes WHERE id = ?", fileID).Scan(&existingHash)
+	
+	if err == nil && existingHash == hash {
+		// O arquivo não mudou, podemos pular o parsing do AST
+		return scanResult{} 
+	}
+
+	// 2. Se mudou (ou é novo), executa o parsing
 	f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 	if err != nil {
 		return scanResult{err: fmt.Errorf("could not parse file %s: %w", path, err)}
 	}
-
-	hash, _ := calculateHash(path)
-	fileID := "file:" + path
 
 	res := scanResult{}
 	res.nodes = append(res.nodes, nodeData{id: fileID, name: filepath.Base(path), nType: "file", path: path, hash: hash})
@@ -162,19 +183,4 @@ func isIgnored(path string) bool {
 		}
 	}
 	return false
-}
-
-func calculateHash(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }

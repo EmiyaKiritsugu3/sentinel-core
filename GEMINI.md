@@ -35,7 +35,7 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
 
 - This GEMINI.md file is the source of truth for your behavior in this repository.
 
-## 🛠 Engineering Workflow
+## 🏗️ Engineering Workflow
 
 - **MANDATORY PR WORKFLOW**:
   1. Always create a Pull Request (PR) for any non-trivial change or feature.
@@ -43,6 +43,12 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
   3. You MUST wait for all CI/CD quality tests and external analysis tools (like CodeRabbit) to finish.
   4. The merge is ONLY allowed if all tests pass (Green Status) and the review is satisfactory.
   5. Use CodeRabbit (or similar) to audit every PR before finalizing.
+
+- **🛡️ PROTOCOLO DE EPIFANIA (Sessão de Reflexão)**:
+  1. Toda conclusão de tarefa ou sprint DEVE ser precedida por uma auditoria de "Gaps Estruturais".
+  2. Novos insights, dívidas técnicas ou padrões obsoletos descobertos devem ser registrados em `docs/process/EVOLUTION-INSIGHTS.md`.
+  3. O `sentinel-log.md` deve ser atualizado com a síntese das decisões tomadas.
+
 
 ## graphify
 
