@@ -11,38 +11,19 @@ graph TD
     func_internal_audit_runner_go_ExecuteAudit["ExecuteAudit (function)"]:::func
     file_cmd_sentinel_main_go["main.go (file)"]
     file_internal_graph_schema_go["schema.go (file)"]
-    func_internal_graph_schema_go_Migrate["Migrate (function)"]:::func
     file_internal_bridge_prompt_factory_go["prompt_factory.go (file)"]
     file_internal_state_manager_go["manager.go (file)"]
-    struct_internal_state_manager_go_Task["Task (struct)"]:::struct
-    struct_internal_state_manager_go_Manager["Manager (struct)"]:::struct
-    func_internal_state_manager_go_NewManager["NewManager (function)"]:::func
-    func_internal_state_manager_go_CreateTask["CreateTask (function)"]:::func
-    func_internal_state_manager_go_StartTask["StartTask (function)"]:::func
-    func_internal_state_manager_go_GetTaskByID["GetTaskByID (function)"]:::func
-    func_internal_state_manager_go_UpdateStatus["UpdateStatus (function)"]:::func
-    func_internal_state_manager_go_GetActiveTask["GetActiveTask (function)"]:::func
     file_internal_graph_visualizer_go["visualizer.go (file)"]
     file_internal_graph_scanner_go_go["scanner_go.go (file)"]
     file_pkg_sqlite_db_go["db.go (file)"]
     struct_pkg_sqlite_db_go_DB["DB (struct)"]:::struct
     func_pkg_sqlite_db_go_Init["Init (function)"]:::func
     func_pkg_sqlite_db_go_Close["Close (function)"]:::func
-    struct_internal_graph_visualizer_go_Visualizer["Visualizer (struct)"]:::struct
-    func_internal_graph_visualizer_go_NewVisualizer["NewVisualizer (function)"]:::func
-    func_internal_graph_visualizer_go_GenerateMasterDiagram["GenerateMasterDiagram (function)"]:::func
-    func_internal_graph_visualizer_go_GenerateTaskSnapshot["GenerateTaskSnapshot (function)"]:::func
-    struct_internal_graph_visualizer_go_Node["Node (struct)"]:::struct
-    struct_internal_graph_visualizer_go_Edge["Edge (struct)"]:::struct
-    func_internal_graph_visualizer_go_getNodes["getNodes (function)"]:::func
-    func_internal_graph_visualizer_go_getEdges["getEdges (function)"]:::func
-    func_internal_graph_visualizer_go_formatMermaid["formatMermaid (function)"]:::func
     file_pkg_utils_text_go["text.go (file)"]
     func_pkg_utils_text_go_SanitizeID["SanitizeID (function)"]:::func
     file_pkg_utils_hash_go["hash.go (file)"]
     func_pkg_utils_hash_go_CalculateHash["CalculateHash (function)"]:::func
     file_cmd_sentinel_commands_audit_go["audit.go (file)"]
-    func_cmd_sentinel_commands_audit_go_init["init (function)"]:::func
     file_cmd_sentinel_commands_start_go["start.go (file)"]
     func_cmd_sentinel_commands_start_go_init["init (function)"]:::func
     file_cmd_sentinel_commands_visualize_go["visualize.go (file)"]
@@ -58,15 +39,6 @@ graph TD
     func_cmd_sentinel_commands_root_go_Execute["Execute (function)"]:::func
     file_cmd_sentinel_commands_scan_go["scan.go (file)"]
     func_cmd_sentinel_commands_scan_go_init["init (function)"]:::func
-    struct_internal_bridge_prompt_factory_go_ADR["ADR (struct)"]:::struct
-    struct_internal_bridge_prompt_factory_go_ContextNode["ContextNode (struct)"]:::struct
-    struct_internal_bridge_prompt_factory_go_PromptData["PromptData (struct)"]:::struct
-    struct_internal_bridge_prompt_factory_go_Factory["Factory (struct)"]:::struct
-    func_internal_bridge_prompt_factory_go_NewFactory["NewFactory (function)"]:::func
-    func_internal_bridge_prompt_factory_go_GenerateInstruction["GenerateInstruction (function)"]:::func
-    func_internal_bridge_prompt_factory_go_loadADRs["loadADRs (function)"]:::func
-    func_internal_bridge_prompt_factory_go_loadSurgicalContext["loadSurgicalContext (function)"]:::func
-    func_internal_bridge_prompt_factory_go_extractLines["extractLines (function)"]:::func
     struct_internal_graph_scanner_go_go_GoScanner["GoScanner (struct)"]:::struct
     func_internal_graph_scanner_go_go_NewGoScanner["NewGoScanner (function)"]:::func
     struct_internal_graph_scanner_go_go_scanResult["scanResult (struct)"]:::struct
@@ -77,6 +49,49 @@ graph TD
     func_internal_graph_scanner_go_go_upsertNodeTx["upsertNodeTx (function)"]:::func
     func_internal_graph_scanner_go_go_createEdgeTx["createEdgeTx (function)"]:::func
     func_internal_graph_scanner_go_go_isIgnored["isIgnored (function)"]:::func
+    func_cmd_sentinel_commands_audit_go_init["init (function)"]:::func
+    file_cmd_sentinel_commands_report_go["report.go (file)"]
+    func_cmd_sentinel_commands_report_go_init["init (function)"]:::func
+    func_internal_graph_schema_go_Migrate["Migrate (function)"]:::func
+    struct_internal_bridge_prompt_factory_go_ADR["ADR (struct)"]:::struct
+    struct_internal_bridge_prompt_factory_go_ContextNode["ContextNode (struct)"]:::struct
+    struct_internal_bridge_prompt_factory_go_PromptData["PromptData (struct)"]:::struct
+    struct_internal_bridge_prompt_factory_go_Factory["Factory (struct)"]:::struct
+    func_internal_bridge_prompt_factory_go_NewFactory["NewFactory (function)"]:::func
+    func_internal_bridge_prompt_factory_go_GenerateInstruction["GenerateInstruction (function)"]:::func
+    func_internal_bridge_prompt_factory_go_loadADRs["loadADRs (function)"]:::func
+    func_internal_bridge_prompt_factory_go_loadSurgicalContext["loadSurgicalContext (function)"]:::func
+    func_internal_bridge_prompt_factory_go_extractLines["extractLines (function)"]:::func
+    file_internal_report_aggregator_go["aggregator.go (file)"]
+    struct_internal_report_aggregator_go_ProjectStats["ProjectStats (struct)"]:::struct
+    struct_internal_report_aggregator_go_Aggregator["Aggregator (struct)"]:::struct
+    func_internal_report_aggregator_go_NewAggregator["NewAggregator (function)"]:::func
+    func_internal_report_aggregator_go_FetchStats["FetchStats (function)"]:::func
+    func_internal_report_aggregator_go_GenerateMarkdown["GenerateMarkdown (function)"]:::func
+    struct_internal_graph_visualizer_go_Visualizer["Visualizer (struct)"]:::struct
+    func_internal_graph_visualizer_go_NewVisualizer["NewVisualizer (function)"]:::func
+    func_internal_graph_visualizer_go_GenerateMasterDiagram["GenerateMasterDiagram (function)"]:::func
+    func_internal_graph_visualizer_go_GenerateTaskSnapshot["GenerateTaskSnapshot (function)"]:::func
+    struct_internal_graph_visualizer_go_Node["Node (struct)"]:::struct
+    struct_internal_graph_visualizer_go_Edge["Edge (struct)"]:::struct
+    func_internal_graph_visualizer_go_getNodes["getNodes (function)"]:::func
+    func_internal_graph_visualizer_go_getEdges["getEdges (function)"]:::func
+    func_internal_graph_visualizer_go_formatMermaid["formatMermaid (function)"]:::func
+    file_internal_reflect_validator_go["validator.go (file)"]
+    struct_internal_reflect_validator_go_Violation["Violation (struct)"]:::struct
+    struct_internal_reflect_validator_go_Validator["Validator (struct)"]:::struct
+    func_internal_reflect_validator_go_NewValidator["NewValidator (function)"]:::func
+    func_internal_reflect_validator_go_ValidateProject["ValidateProject (function)"]:::func
+    func_internal_reflect_validator_go_checkFile["checkFile (function)"]:::func
+    func_internal_reflect_validator_go_isIgnored["isIgnored (function)"]:::func
+    struct_internal_state_manager_go_Task["Task (struct)"]:::struct
+    struct_internal_state_manager_go_Manager["Manager (struct)"]:::struct
+    func_internal_state_manager_go_NewManager["NewManager (function)"]:::func
+    func_internal_state_manager_go_CreateTask["CreateTask (function)"]:::func
+    func_internal_state_manager_go_StartTask["StartTask (function)"]:::func
+    func_internal_state_manager_go_GetTaskByID["GetTaskByID (function)"]:::func
+    func_internal_state_manager_go_UpdateStatus["UpdateStatus (function)"]:::func
+    func_internal_state_manager_go_GetActiveTask["GetActiveTask (function)"]:::func
     file_internal_audit_runner_go -->|contains| struct_internal_audit_runner_go_Runner
     file_internal_audit_runner_go -->|contains| func_internal_audit_runner_go_NewRunner
     file_internal_audit_runner_go -->|contains| func_internal_audit_runner_go_ExecuteAudit
@@ -131,6 +146,18 @@ graph TD
     file_cmd_sentinel_commands_scan_go -->|contains| func_cmd_sentinel_commands_scan_go_init
     file_internal_graph_scanner_go_go -->|contains| func_internal_graph_scanner_go_go_upsertNodeTx
     file_internal_graph_scanner_go_go -->|contains| func_internal_graph_scanner_go_go_createEdgeTx
+    file_cmd_sentinel_commands_report_go -->|contains| func_cmd_sentinel_commands_report_go_init
+    file_internal_report_aggregator_go -->|contains| struct_internal_report_aggregator_go_ProjectStats
+    file_internal_report_aggregator_go -->|contains| struct_internal_report_aggregator_go_Aggregator
+    file_internal_report_aggregator_go -->|contains| func_internal_report_aggregator_go_NewAggregator
+    file_internal_report_aggregator_go -->|contains| func_internal_report_aggregator_go_FetchStats
+    file_internal_report_aggregator_go -->|contains| func_internal_report_aggregator_go_GenerateMarkdown
+    file_internal_reflect_validator_go -->|contains| struct_internal_reflect_validator_go_Violation
+    file_internal_reflect_validator_go -->|contains| struct_internal_reflect_validator_go_Validator
+    file_internal_reflect_validator_go -->|contains| func_internal_reflect_validator_go_NewValidator
+    file_internal_reflect_validator_go -->|contains| func_internal_reflect_validator_go_ValidateProject
+    file_internal_reflect_validator_go -->|contains| func_internal_reflect_validator_go_checkFile
+    file_internal_reflect_validator_go -->|contains| func_internal_reflect_validator_go_isIgnored
 
     classDef struct fill:#f9f,stroke:#333,stroke-width:2px;
     classDef func fill:#bbf,stroke:#333,stroke-width:1px;
