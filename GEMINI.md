@@ -11,7 +11,12 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
 ## 🛡️ Sovereign Council Mandate
 
 1.  **Compiled Brain Priority**: Antes de começar QUALQUER tarefa, o agente DEVE ler `docs/process/wiki-index.md` e o `sentinel-log.md`. Esta é a fonte de verdade.
-2.  **Arqueologia Obrigatória (ADF)**: Antes de qualquer depuração de infraestrutura, deve-se realizar a análise histórica conforme `docs/process/ADF-PROTOCOL.md`.
+2.  **Startup Ritual (Auto-Bootstrap)**: No primeiro turno de cada sessão, o agente deve AUTOMATICAMENTE:
+    - Ler o `sentinel-log.md` para recuperar o Handover.
+    - Ler o `ROADMAP.md` para identificar o vetor atual.
+    - Executar `sentinel scan` para sincronizar o grafo.
+    - Apresentar um resumo: "Sentinel Acordado: [Status], [Task Atual], [Próximo Passo]".
+3.  **Arqueologia Obrigatória (ADF)**: Antes de qualquer depuração de infraestrutura, deve-se realizar a análise histórica conforme `docs/process/ADF-PROTOCOL.md`.
 3.  **Traceability Mandate**: Cada nova funcionalidade ou correção deve ser explicitamente linkada à sua Spec de origem e Plano de Execução no `wiki-index.md`.
 4.  **Synthesis Requirement**: Após completar uma mudança arquitetural, o agente DEVE atualizar o `sentinel-log.md`.
 5.  **Proof of State**: Verificações devem fornecer evidências físicas (logs, prints ou resultados de teste).
