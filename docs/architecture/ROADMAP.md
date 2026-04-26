@@ -1,0 +1,39 @@
+# Sentinel Sovereign Roadmap [PID-SENTINEL]
+
+Este documento define a trajetória oficial de desenvolvimento do Sentinel Core. Nenhuma tarefa deve ser iniciada sem estar mapeada neste roadmap.
+
+## 🏁 Milestones Alcançados
+- [x] **Fase 1: The Fail-Safe Foundation**
+  - Implementação de Timeouts de Auditoria.
+  - Governança de Erros com Wrapping.
+  - Definição da Tríade (Warden, Chief Engineer, Operator).
+- [x] **Fase 2: The Context Engine**
+  - Scanner de AST (Go) paralelo via Worker Pool.
+  - Persistência em SQLite (CGO-free).
+  - Extração cirúrgica de linhas de código real.
+
+## 🚀 Próximas Frentes (O Plano Concreto)
+
+### Fase 3: The Language Expansion (AST Evolution)
+O Sentinel deve ser capaz de gerir projetos Web de vanguarda.
+- [ ] Integração com **Tree-sitter** (C-bindings ou Pure Go).
+- [ ] Scanner AST para **TypeScript/TSX**.
+- [ ] Mapeamento de dependências entre componentes React.
+*Critério de Sucesso: `sentinel scan` em um projeto Next.js povoa o SQLite com sucesso.*
+
+### Fase 4: The Agentic State Machine (Proactive Governance)
+Transformar o Sentinel em um guia proativo para o usuário.
+- [ ] **Modo Entrevista**: Pergunta "O que vamos construir hoje?" em pastas vazias.
+- [ ] **Auto-ADR**: Gera o rascunho do ADR baseado na conversa inicial.
+- [ ] **Subagent Dispatcher**: Ferramenta nativa para o Chief Engineer invocar e monitorar Operadores.
+*Critério de Sucesso: Criação de uma feature completa apenas via diálogo, sem intervenção manual no plano.*
+
+### Fase 5: The Visual Sovereign (Live UI)
+A visualização de arquitetura deve ser interativa.
+- [ ] **Sentinel Live View**: Servidor WebSocket em Go que envia o Grafo para uma UI Web.
+- [ ] **Interactive C4**: Clique no nó do diagrama para abrir o código ou ver o ADR relacionado.
+*Critério de Sucesso: Visualização em tempo real no browser enquanto o código muda.*
+
+---
+*Atualizado em: 2026-04-26*
+*Assinado: Sovereign Council*

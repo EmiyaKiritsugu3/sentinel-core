@@ -1,0 +1,60 @@
+package sqlite
+
+import (
+	"database/sql"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	_ "modernc.org/sqlite"
+)
+
+type DB struct {
+	Conn *sql.DB
+}
+
+// Init inicializa a conexão com o SQLite e configura as Pragmas de Elite
+func Init() (*DB, error) {
+	sentinelDir := ".sentinel"
+	if _, err := os.Stat(sentinelDir); os.IsNotExist(err) {
+		err := os.Mkdir(sentinelDir, 0755)
+		if err != nil {
+			return nil, fmt.Errorf("sqlite: could not create .sentinel directory: %w", err)
+		}
+	}
+
+	dbPath := filepath.Join(sentinelDir, "graph.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: could not open db: %w", err)
+	}
+
+	// Configuração de Pragmas para Performance e Integridade
+	pragmas := []string{
+		"PRAGMA journal_mode=WAL;",
+		"PRAGMA foreign_keys = ON;",
+		"PRAGMA busy_timeout = 5000;",
+		"PRAGMA synchronous = NORMAL;",
+	}
+
+	for _, p := range pragmas {
+		if _, err := db.Exec(p); err != nil {
+			return nil, fmt.Errorf("sqlite: failed to apply pragma %s: %w", p, err)
+		}
+	}
+
+	// Configuração de Pool para Concorrência (WAL permite múltiplos leitores)
+	db.SetMaxOpenConns(8)
+	db.SetMaxIdleConns(8)
+
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("sqlite: could not ping db: %w", err)
+	}
+
+	return &DB{Conn: db}, nil
+}
+
+// Close fecha a conexão com o banco
+func (db *DB) Close() error {
+	return db.Conn.Close()
+}

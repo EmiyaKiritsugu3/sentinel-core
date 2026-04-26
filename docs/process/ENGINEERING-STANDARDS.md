@@ -1,0 +1,29 @@
+# Sentinel Engineering Standards [PID-SENTINEL]
+
+Este documento define os padrões técnicos inegociáveis do Sentinel Core. Toda nova função ou módulo deve aderir a estes padrões desde a primeira linha.
+
+## 💾 I/O & Memory Management
+*   **Standard #01 (Buffered Reads)**: Nunca utilize `os.ReadFile` para leitura de arquivos de código ou logs. Utilize sempre `bufio.Scanner` com buffer configurado para 1MB para garantir eficiência de memória.
+*   **Standard #02 (Stream Processing)**: Processamento de grandes volumes de dados (como scans de AST) deve ser feito via canais (Channels) para desacoplar leitura de escrita.
+
+## 🗄️ Database & Consistency
+*   **Standard #03 (Atomic Transactions)**: Toda operação de escrita que envolva mais de um comando SQL ou que impacte o estado de um arquivo deve ser envolvida em uma transação (`db.BeginTx`).
+*   **Standard #04 (WAL Mode)**: O SQLite deve operar sempre em modo WAL para permitir alta concorrência entre workers de scan e leituras da UI.
+
+## 🛡️ Error Governance
+*   **Standard #05 (Error Wrapping)**: Erros devem ser retornados com contexto utilizando `fmt.Errorf("contexto: %w", err)`. Nunca silencie erros com `_` a menos que seja um descarte intencional e documentado.
+*   **Standard #06 (Fail-Fast)**: Em operações concorrentes, utilize `errgroup` ou monitoramento de canais para interromper a execução imediatamente após a primeira falha crítica.
+
+## 🚀 CLI & UX
+*   **Standard #07 (Command Isolation)**: A lógica de execução dos comandos não deve residir no `main.go`. Cada comando deve ter seu próprio arquivo no pacote `internal/commands` ou `cmd/sentinel/commands`.
+
+## 🏛️ Continuous Learning & Self-Correction
+*   **Standard #08 (The Sovereign Audit Framework)**: É MANDATÓRIO que toda conclusão de tarefa ou sprint seja acompanhada de um Relatório de Auditoria de 5 pontos:
+    1. ✨ **The Good**: Vitórias técnicas e o que agora é sólido.
+    2. ⚠️ **The Bad**: Dívidas técnicas ou hacks aceitos conscientemente.
+    3. 💥 **The Ugly**: Fragilidades, riscos e inconsistências detectadas.
+    4. 💡 **The Lesson**: O aprendizado universal ou novo padrão extraído.
+    5. 🚀 **The Next**: O próximo passo de otimização ou evolução arquitetural.
+
+---
+*Última Atualização: 2026-04-26*
