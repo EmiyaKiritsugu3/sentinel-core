@@ -45,15 +45,16 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
   5. Use CodeRabbit (or similar) to audit every PR before finalizing.
 
 - **🛡️ PROTOCOLO DE EPIFANIA (Sessão de Reflexão)**:
-  1. Toda conclusão de tarefa ou sprint DEVE ser precedida por uma auditoria de "Gaps Estruturais".
-  2. Novos insights, dívidas técnicas ou padrões obsoletos descobertos devem ser registrados em `docs/process/EVOLUTION-INSIGHTS.md`.
+  1. **BLOQUEIO CRÍTICO**: Nenhuma tarefa pode ser marcada como concluída sem uma revisão do histórico do chat em busca de insights, sugestões ou "puxões de orelha" do usuário.
+  2. **DELTA CHECK**: O agente deve comparar o estado intelectual inicial com o final e registrar cada "salto de consciência" em `docs/process/EVOLUTION-INSIGHTS.md`.
   3. O `sentinel-log.md` deve ser atualizado com a síntese das decisões tomadas.
-  4. **OBRIGATÓRIO**: Toda entrega final deve conter o **Sovereign Audit Framework (Standard #08)** com os 5 pontos: The Good, The Bad, The Ugly, The Lesson, The Next.
+  4. **OBRIGATÓRIO**: Toda entrega final deve conter o **Sovereign Audit Framework (Standard #08)**.
 
 - **🏁 PROTOCOLO DE ENCERRAMENTO (Sovereign Handover)**:
-  1. Antes de fechar uma sessão, o agente deve gerar um **Handover Packet** no `sentinel-log.md`.
+  1. **MANDATÓRIO**: Antes de gerar o Handover Packet, o agente deve validar se todos os novos Gaps encontrados foram persistidos.
   2. O pacote deve conter o *Current Vector*, *Technical Snag* e o *First Command* para o próximo agente.
   3. Limpar arquivos de planos concluídos para evitar poluição de contexto futuro.
+
 
 
 ## graphify
