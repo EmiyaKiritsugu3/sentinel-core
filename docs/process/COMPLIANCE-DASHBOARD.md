@@ -7,13 +7,22 @@
 
 | Métrica | Valor |
 | :--- | :--- |
-| **Engineering Success Rate** | 50.00% |
-| **Total Architecture Nodes** | 87 |
-| **Files Tracked** | 21 |
-| **Functions & Structs** | 66 |
+| **Engineering Success Rate** | 0.00% |
+| **Total Architecture Nodes** | 115 |
+| **Files Tracked** | 30 |
+| **Functions & Structs** | 78 |
 
 ## 🛡️ Task Lifecycle Status
 
-- ✅ **Completed**: 2
-- 🛑 **Failed**: 2
+- ✅ **Completed**: 0
+- 🛑 **Failed**: 0
 - 🕒 **Total Attempts**: 4
+
+## 📝 Detailed Intent Inventory
+
+| ID | Tier | Status | Description | Decision Record |
+| :--- | :--- | :--- | :--- | :--- |
+| `fe2bb6f9` | T1 | PENDING | Decisão Crítica --- com : caracteres @ perigosos "aspas" | [View ADR](../architecture/adr/ADR-fe2bb6f9-deciso-crtica-com-caracteres-perigosos-aspas.md) |
+| `ad9933bf` | T1 | PENDING | Refatorar camada de persistencia | [View ADR](../architecture/adr/ADR-ad9933bf-refatorar-camada-de-persistencia.md) |
+| `aca540c1` | T1 | PENDING | Implementar Auto-ADR Engine | N/A |
+| `de75082b` | T1 | PENDING | Auditoria de Seguranca de vanguarda | N/A |

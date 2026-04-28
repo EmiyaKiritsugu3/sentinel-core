@@ -77,18 +77,6 @@ func (v *Visualizer) GenerateTaskSnapshot(taskID, description string, impactFile
 	return nil
 }
 
-type Node struct {
-	ID   string
-	Name string
-	Type string
-}
-
-type Edge struct {
-	From string
-	To   string
-	Rel  string
-}
-
 func (v *Visualizer) getNodes(filterFile string) ([]Node, error) {
 	query := "SELECT id, name, type FROM nodes"
 	var args []interface{}

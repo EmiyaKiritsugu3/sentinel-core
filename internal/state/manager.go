@@ -2,6 +2,8 @@ package state
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/google/uuid"
 )
@@ -11,6 +13,7 @@ type Task struct {
 	Description string
 	Status      string
 	Tier        string
+	CreatedAt   time.Time
 }
 
 type Manager struct {
@@ -73,4 +76,28 @@ func (m *Manager) GetActiveTask() (*Task, error) {
 		return nil, fmt.Errorf("state: no active task: %w", err)
 	}
 	return &t, nil
+}
+
+// ListTasks retorna todas as tarefas registradas no banco
+func (m *Manager) ListTasks() ([]Task, error) {
+	query := `SELECT id, description, status, tier, created_at FROM tasks ORDER BY created_at DESC`
+	rows, err := m.db.Conn.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("state: failed to list tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []Task
+	for rows.Next() {
+		var t Task
+		var createdAt string
+		if err := rows.Scan(&t.ID, &t.Description, &t.Status, &t.Tier, &createdAt); err != nil {
+			return nil, fmt.Errorf("state: failed to scan task: %w", err)
+		}
+		// SQLite CURRENT_TIMESTAMP é "YYYY-MM-DD HH:MM:SS"
+		t.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		tasks = append(tasks, t)
+	}
+
+	return tasks, nil
 }

@@ -51,6 +51,19 @@ func NewReportCmd(db *sqlite.DB) *cobra.Command {
 			fmt.Printf("Failed:    %s%d%s\n", colorRed, stats.FailedTasks, colorReset)
 			fmt.Printf("Total:     %d\n", stats.TotalTasks)
 
+			fmt.Println("\n--- INTENT INVENTORY ---")
+			if len(stats.Tasks) == 0 {
+				fmt.Println("No intents captured yet.")
+			} else {
+				for _, t := range stats.Tasks {
+					adrStatus := fmt.Sprintf("%sN/A%s", colorRed, colorReset)
+					if t.ADRPath != "" {
+						adrStatus = fmt.Sprintf("%s[LINKED]%s", colorGreen, colorReset)
+					}
+					fmt.Printf("[%s] %s | %-10s | %s %s\n", t.Tier, t.ID, t.Status, t.Description, adrStatus)
+				}
+			}
+
 			// Export to MD
 			err = agg.GenerateMarkdown(stats)
 			if err != nil {
@@ -58,7 +71,7 @@ func NewReportCmd(db *sqlite.DB) *cobra.Command {
 			} else {
 				fmt.Printf("\n✅ Dashboard exported to: docs/process/COMPLIANCE-DASHBOARD.md\n")
 			}
-			fmt.Println("======================================\n")
+			fmt.Println("======================================")
 			return nil
 		},
 	}

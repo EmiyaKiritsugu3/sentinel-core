@@ -40,6 +40,13 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
 
 - This GEMINI.md file is the source of truth for your behavior in this repository.
 
+## 🏛️ Architectural Principles
+
+1.  **Orchestration Sovereignty**: Always decouple file discovery and database persistence from language-specific parsing logic.
+2.  **Immutable ScanResults**: Scanners must return immutable result structures (Nodes/Edges) to ensure thread-safety during parallel orchestration.
+3.  **Skip-if-Hash-Match**: Maintain the hash-based incremental scanning pattern in the central Engine to respect developer time and optimize I/O.
+4.  **Dependency Sovereignty**: Prefer constructor-based dependency injection (e.g., passing DB handles) over global instances to maintain testability and clean bin architecture.
+
 ## 🏗️ Engineering Workflow
 
 - **MANDATORY PR WORKFLOW**:

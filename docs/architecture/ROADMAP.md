@@ -20,6 +20,7 @@ Este documento define a trajetória oficial de desenvolvimento do Sentinel Core.
 
 ### Fase 3: The Language Expansion (AST Evolution)
 O Sentinel deve ser capaz de gerir projetos Web de vanguarda.
+- [x] Abstração da Engine Multi-Linguagem (Orchestrator).
 - [ ] Integração com **Tree-sitter** (C-bindings ou Pure Go).
 - [ ] Scanner AST para **TypeScript/TSX**.
 - [ ] Mapeamento de dependências entre componentes React.
@@ -27,8 +28,10 @@ O Sentinel deve ser capaz de gerir projetos Web de vanguarda.
 
 ### Fase 4: The Agentic State Machine (Proactive Governance)
 Transformar o Sentinel em um guia proativo para o usuário.
-- [ ] **Modo Entrevista**: Pergunta "O que vamos construir hoje?" em pastas vazias.
-- [ ] **Auto-ADR**: Gera o rascunho do ADR baseado na conversa inicial.
+- [x] Saneamento de Grafo via .gitignore (Hybrid Filter).
+- [x] Modo Entrevista (Comando `instruct` blindado para CI/CD).
+- [x] **Auto-ADR**: Gera o rascunho do ADR baseado na conversa inicial.
+- [x] **Dashboard Visibility**: Vincula fisicamente tarefas aos ADRs no relatório.
 - [ ] **Subagent Dispatcher**: Ferramenta nativa para o Chief Engineer invocar e monitorar Operadores.
 *Critério de Sucesso: Criação de uma feature completa apenas via diálogo, sem intervenção manual no plano.*
 
