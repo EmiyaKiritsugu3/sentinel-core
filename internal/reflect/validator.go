@@ -52,6 +52,34 @@ func (v *Validator) ValidateProject(root string) ([]Violation, error) {
 	return violations, nil
 }
 
+// ValidatePath garante que o caminho fornecido pelo agente é seguro (Standard #10).
+func (v *Validator) ValidatePath(path string) error {
+	cleanPath := filepath.Clean(path)
+	
+	// 1. Bloqueia caminhos absolutos
+	if filepath.IsAbs(cleanPath) {
+		return fmt.Errorf("security: absolute paths are forbidden: %s", path)
+	}
+
+	// 2. Bloqueia tentativa de sair do diretório do projeto (Path Traversal)
+	if strings.HasPrefix(cleanPath, "..") {
+		return fmt.Errorf("security: path traversal attempt detected: %s", path)
+	}
+
+	return nil
+}
+
+// ValidateCommand valida se o comando shell é permitido e não contém injeções.
+func (v *Validator) ValidateCommand(cmd string) error {
+	forbidden := []string{"|", "&&", ";", ">", ">>", "<", "`", "$("}
+	for _, char := range forbidden {
+		if strings.Contains(cmd, char) {
+			return fmt.Errorf("security: forbidden shell character '%s' in command: %s", char, cmd)
+		}
+	}
+	return nil
+}
+
 func (v *Validator) checkFile(path string) ([]Violation, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -60,7 +88,6 @@ func (v *Validator) checkFile(path string) ([]Violation, error) {
 	defer file.Close()
 
 	// Quis custodiet ipsos custodes? 
-	// Se estivermos validando o próprio validador, ignoramos as strings literais de busca.
 	isValidatorItself := strings.Contains(path, "internal/reflect/validator.go")
 
 	var violations []Violation
@@ -80,8 +107,7 @@ func (v *Validator) checkFile(path string) ([]Violation, error) {
 			})
 		}
 		
-		// Standard #05: Anti-Silent Errors (Obrigatório wrapping)
-		// Ignoramos a si mesmo para permitir o código de detecção
+		// Standard #05: Anti-Silent Errors
 		if !isValidatorItself && strings.Contains(line, "return nil, err") && !strings.Contains(path, "legacy") {
 			violations = append(violations, Violation{
 				StandardID: "STD-05",
