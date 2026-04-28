@@ -2,10 +2,13 @@ package agents
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
@@ -13,6 +16,7 @@ import (
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/state"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/google/generative-ai-go/genai"
+	"github.com/google/shlex"
 )
 
 // --- ReadFileTool ---
@@ -49,11 +53,16 @@ func (t *ReadFileTool) Definition() *genai.FunctionDeclaration {
 	}
 }
 
-func (t *ReadFileTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
+func (t *ReadFileTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
 	path, ok := args["path"].(string)
 	if !ok {
-		return "", fmt.Errorf("missing path argument")
+		return fmt.Errorf("missing 'path' argument")
 	}
+	return v.ValidatePath(path)
+}
+
+func (t *ReadFileTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
+	path, _ := args["path"].(string)
 
 	start := 1
 	if s, ok := args["start_line"].(float64); ok {
@@ -120,6 +129,14 @@ func (t *WriteFileTool) Definition() *genai.FunctionDeclaration {
 	}
 }
 
+func (t *WriteFileTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
+	path, ok := args["path"].(string)
+	if !ok {
+		return fmt.Errorf("missing 'path' argument")
+	}
+	return v.ValidatePath(path)
+}
+
 func (t *WriteFileTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	path, _ := args["path"].(string)
 	content, _ := args["content"].(string)
@@ -171,17 +188,35 @@ func (t *ReplaceTool) Definition() *genai.FunctionDeclaration {
 	}
 }
 
+func (t *ReplaceTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
+	path, ok := args["path"].(string)
+	if !ok {
+		return fmt.Errorf("missing 'path' argument")
+	}
+	return v.ValidatePath(path)
+}
+
 func (t *ReplaceTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	path, _ := args["path"].(string)
 	oldStr, _ := args["old_string"].(string)
 	newStr, _ := args["new_string"].(string)
 
-	data, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
-		return "", fmt.Errorf("replace: failed to read file %s: %w", path, err)
+		return "", fmt.Errorf("replace: failed to open %s: %w", path, err)
 	}
+	defer file.Close()
 
-	content := string(data)
+	var sb strings.Builder
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		sb.WriteString(scanner.Text() + "\n")
+	}
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("replace: error scanning %s: %w", path, err)
+	}
+	content := sb.String()
+
 	if !strings.Contains(content, oldStr) {
 		return "", fmt.Errorf("replace: old_string not found in file %s", path)
 	}
@@ -192,6 +227,232 @@ func (t *ReplaceTool) Execute(ctx context.Context, args map[string]interface{}) 
 	}
 
 	return fmt.Sprintf("Successfully replaced content in %s.", path), nil
+}
+
+// --- GrepSearchTool ---
+
+type GrepSearchTool struct {
+	db *sqlite.DB
+}
+
+func (t *GrepSearchTool) Name() string { return "grep_search" }
+func (t *GrepSearchTool) Description() string {
+	return "Searches for a regular expression pattern within file contents across the project."
+}
+
+func (t *GrepSearchTool) Definition() *genai.FunctionDeclaration {
+	return &genai.FunctionDeclaration{
+		Name:        t.Name(),
+		Description: t.Description(),
+		Parameters: &genai.Schema{
+			Type: genai.TypeObject,
+			Properties: map[string]*genai.Schema{
+				"pattern": {
+					Type:        genai.TypeString,
+					Description: "The regular expression pattern to search for.",
+				},
+				"dir_path": {
+					Type:        genai.TypeString,
+					Description: "Directory to search in (relative to project root). Defaults to '.'.",
+				},
+			},
+			Required: []string{"pattern"},
+		},
+	}
+}
+
+func (t *GrepSearchTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
+	if dir, ok := args["dir_path"].(string); ok {
+		return v.ValidatePath(dir)
+	}
+	return nil
+}
+
+func (t *GrepSearchTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
+	pattern, _ := args["pattern"].(string)
+	dir, ok := args["dir_path"].(string)
+	if !ok {
+		dir = "."
+	}
+
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return "", fmt.Errorf("grep_search: invalid regex: %w", err)
+	}
+
+	var matches []string
+	err = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == "vendor" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// Only scan text files (simple heuristic)
+		ext := filepath.Ext(path)
+		if ext != ".go" && ext != ".md" && ext != ".json" && ext != ".yaml" && ext != ".yml" && ext != ".sql" {
+			return nil
+		}
+
+		file, err := os.Open(path)
+		if err != nil {
+			return nil // Skip files we can't open
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		lineNum := 1
+		for scanner.Scan() {
+			if re.MatchString(scanner.Text()) {
+				matches = append(matches, fmt.Sprintf("%s:%d: %s", path, lineNum, scanner.Text()))
+			}
+			if len(matches) > 100 {
+				return fmt.Errorf("too many matches found")
+			}
+			lineNum++
+		}
+		return nil
+	})
+
+	if err != nil && err.Error() != "too many matches found" {
+		return "", fmt.Errorf("grep_search: walk error: %w", err)
+	}
+
+	if len(matches) == 0 {
+		return "No matches found.", nil
+	}
+
+	result := strings.Join(matches, "\n")
+	if len(matches) > 100 {
+		result += "\n... [TRUNCATED] Too many results."
+	}
+	return result, nil
+}
+
+// --- AuditTool ---
+
+type AuditTool struct {
+	db *sqlite.DB
+}
+
+func (t *AuditTool) Name() string { return "sentinel:audit" }
+func (t *AuditTool) Description() string {
+	return "Runs the Sovereign Validator across the project to detect Standard violations."
+}
+
+func (t *AuditTool) Definition() *genai.FunctionDeclaration {
+	return &genai.FunctionDeclaration{
+		Name:        t.Name(),
+		Description: t.Description(),
+		Parameters: &genai.Schema{
+			Type: genai.TypeObject,
+		},
+	}
+}
+
+func (t *AuditTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
+	return nil
+}
+
+func (t *AuditTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
+	v := reflect.NewValidator(t.db)
+	violations, err := v.ValidateProject(".")
+	if err != nil {
+		return "", fmt.Errorf("audit tool: %w", err)
+	}
+
+	if len(violations) == 0 {
+		return "Sovereign Audit: 0 violations found. System is compliant.", nil
+	}
+
+	var report strings.Builder
+	report.WriteString(fmt.Sprintf("Sovereign Audit Report: %d violation(s) found\n", len(violations)))
+	for i, v := range violations {
+		if i >= 30 {
+			report.WriteString("\n... [TRUNCATED] Please fix the above violations first.")
+			break
+		}
+		report.WriteString(fmt.Sprintf("- [%s] %s:%d: %s\n", v.StandardID, v.FilePath, v.Line, v.Reason))
+	}
+
+	return report.String(), nil
+}
+
+// --- RunTool ---
+
+type RunTool struct {
+	db *sqlite.DB
+}
+
+func (t *RunTool) Name() string { return "sentinel:run" }
+func (t *RunTool) Description() string {
+	return "Runs a safe, approved shell command (e.g., 'go build ./...', 'go test -v ./...'). Does not support pipes or redirection."
+}
+
+func (t *RunTool) Definition() *genai.FunctionDeclaration {
+	return &genai.FunctionDeclaration{
+		Name:        t.Name(),
+		Description: t.Description(),
+		Parameters: &genai.Schema{
+			Type: genai.TypeObject,
+			Properties: map[string]*genai.Schema{
+				"command": {
+					Type:        genai.TypeString,
+					Description: "The shell command to execute.",
+				},
+			},
+			Required: []string{"command"},
+		},
+	}
+}
+
+func (t *RunTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
+	cmd, ok := args["command"].(string)
+	if !ok {
+		return fmt.Errorf("missing 'command' argument")
+	}
+	return v.ValidateCommand(cmd)
+}
+
+func (t *RunTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
+	cmdStr, _ := args["command"].(string)
+
+	parts, err := shlex.Split(cmdStr)
+	if err != nil {
+		return "", fmt.Errorf("run: failed to parse command: %w", err)
+	}
+	if len(parts) == 0 {
+		return "", fmt.Errorf("run: empty command")
+	}
+
+	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	err = cmd.Run()
+	
+	output := out.String()
+	// [PID-SENTINEL] Auditor Constraint: Context Protection
+	// Limit output to ~10KB or 200 lines to prevent context exhaustion
+	lines := strings.Split(output, "\n")
+	if len(lines) > 200 {
+		output = strings.Join(lines[:200], "\n") + "\n... [TRUNCATED] Too many lines of output."
+	}
+	if len(output) > 10000 {
+		output = output[:10000] + "\n... [TRUNCATED] Output too large."
+	}
+
+	if err != nil {
+		return fmt.Sprintf("Command failed with error: %v\n\nOutput:\n%s", err, output), nil
+	}
+
+	return output, nil
 }
 
 // --- ADRTool ---
@@ -242,14 +503,12 @@ func (t *ADRTool) ValidateArguments(v *reflect.Validator, args map[string]interf
 }
 
 func (t *ADRTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
-	// 1. Get Active Task from DB
 	manager := state.NewManager(t.db)
 	task, err := manager.GetActiveTask()
 	if err != nil {
 		return "", fmt.Errorf("adr tool: failed to get active task: %w", err)
 	}
 
-	// 2. Format content for ADRGenerator
 	gen := graph.NewADRGenerator()
 	title, _ := args["title"].(string)
 	contextStr, _ := args["context"].(string)
@@ -286,6 +545,10 @@ func (t *ScanTool) Definition() *genai.FunctionDeclaration {
 	}
 }
 
+func (t *ScanTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
+	return nil
+}
+
 func (t *ScanTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	engine := graph.NewEngine(t.db)
 	engine.RegisterScanner(graph.NewGoScanner())
@@ -304,5 +567,8 @@ func RegisterCoreTools(r *Registry, db *sqlite.DB) {
 	r.Tools["write_file"] = &WriteFileTool{db: db}
 	r.Tools["replace"] = &ReplaceTool{db: db}
 	r.Tools["sentinel_scan"] = &ScanTool{db: db}
+	r.Tools["grep_search"] = &GrepSearchTool{db: db}
+	r.Tools["sentinel:audit"] = &AuditTool{db: db}
+	r.Tools["sentinel:run"] = &RunTool{db: db}
 	r.Tools["sentinel:adr"] = &ADRTool{db: db}
 }
