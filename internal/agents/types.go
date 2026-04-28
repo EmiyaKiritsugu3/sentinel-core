@@ -57,6 +57,7 @@ type AgentContext struct {
 	Cancel       context.CancelFunc
 	FailureCount int    // Track consecutive failures
 	ActiveModel  string // Current model being used
+	Strategy     string // Current technical strategy (Sovereign Pivot)
 }
 
 // NewAgentContext initializes a context with cancellation.

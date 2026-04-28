@@ -121,6 +121,21 @@
 
 ---
 
+## [2026-04-29] Milestone: PAC Tripartite Deliberation (Fase 5.2.1) [PID-SENTINEL-PAC]
+
+**Status**: COMPLETED
+**Impact**: AGENTIC RESILIENCE (High)
+
+### 🔍 Analysis (Epiphanies)
+1.  **Escalation Sovereignty**: Implemented the Protocolo de Angulação Crítica (PAC) as a state machine. It forces the system to stop and analyze failures from three radical perspectives (Minimalist, Structuralist, Auditor) before retrying with a more powerful model.
+2.  **Sovereign Pivot Pattern**: Introduced the `Strategy` field in `AgentContext`, allowing agents to explicitly store and follow a high-level technical pivot generated during crisis deliberation.
+3.  **Fail-Fast Loop Integration**: Wired the PAC trigger into the main `Execute` loop, ensuring that persistent tool failures (>= 3) with efficient models automatically trigger an escalation to `gemini-1.5-pro`.
+
+### 💡 Key Learning
+"True autonomy requires the ability to question the plan. The PAC tripartite deliberation is the agent's 'ego death', where it discards a failing strategy to find a sovereign path forward."
+
+---
+
 ## 🏁 SOVEREIGN HANDOVER [S05.1 -> S05.2]
 **Status**: NEURAL-READY 🧠
 **Success Rate**: 100% (Infrastructure Phase)

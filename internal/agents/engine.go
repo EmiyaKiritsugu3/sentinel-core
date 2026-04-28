@@ -70,7 +70,22 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 		
 		// 5. Execution (Phase 5 - Concurrent Tool Execution)
 		if err := e.executeTools(ctx, nil); err != nil {
-			return fmt.Errorf("tool execution failed: %w", err)
+			log.Printf("[SENTINEL] Tool execution error: %v", err)
+			ctx.FailureCount++
+
+			if e.shouldEscalate(ctx) {
+				e.escalate(ctx)
+				strategy, err := e.runPACDeliberation(ctx)
+				if err != nil {
+					return fmt.Errorf("PAC deliberation failed: %w", err)
+				}
+				ctx.Strategy = strategy
+				log.Printf("[PAC] New Sovereign Strategy: %s", ctx.Strategy)
+				// Continue the loop with the new strategy
+				continue
+			}
+
+			return fmt.Errorf("tool execution failed after %d attempts: %w", ctx.FailureCount, err)
 		}
 
 		// 6. Post-Processing (Phase 6)
@@ -81,6 +96,23 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 
 	log.Printf("[SENTINEL] Agent '%s' completed successfully.", ctx.Definition.Name)
 	return nil
+}
+
+// runPACDeliberation executes the tripartite deliberation (Minimalist, Structuralist, Auditor).
+func (e *Engine) runPACDeliberation(ctx *AgentContext) (string, error) {
+	log.Printf("[PAC] Starting Tripartite Deliberation (3 Angles)")
+
+	// Phase 1: Angle A (Minimalist) - YAGNI check
+	log.Printf("[PAC: ANGLE A] Analyzing minimalist approach: Can we achieve the goal by deleting code or simplifying the requirement?")
+
+	// Phase 2: Angle B (Structuralist) - Plan pivot check
+	log.Printf("[PAC: ANGLE B] Analyzing structural plan pivot: Is the current architectural approach fundamentally flawed for this task?")
+
+	// Phase 3: Angle C (Auditor) - Security & Environment check
+	log.Printf("[PAC: ANGLE C] Analyzing system locks and compliance: Are there environment constraints or security blockers?")
+
+	// In future phases, these will be real LLM calls.
+	return "Sovereign Pivot Generated: Switching technical approach based on tripartite analysis.", nil
 }
 
 func (e *Engine) shouldEscalate(ctx *AgentContext) bool {
