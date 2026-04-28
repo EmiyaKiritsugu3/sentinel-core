@@ -72,11 +72,10 @@ type ContextNode struct {
 	CodeSnippet string
 }
 
-type PromptData struct {
-	Task                *state.Task
-	ADRs                []ADR
-	Standards           string
-	ContextNodes        []ContextNode
+type ContextPayload struct {
+	SystemInstruction   string
+	SurgicalContext    string
+	TaskDescription     string
 	VerificationCommand string
 }
 
@@ -88,47 +87,86 @@ func NewFactory(db *sqlite.DB) *Factory {
 	return &Factory{db: db}
 }
 
-// GenerateInstruction constrói o prompt final de elite
-func (f *Factory) GenerateInstruction(taskID string) (string, error) {
+// GeneratePayload constrói o payload estruturado para a Engine
+func (f *Factory) GeneratePayload(taskID string, personaPrompt string) (*ContextPayload, error) {
 	mgr := state.NewManager(f.db)
 	task, verifyCmd, err := mgr.GetTaskByID(taskID)
 	if err != nil {
-		return "", fmt.Errorf("bridge: failed to get task %s: %w", taskID, err)
+		return nil, fmt.Errorf("bridge: failed to get task %s: %w", taskID, err)
 	}
 
 	adrs, err := f.loadADRs()
 	if err != nil {
-		return "", fmt.Errorf("bridge: failed to load ADRs: %w", err)
+		return nil, fmt.Errorf("bridge: failed to load ADRs: %w", err)
 	}
 
 	standards, err := extractLines("docs/process/ENGINEERING-STANDARDS.md", 1, 100)
 	if err != nil {
-		return "", fmt.Errorf("bridge: failed to load standards: %w", err)
+		return nil, fmt.Errorf("bridge: failed to load standards: %w", err)
 	}
 
 	nodes, err := f.loadSurgicalContext(taskID)
 	if err != nil {
-		return "", fmt.Errorf("bridge: failed to load surgical context: %w", err)
+		return nil, fmt.Errorf("bridge: failed to load surgical context: %w", err)
 	}
 
-	data := PromptData{
-		Task:                task,
-		ADRs:                adrs,
-		Standards:           standards,
-		ContextNodes:        nodes,
-		VerificationCommand: verifyCmd,
+	// System Instruction: Persona + ADRs + Standards
+	systemTmpl := `
+# PERSONA
+{{.Persona}}
+
+# ARCHITECTURAL CONSTRAINTS (ADRs)
+{{range .ADRs}}
+## {{.Title}}
+{{.Content}}
+{{end}}
+
+# ENGINEERING STANDARDS
+{{.Standards}}
+
+# RULES OF ENGAGEMENT
+1. **Scope Integrity**: You are authorized to modify ONLY files listed in the context.
+2. **Error Governance**: Use project-specific standard error classes. No generic Errors.
+3. **Traceability**: All logic must align with the ADRs provided above.
+4. **No Devanios**: Do not refactor unrelated code. Do not add undocumented features.
+
+# OUTPUT FORMAT (MANDATORY)
+Your response must conclude with a **Sovereign Audit Report** (Standard #08) using exactly these 5 points:
+1. ✨ **The Good**: (What is now solid)
+2. ⚠️ **The Bad**: (Technical debt introduced)
+3. 💥 **The Ugly**: (Riscos e fragilidades detectadas)
+4. 💡 **The Lesson**: (What was learned/standardized)
+5. 🚀 **The Next**: (Next optimization)
+`
+	
+	type SystemData struct {
+		Persona   string
+		ADRs      []ADR
+		Standards string
 	}
 
-	tmpl, err := template.New("prompt").Parse(promptTemplate)
+	tmpl, err := template.New("system").Parse(systemTmpl)
 	if err != nil {
-		return "", fmt.Errorf("bridge: template parse error: %w", err)
+		return nil, fmt.Errorf("bridge: system template parse error: %w", err)
 	}
 
-	var out strings.Builder
-	if err := tmpl.Execute(&out, data); err != nil {
-		return "", fmt.Errorf("bridge: template execution error: %w", err)
+	var systemOut strings.Builder
+	if err := tmpl.Execute(&systemOut, SystemData{Persona: personaPrompt, ADRs: adrs, Standards: standards}); err != nil {
+		return nil, fmt.Errorf("bridge: system template execution error: %w", err)
 	}
-	return out.String(), nil
+
+	// Surgical Context: Just the code nodes
+	var contextOut strings.Builder
+	for _, n := range nodes {
+		contextOut.WriteString(fmt.Sprintf("\n---\n**Symbol**: %s (%s)\n**Location**: %s [Lines %d-%d]\n%s\n", n.Name, n.Type, n.FilePath, n.StartLine, n.EndLine, n.CodeSnippet))
+	}
+
+	return &ContextPayload{
+		SystemInstruction:   systemOut.String(),
+		SurgicalContext:    contextOut.String(),
+		TaskDescription:     task.Description,
+		VerificationCommand: verifyCmd,
+	}, nil
 }
 
 func (f *Factory) loadADRs() ([]ADR, error) {
