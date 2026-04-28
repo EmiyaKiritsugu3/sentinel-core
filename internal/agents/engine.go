@@ -83,6 +83,17 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 	return nil
 }
 
+func (e *Engine) shouldEscalate(ctx *AgentContext) bool {
+	return ctx.FailureCount >= 3 && ctx.ActiveModel == "gemini-1.5-flash"
+}
+
+func (e *Engine) escalate(ctx *AgentContext) {
+	log.Printf("[PAC] Escalating to gemini-1.5-pro for deep deliberation.")
+	ctx.ActiveModel = "gemini-1.5-pro"
+	// Reset failure count after escalation for the new model session
+	ctx.FailureCount = 0
+}
+
 // executeTools runs multiple tools in parallel using errgroup (Standard #06).
 func (e *Engine) executeTools(ctx *AgentContext, toolCalls []map[string]interface{}) error {
 	if len(toolCalls) == 0 {

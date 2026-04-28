@@ -49,12 +49,14 @@ type Message struct {
 
 // AgentContext encapsulates the runtime state of a subagent.
 type AgentContext struct {
-	StateID    string
-	Definition *AgentDefinition
-	Budget     *TokenBudget
-	Memory     []Message
-	Context    context.Context
-	Cancel     context.CancelFunc
+	StateID      string
+	Definition   *AgentDefinition
+	Budget       *TokenBudget
+	Memory       []Message
+	Context      context.Context
+	Cancel       context.CancelFunc
+	FailureCount int    // Track consecutive failures
+	ActiveModel  string // Current model being used
 }
 
 // NewAgentContext initializes a context with cancellation.
@@ -66,7 +68,8 @@ func NewAgentContext(ctx context.Context, stateID string, def *AgentDefinition) 
 		Budget: &TokenBudget{
 			MaxSteps: def.MaxSteps,
 		},
-		Context: c,
-		Cancel:  cancel,
+		Context:     c,
+		Cancel:      cancel,
+		ActiveModel: def.ModelID,
 	}
 }
