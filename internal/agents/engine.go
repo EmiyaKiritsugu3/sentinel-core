@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/bridge"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/reflect"
 	"github.com/google/generative-ai-go/genai"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/option"
@@ -15,6 +18,7 @@ import (
 type Tool interface {
 	Name() string
 	Description() string
+	Definition() *genai.FunctionDeclaration
 	Execute(ctx context.Context, args map[string]interface{}) (string, error)
 }
 
@@ -34,13 +38,15 @@ func NewRegistry() *Registry {
 
 // Engine orchestrates the 6-Phase ReAct loop for subagents.
 type Engine struct {
-	Registry     *Registry
-	genaiClient  *genai.Client
-	authProvider AuthProvider
+	Registry      *Registry
+	genaiClient   *genai.Client
+	authProvider  AuthProvider
+	promptFactory *bridge.Factory
+	validator     *reflect.Validator
 }
 
 // NewEngine initializes a new agent engine.
-func NewEngine(r *Registry, auth AuthProvider) (*Engine, error) {
+func NewEngine(r *Registry, auth AuthProvider, factory *bridge.Factory, v *reflect.Validator) (*Engine, error) {
 	apiKey, err := auth.GetAPIKey()
 	if err != nil {
 		return nil, fmt.Errorf("engine: failed to get API key: %w", err)
@@ -52,9 +58,11 @@ func NewEngine(r *Registry, auth AuthProvider) (*Engine, error) {
 	}
 
 	return &Engine{
-		Registry:     r,
-		genaiClient:  client,
-		authProvider: auth,
+		Registry:      r,
+		genaiClient:   client,
+		authProvider:  auth,
+		promptFactory: factory,
+		validator:     v,
 	}, nil
 }
 
@@ -66,37 +74,38 @@ func (e *Engine) Close() error {
 	return nil
 }
 
-// callLLM executes a real call to the Gemini API.
-func (e *Engine) callLLM(ctx *AgentContext, prompt string) (string, error) {
-	model := e.genaiClient.GenerativeModel(ctx.ActiveModel)
-	
-	// Set reasonable defaults for generation
-	model.SetTemperature(float32(ctx.Definition.Temperature))
-
-	resp, err := model.GenerateContent(ctx.Context, genai.Text(prompt))
-	if err != nil {
-		return "", fmt.Errorf("gemini: failed to generate content: %w", err)
+func (e *Engine) getGenaiTools() []*genai.Tool {
+	var decls []*genai.FunctionDeclaration
+	for _, t := range e.Registry.Tools {
+		decls = append(decls, t.Definition())
 	}
-
-	if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
-		return "", fmt.Errorf("gemini: empty response from model")
+	if len(decls) == 0 {
+		return nil
 	}
-
-	var sb strings.Builder
-	for _, part := range resp.Candidates[0].Content.Parts {
-		if text, ok := part.(genai.Text); ok {
-			sb.WriteString(string(text))
-		}
-	}
-
-	return sb.String(), nil
+	return []*genai.Tool{{FunctionDeclarations: decls}}
 }
 
 // Execute starts the execution of a subagent for a given task.
 func (e *Engine) Execute(ctx *AgentContext) error {
 	defer ctx.Cancel()
 
-	log.Printf("[SENTINEL] Starting agent '%s' for state '%s'", ctx.Definition.Name, ctx.StateID)
+	log.Printf("[SENTINEL] Starting agent '%s' for task '%s'", ctx.Definition.Name, ctx.StateID)
+
+	payload, err := e.promptFactory.GeneratePayload(ctx.StateID, ctx.Definition.SystemPrompt)
+	if err != nil {
+		return fmt.Errorf("engine: failed to generate prompt payload: %w", err)
+	}
+
+	model := e.genaiClient.GenerativeModel(ctx.ActiveModel)
+	model.SetTemperature(float32(ctx.Definition.Temperature))
+	model.SystemInstruction = genai.NewUserContent(genai.Text(payload.SystemInstruction))
+	model.Tools = e.getGenaiTools()
+
+	session := model.StartChat()
+	// Initial objective message
+	initialPrompt := fmt.Sprintf("TASK OBJECTIVE: %s\n\nSURGICAL CONTEXT:%s", payload.TaskDescription, payload.SurgicalContext)
+	
+	currentParts := []genai.Part{genai.Text(initialPrompt)}
 
 	for {
 		// 1. Pre-check (Budget & Context)
@@ -110,53 +119,132 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 		default:
 		}
 
-		// 2. Thinking (Phase 2)
-		log.Printf("[PHASE: THINKING] Step %d/%d", ctx.Budget.StepsTaken, ctx.Budget.MaxSteps)
-		
-		// TODO: Construct full prompt with history and system prompt
-		prompt := "Focus on achieving the task goal. Respond with a technical action plan."
-		
-		response, err := e.callLLM(ctx, prompt)
+		// 2. Generation (Thinking & Action Decision)
+		log.Printf("[PHASE: GENERATION] Step %d/%d", ctx.Budget.StepsTaken, ctx.Budget.MaxSteps)
+		resp, err := session.SendMessage(ctx.Context, currentParts...)
 		if err != nil {
-			return fmt.Errorf("thinking phase failed: %w", err)
+			return fmt.Errorf("generation failed: %w", err)
 		}
-		log.Printf("[SENTINEL] LLM Response: %s", response)
 
-		// 3. Critique (Phase 3)
-		// TODO: Implement local verification (Gemini Flash)
-		
-		// 4. Action (Phase 4)
-		// For now, we simulate a successful completion until LLM is wired up.
-		log.Printf("[PHASE: ACTION] Decision: Finalizing task.")
-		
-		// 5. Execution (Phase 5 - Concurrent Tool Execution)
-		if err := e.executeTools(ctx, nil); err != nil {
-			log.Printf("[SENTINEL] Tool execution error: %v", err)
-			ctx.FailureCount++
+		if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
+			return fmt.Errorf("gemini: empty response from model")
+		}
 
-			if e.shouldEscalate(ctx) {
-				e.escalate(ctx)
-				strategy, err := e.runPACDeliberation(ctx)
-				if err != nil {
-					return fmt.Errorf("PAC deliberation failed: %w", err)
+		content := resp.Candidates[0].Content
+		var toolCalls []map[string]interface{}
+		var textResponses []string
+
+		for _, part := range content.Parts {
+			if text, ok := part.(genai.Text); ok {
+				textResponses = append(textResponses, string(text))
+			}
+			if call, ok := part.(genai.FunctionCall); ok {
+				toolCalls = append(toolCalls, map[string]interface{}{
+					"name": call.Name,
+					"args": call.Args,
+				})
+			}
+		}
+
+		if len(textResponses) > 0 {
+			log.Printf("[SENTINEL] Agent Response: %s", strings.Join(textResponses, "\n"))
+		}
+
+		// 3. Check for Termination (Final Sovereign Audit)
+		if len(toolCalls) == 0 && strings.Contains(strings.Join(textResponses, ""), "Sovereign Audit Report") {
+			log.Printf("[SENTINEL] Termination detected via Audit Report.")
+			break
+		}
+
+		// 4. Tool Execution (Phase 5)
+		if len(toolCalls) > 0 {
+			log.Printf("[PHASE: EXECUTION] Running %d tool(s) in parallel...", len(toolCalls))
+			results, err := e.executeToolsWithResults(ctx, toolCalls)
+			if err != nil {
+				log.Printf("[SENTINEL] Tool execution error: %v", err)
+				ctx.FailureCount++
+				
+				if e.shouldEscalate(ctx) {
+					e.escalate(ctx)
+					// Re-configure model with escalated identity
+					model = e.genaiClient.GenerativeModel(ctx.ActiveModel)
+					// PAC pivot could be injected here
+					continue
 				}
-				ctx.Strategy = strategy
-				log.Printf("[PAC] New Sovereign Strategy: %s", ctx.Strategy)
-				// Continue the loop with the new strategy
+				// Feed the error back to the model as a system failure
+				currentParts = []genai.Part{genai.Text(fmt.Sprintf("ERROR: Tool execution failed: %v. Please adjust your strategy.", err))}
 				continue
 			}
 
-			return fmt.Errorf("tool execution failed after %d attempts: %w", ctx.FailureCount, err)
+			// Format results as FunctionResponses for the next turn
+			var responseParts []genai.Part
+			for name, result := range results {
+				responseParts = append(responseParts, genai.FunctionResponse{
+					Name:     name,
+					Response: map[string]interface{}{"result": result},
+				})
+			}
+			// Important: Use FunctionResponse parts for the next SendMessage
+			currentParts = responseParts
+		} else {
+			// No tool calls and no termination? Ask for next step or provide more context.
+			currentParts = []genai.Part{genai.Text("Strategy confirmed. If complete, provide the Sovereign Audit Report. Otherwise, execute the next tool.")}
 		}
-
-		// 6. Post-Processing (Phase 6)
-		// Simulating loop termination
-		log.Printf("[PHASE: POST-PROCESS] Task state updated.")
-		break
 	}
 
 	log.Printf("[SENTINEL] Agent '%s' completed successfully.", ctx.Definition.Name)
 	return nil
+}
+
+// executeToolsWithResults runs tools and returns their outputs indexed by tool name.
+func (e *Engine) executeToolsWithResults(ctx *AgentContext, toolCalls []map[string]interface{}) (map[string]string, error) {
+	results := make(map[string]string)
+	var mu sync.Mutex
+	g, gCtx := errgroup.WithContext(ctx.Context)
+
+	for _, call := range toolCalls {
+		call := call
+		g.Go(func() error {
+			name := call["name"].(string)
+			tool, exists := e.Registry.Tools[name]
+			if !exists {
+				return fmt.Errorf("tool not found: %s", name)
+			}
+
+			args := call["args"].(map[string]interface{})
+			
+			// Hard Gate: Dynamic Argument Validation (Standard #10)
+			for key, val := range args {
+				if strVal, ok := val.(string); ok {
+					switch key {
+					case "path", "file", "filepath":
+						if err := e.validator.ValidatePath(strVal); err != nil {
+							return fmt.Errorf("hard gate: %w", err)
+						}
+					case "command", "cmd":
+						if err := e.validator.ValidateCommand(strVal); err != nil {
+							return fmt.Errorf("hard gate: %w", err)
+						}
+					}
+				}
+			}
+			
+			result, err := tool.Execute(gCtx, args)
+			if err != nil {
+				return err
+			}
+
+			mu.Lock()
+			results[name] = result
+			mu.Unlock()
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	return results, nil
 }
 
 // runPACDeliberation executes the tripartite deliberation (Minimalist, Structuralist, Auditor).
@@ -185,39 +273,4 @@ func (e *Engine) escalate(ctx *AgentContext) {
 	ctx.ActiveModel = "gemini-1.5-pro"
 	// Reset failure count after escalation for the new model session
 	ctx.FailureCount = 0
-}
-
-// executeTools runs multiple tools in parallel using errgroup (Standard #06).
-func (e *Engine) executeTools(ctx *AgentContext, toolCalls []map[string]interface{}) error {
-	if len(toolCalls) == 0 {
-		return nil
-	}
-
-	g, gCtx := errgroup.WithContext(ctx.Context)
-
-	for _, call := range toolCalls {
-		call := call // capture range variable
-		g.Go(func() error {
-			name, ok := call["name"].(string)
-			if !ok {
-				return fmt.Errorf("missing tool name in call")
-			}
-
-			tool, exists := e.Registry.Tools[name]
-			if !exists {
-				return fmt.Errorf("tool not found: %s", name)
-			}
-
-			args, _ := call["args"].(map[string]interface{})
-			result, err := tool.Execute(gCtx, args)
-			if err != nil {
-				return fmt.Errorf("tool '%s' execution error: %w", name, err)
-			}
-
-			log.Printf("[TOOL: %s] Result: %s", name, result)
-			return nil
-		})
-	}
-
-	return g.Wait()
 }
