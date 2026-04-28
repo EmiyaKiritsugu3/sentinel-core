@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
+	"github.com/google/generative-ai-go/genai"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/api/option"
 )
 
 // Tool defines the interface for agent capabilities.
@@ -31,12 +34,62 @@ func NewRegistry() *Registry {
 
 // Engine orchestrates the 6-Phase ReAct loop for subagents.
 type Engine struct {
-	Registry *Registry
+	Registry     *Registry
+	genaiClient  *genai.Client
+	authProvider AuthProvider
 }
 
 // NewEngine initializes a new agent engine.
-func NewEngine(r *Registry) *Engine {
-	return &Engine{Registry: r}
+func NewEngine(r *Registry, auth AuthProvider) (*Engine, error) {
+	apiKey, err := auth.GetAPIKey()
+	if err != nil {
+		return nil, fmt.Errorf("engine: failed to get API key: %w", err)
+	}
+
+	client, err := genai.NewClient(context.Background(), option.WithAPIKey(apiKey))
+	if err != nil {
+		return nil, fmt.Errorf("engine: failed to create genai client: %w", err)
+	}
+
+	return &Engine{
+		Registry:     r,
+		genaiClient:  client,
+		authProvider: auth,
+	}, nil
+}
+
+// Close releases engine resources.
+func (e *Engine) Close() error {
+	if e.genaiClient != nil {
+		return e.genaiClient.Close()
+	}
+	return nil
+}
+
+// callLLM executes a real call to the Gemini API.
+func (e *Engine) callLLM(ctx *AgentContext, prompt string) (string, error) {
+	model := e.genaiClient.GenerativeModel(ctx.ActiveModel)
+	
+	// Set reasonable defaults for generation
+	model.SetTemperature(float32(ctx.Definition.Temperature))
+
+	resp, err := model.GenerateContent(ctx.Context, genai.Text(prompt))
+	if err != nil {
+		return "", fmt.Errorf("gemini: failed to generate content: %w", err)
+	}
+
+	if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
+		return "", fmt.Errorf("gemini: empty response from model")
+	}
+
+	var sb strings.Builder
+	for _, part := range resp.Candidates[0].Content.Parts {
+		if text, ok := part.(genai.Text); ok {
+			sb.WriteString(string(text))
+		}
+	}
+
+	return sb.String(), nil
 }
 
 // Execute starts the execution of a subagent for a given task.
@@ -58,8 +111,16 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 		}
 
 		// 2. Thinking (Phase 2)
-		// TODO: Implement LLM integration (Gemini Pro)
 		log.Printf("[PHASE: THINKING] Step %d/%d", ctx.Budget.StepsTaken, ctx.Budget.MaxSteps)
+		
+		// TODO: Construct full prompt with history and system prompt
+		prompt := "Focus on achieving the task goal. Respond with a technical action plan."
+		
+		response, err := e.callLLM(ctx, prompt)
+		if err != nil {
+			return fmt.Errorf("thinking phase failed: %w", err)
+		}
+		log.Printf("[SENTINEL] LLM Response: %s", response)
 
 		// 3. Critique (Phase 3)
 		// TODO: Implement local verification (Gemini Flash)
