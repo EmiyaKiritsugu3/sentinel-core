@@ -112,49 +112,57 @@ func (f *Factory) GeneratePayload(taskID string, personaPrompt string) (*Context
 
 	// System Instruction: Persona + ADRs + Standards
 	systemTmpl := `
-# PERSONA
-{{.Persona}}
+	# PERSONA
+	{{.Persona}}
 
-# ARCHITECTURAL CONSTRAINTS (ADRs)
-{{range .ADRs}}
-## {{.Title}}
-{{.Content}}
-{{end}}
+	# ARCHITECTURAL CONSTRAINTS (ADRs)
+	{{range .ADRs}}
+	## {{.Title}}
+	{{.Content}}
+	{{end}}
 
-# ENGINEERING STANDARDS
-{{.Standards}}
+	# ENGINEERING STANDARDS
+	{{.Standards}}
 
-# RULES OF ENGAGEMENT
-1. **Scope Integrity**: You are authorized to modify ONLY files listed in the context.
-2. **Error Governance**: Use project-specific standard error classes. No generic Errors.
-3. **Traceability**: All logic must align with the ADRs provided above.
-4. **No Devanios**: Do not refactor unrelated code. Do not add undocumented features.
+	# RULES OF ENGAGEMENT
+	1. **Scope Integrity**: You are authorized to modify ONLY files listed in the context.
+	2. **Error Governance**: Use project-specific standard error classes. No generic Errors.
+	3. **Traceability**: All logic must align with the ADRs provided above.
+	4. **No Devanios**: Do not refactor unrelated code. Do not add undocumented features.
+	{{if or (eq .Tier "T2") (eq .Tier "T3")}}
+	5. **[GOVERNANCE]**: For Tier 2 (Structural) or Tier 3 (Architectural) tasks, you MUST use the 'sentinel:adr' tool to document your decision BEFORE modifying any code files. Implementation without a registered ADR is a violation of Standard #14.
+	{{end}}
 
-# OUTPUT FORMAT (MANDATORY)
-Your response must conclude with a **Sovereign Audit Report** (Standard #08) using exactly these 5 points:
-1. ✨ **The Good**: (What is now solid)
-2. ⚠️ **The Bad**: (Technical debt introduced)
-3. 💥 **The Ugly**: (Riscos e fragilidades detectadas)
-4. 💡 **The Lesson**: (What was learned/standardized)
-5. 🚀 **The Next**: (Next optimization)
-`
-	
+	# OUTPUT FORMAT (MANDATORY)
+	Your response must conclude with a **Sovereign Audit Report** (Standard #08) using exactly these 5 points:
+	1. ✨ **The Good**: (What is now solid)
+	2. ⚠️ **The Bad**: (Technical debt introduced)
+	3. 💥 **The Ugly**: (Riscos e fragilidades detectadas)
+	4. 💡 **The Lesson**: (What was learned/standardized)
+	5. 🚀 **The Next**: (Next optimization)
+	`
+
 	type SystemData struct {
-		Persona   string
-		ADRs      []ADR
-		Standards string
+	        Persona   string
+	        ADRs      []ADR
+	        Standards string
+	        Tier      string
 	}
 
 	tmpl, err := template.New("system").Parse(systemTmpl)
 	if err != nil {
-		return nil, fmt.Errorf("bridge: system template parse error: %w", err)
+	        return nil, fmt.Errorf("bridge: system template parse error: %w", err)
 	}
 
 	var systemOut strings.Builder
-	if err := tmpl.Execute(&systemOut, SystemData{Persona: personaPrompt, ADRs: adrs, Standards: standards}); err != nil {
-		return nil, fmt.Errorf("bridge: system template execution error: %w", err)
+	if err := tmpl.Execute(&systemOut, SystemData{
+	        Persona:   personaPrompt,
+	        ADRs:      adrs,
+	        Standards: standards,
+	        Tier:      task.Tier,
+	}); err != nil {
+	        return nil, fmt.Errorf("bridge: system template execution error: %w", err)
 	}
-
 	// Surgical Context: Just the code nodes
 	var contextOut strings.Builder
 	for _, n := range nodes {
