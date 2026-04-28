@@ -136,18 +136,48 @@
 
 ---
 
-## 🏁 SOVEREIGN HANDOVER [S05.1 -> S05.2]
-**Status**: NEURAL-READY 🧠
-**Success Rate**: 100% (Infrastructure Phase)
+## [2026-04-29] Milestone: The Neural Bridge (Fase 5.2) [PID-SENTINEL]
+
+**Status**: COMPLETED
+**Impact**: CORE INTELLIGENCE (Very High)
+
+### 🔍 Analysis (Epiphanies)
+1.  **SDK Sovereignty**: Integrated the official `google-generative-ai-go` SDK, moving from simulations to real neural interaction.
+2.  **Contextual Generation**: Wired `callLLM` into the Thinking Phase of the `Engine`, allowing the system to generate technical action plans based on real-time task context.
+3.  **Lifecycle Governance**: Managed the `genai.Client` within the `Engine` lifecycle, ensuring clean resource release through `Close()`.
+
+### 💡 Key Learning
+"Wiring the brain (LLM) to the body (Engine) is more than just an API call; it's the establishment of a deterministic feedback loop between intent and execution."
+
+---
+
+## [2026-04-30] Milestone: The Contextual Prompt (Fase 5.3) [PID-SENTINEL]
+
+**Status**: COMPLETED
+**Impact**: ARCHITECTURAL & COGNITIVE (High)
+
+### 🔍 Analysis (Epiphanies)
+1.  **Chat Session Sovereignty**: Switched from single-shot `GenerateContent` to stateful `StartChat`. This enables real conversation memory and allows the agent to iteratively reason through tool outputs.
+2.  **Explicit Tool Mapping**: Discovered that the Gemini SDK requires pointer slices (`[]*genai.Tool`) and explicit function declarations. Added `Definition()` to the `Tool` interface to ensure type-safe, non-brittle mapping.
+3.  **Command Integration**: Integrated the agent `Engine` directly into the `sentinel start` command. This turns a simple status update into a primary entry point for AI-driven task execution.
+
+### 💡 Key Learning
+"A brain without memory or tools is just a calculator. By wiring stateful chat and dynamic function calling, we've transformed Sentinel from a passive reporter into an active architectural participant."
+
+---
+
+## 🏁 SOVEREIGN HANDOVER [S05.3 -> S05.4]
+**Status**: COGNITIVE-ACTIVE 🧠⚡
+**Success Rate**: 100% (Prompt & Loop Evolution)
 
 ### 🚀 Current Vector
-A infraestrutura de orquestração (Tipos, Loader, Engine Base) está consolidada e compilando. O Sentinel agora possui o "Corpo" (Goroutines) e os "Sentidos" (Ferramentas), mas falta o "Cérebro" (Integração real com a API Gemini).
+O Sentinel agora possui um loop ReAct funcional integrado ao comando `start`. Ele pode manter o contexto da conversa e invocar ferramentas via SDK oficial. O build e os testes de integridade estão 100% verdes.
 
 ### ⚠️ Technical Snag
-O Engine ainda simula as fases de *Thinking* e *Critique*. A integração com a API Gemini para chamadas de ferramentas e raciocínio multi-modelo ainda precisa ser implementada.
+O `Registry` de ferramentas no comando `start` ainda está vazio. As ferramentas reais do sistema (scan, read_file, etc) precisam ser registradas para que o agente possa utilizá-las efetivamente.
 
 ### 🎯 Chief's Priority (First Command)
-**"Sentinel, inicie a Fase 5.2: The Neural Bridge. Integre o internal/agents/engine.go com a API do Gemini Pro (para pensamento) e Gemini Flash (para crítica), e implemente o autodiscovery de ferramentas."**
+**"Sentinel, inicie a Fase 5.4: The Hard Gate Integration. Registre as ferramentas fundamentais no Registry e implemente a validação de segurança (Hard Gate) para os argumentos recebidos via Function Calling."**
 
 ---
 Related: [ROADMAP.md](../architecture/ROADMAP.md) | [EVOLUTION-INSIGHTS.md](./EVOLUTION-INSIGHTS.md)
