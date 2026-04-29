@@ -2,6 +2,7 @@ package agents
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -81,7 +82,7 @@ func (g *GitShield) CleanupWorktrees() error {
 			path := strings.TrimPrefix(line, "worktree ")
 			if strings.Contains(path, "sentinel-task-") {
 				if _, err := g.run("worktree", "remove", "--force", path); err != nil {
-					// Log error but continue (Standard #05: Error governance - logging for async-like cleanup)
+					fmt.Fprintf(os.Stderr, "warning: git: could not remove worktree %s: %v\n", path, err)
 					continue
 				}
 			}

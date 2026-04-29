@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS sub_tasks (
     branch_name TEXT,
     heartbeat TIMESTAMP,
     required_capabilities TEXT, -- JSON array
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (parent_task_id) REFERENCES tasks(id) ON DELETE CASCADE,
     FOREIGN KEY (specialist_id) REFERENCES specialist_registry(id)
 );

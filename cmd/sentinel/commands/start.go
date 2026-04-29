@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/agents"
@@ -21,29 +20,26 @@ func NewStartCmd(db *sqlite.DB) *cobra.Command {
 			taskID := args[0]
 			mgr := state.NewManager(db)
 
-			// 1. Mark task as IN_PROGRESS
 			if err := mgr.StartTask(taskID); err != nil {
 				return fmt.Errorf("start: failed to update task status: %w", err)
 			}
 			fmt.Printf("🚀 Sentinel: Task [%s] is now IN_PROGRESS.\n", taskID)
 
-			// 2. Initialize Infrastructure
 			auth := &agents.SovereignAuthProvider{}
 			factory := bridge.NewFactory(db)
 			validator := reflect.NewValidator(db)
-
-			// Task 6: Integration & Command Wiring
-			registryManager := agents.NewRegistryManager(db)
-			gitShield := agents.NewGitShield(".", validator)
-			dispatcher := agents.NewDispatcher(registryManager, gitShield, db)
-
-			// Clear any pending events before starting
-			if err := dispatcher.ReconcileEvents(context.Background()); err != nil {
-				fmt.Printf("⚠️  Sentinel: Event reconciliation failed: %v\n", err)
-			}
-
 			registry := agents.NewRegistry()
 			agents.RegisterCoreTools(registry, db)
+
+			// Dispatcher initialization
+			gitShield := agents.NewGitShield(".", validator)
+			regMgr := agents.NewRegistryManager(db)
+			dispatcher := agents.NewDispatcher(regMgr, gitShield, db)
+
+			// Reconcile events from sub-agents before proceeding
+			if err := dispatcher.ReconcileEvents(cmd.Context()); err != nil {
+				return fmt.Errorf("start: event reconciliation failed: %w", err)
+			}
 
 			engine, err := agents.NewEngine(registry, auth, factory, validator)
 			if err != nil {
@@ -51,15 +47,13 @@ func NewStartCmd(db *sqlite.DB) *cobra.Command {
 			}
 			defer engine.Close()
 
-			// 3. Load Agent Definition
 			loader := agents.NewLoader()
 			agentDef, err := loader.LoadAgent("internal/agents/definitions/architect.md")
 			if err != nil {
 				return fmt.Errorf("start: failed to load sovereign architect: %w", err)
 			}
 
-			// 4. Create Context and Execute
-			ctx := agents.NewAgentContext(context.Background(), taskID, agentDef)
+			ctx := agents.NewAgentContext(cmd.Context(), taskID, agentDef)
 			fmt.Printf("🧠 Sentinel: Invoking '%s' (Model: %s)...\n", agentDef.Name, agentDef.ModelID)
 
 			if err := engine.Execute(ctx); err != nil {

@@ -40,9 +40,15 @@ func (d *Dispatcher) Dispatch(ctx context.Context, st *SubTask) error {
 	}
 	st.WorktreePath = path
 
+	// Marshal capabilities to JSON for persistence
+	capsJSON, err := json.Marshal(st.RequiredCapabilities)
+	if err != nil {
+		return fmt.Errorf("dispatcher: failed to marshal capabilities: %w", err)
+	}
+
 	// Persistir sub-task no Ledger Central (Apenas o Dispatcher escreve aqui)
-	query := "INSERT INTO sub_tasks (id, parent_task_id, specialist_id, description, status, worktree_path, branch_name) VALUES (?, ?, ?, ?, ?, ?, ?)"
-	_, err = d.DB.Conn.ExecContext(ctx, query, st.ID, st.ParentTaskID, st.SpecialistID, st.Description, "DISPATCHED", st.WorktreePath, st.BranchName)
+	query := "INSERT INTO sub_tasks (id, parent_task_id, specialist_id, description, status, worktree_path, branch_name, required_capabilities) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+	_, err = d.DB.Conn.ExecContext(ctx, query, st.ID, st.ParentTaskID, st.SpecialistID, st.Description, "DISPATCHED", st.WorktreePath, st.BranchName, string(capsJSON))
 	if err != nil {
 		return fmt.Errorf("dispatcher: failed to log sub-task: %w", err)
 	}
@@ -88,7 +94,9 @@ func (d *Dispatcher) ReconcileEvents(ctx context.Context) error {
 			return fmt.Errorf("dispatcher: reconciliation failed for %s: %w", event.SubTaskID, err)
 		}
 
-		os.Remove(path) // Saneamento pós-processamento
+		if err := os.Remove(path); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: dispatcher: could not remove event file %s: %v\n", path, err)
+		}
 	}
 
 	return nil
