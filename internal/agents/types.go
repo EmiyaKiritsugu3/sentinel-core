@@ -85,3 +85,9 @@ type Specialist struct {
 	Capabilities       []string
 }
 
+// Validator defines the security interface for path and command validation (Standard #10).
+type Validator interface {
+	ValidatePath(path string) error
+	ValidateCommand(cmd string) error
+}
+
