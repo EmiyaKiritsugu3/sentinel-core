@@ -25,8 +25,10 @@ type ReadFileTool struct {
 	db *sqlite.DB
 }
 
-func (t *ReadFileTool) Name() string        { return "read_file" }
-func (t *ReadFileTool) Description() string { return "Reads a file from the project directory. Supports line range." }
+func (t *ReadFileTool) Name() string { return "read_file" }
+func (t *ReadFileTool) Description() string {
+	return "Reads a file from the project directory. Supports line range."
+}
 
 func (t *ReadFileTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{
@@ -105,8 +107,10 @@ type WriteFileTool struct {
 	db *sqlite.DB
 }
 
-func (t *WriteFileTool) Name() string        { return "write_file" }
-func (t *WriteFileTool) Description() string { return "Writes content to a file. Overwrites existing files." }
+func (t *WriteFileTool) Name() string { return "write_file" }
+func (t *WriteFileTool) Description() string {
+	return "Writes content to a file. Overwrites existing files."
+}
 
 func (t *WriteFileTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{
@@ -160,8 +164,10 @@ type ReplaceTool struct {
 	db *sqlite.DB
 }
 
-func (t *ReplaceTool) Name() string        { return "replace" }
-func (t *ReplaceTool) Description() string { return "Replaces a specific string in a file with new content." }
+func (t *ReplaceTool) Name() string { return "replace" }
+func (t *ReplaceTool) Description() string {
+	return "Replaces a specific string in a file with new content."
+}
 
 func (t *ReplaceTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{
@@ -436,7 +442,7 @@ func (t *RunTool) Execute(ctx context.Context, args map[string]interface{}) (str
 	cmd.Stderr = &out
 
 	err = cmd.Run()
-	
+
 	output := out.String()
 	// [PID-SENTINEL] Auditor Constraint: Context Protection
 	// Limit output to ~10KB or 200 lines to prevent context exhaustion
@@ -461,8 +467,10 @@ type ADRTool struct {
 	db *sqlite.DB
 }
 
-func (t *ADRTool) Name() string        { return "sentinel:adr" }
-func (t *ADRTool) Description() string { return "Generates a formal Architectural Decision Record (ADR) file for the current task." }
+func (t *ADRTool) Name() string { return "sentinel:adr" }
+func (t *ADRTool) Description() string {
+	return "Generates a formal Architectural Decision Record (ADR) file for the current task."
+}
 
 func (t *ADRTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{
@@ -532,8 +540,10 @@ type ScanTool struct {
 	db *sqlite.DB
 }
 
-func (t *ScanTool) Name() string        { return "sentinel_scan" }
-func (t *ScanTool) Description() string { return "Updates the architectural graph by scanning the project's source code." }
+func (t *ScanTool) Name() string { return "sentinel_scan" }
+func (t *ScanTool) Description() string {
+	return "Updates the architectural graph by scanning the project's source code."
+}
 
 func (t *ScanTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{
@@ -553,11 +563,11 @@ func (t *ScanTool) Execute(ctx context.Context, args map[string]interface{}) (st
 	engine := graph.NewEngine(t.db)
 	engine.RegisterScanner(graph.NewGoScanner())
 	engine.RegisterScanner(graph.NewTreeSitterScanner())
-	
+
 	if err := engine.ScanProject("."); err != nil {
 		return "", fmt.Errorf("scan: failed: %w", err)
 	}
-	
+
 	return "Scan complete. Graph database updated successfully.", nil
 }
 

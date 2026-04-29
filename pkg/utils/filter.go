@@ -54,7 +54,7 @@ func (f *IgnoreFilter) IsIgnored(path string) bool {
 	// 2. Padrões do .gitignore
 	for _, p := range f.patterns {
 		pattern := strings.ToLower(strings.TrimPrefix(p, "./"))
-		
+
 		// Match exato de arquivo ou pasta
 		if filepath.Base(cleanPath) == strings.Trim(pattern, "/") {
 			return true
@@ -65,7 +65,7 @@ func (f *IgnoreFilter) IsIgnored(path string) bool {
 			strings.HasPrefix(cleanPath, strings.TrimSuffix(pattern, "/")+"/") {
 			return true
 		}
-		
+
 		// Match de sufixo (extensões como *.log ou caminhos específicos)
 		if strings.HasSuffix(cleanPath, pattern) && strings.Contains(pattern, ".") {
 			return true

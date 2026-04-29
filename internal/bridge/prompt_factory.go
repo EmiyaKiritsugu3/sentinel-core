@@ -74,7 +74,7 @@ type ContextNode struct {
 
 type ContextPayload struct {
 	SystemInstruction   string
-	SurgicalContext    string
+	SurgicalContext     string
 	TaskDescription     string
 	VerificationCommand string
 }
@@ -143,25 +143,25 @@ func (f *Factory) GeneratePayload(taskID string, personaPrompt string) (*Context
 	`
 
 	type SystemData struct {
-	        Persona   string
-	        ADRs      []ADR
-	        Standards string
-	        Tier      string
+		Persona   string
+		ADRs      []ADR
+		Standards string
+		Tier      string
 	}
 
 	tmpl, err := template.New("system").Parse(systemTmpl)
 	if err != nil {
-	        return nil, fmt.Errorf("bridge: system template parse error: %w", err)
+		return nil, fmt.Errorf("bridge: system template parse error: %w", err)
 	}
 
 	var systemOut strings.Builder
 	if err := tmpl.Execute(&systemOut, SystemData{
-	        Persona:   personaPrompt,
-	        ADRs:      adrs,
-	        Standards: standards,
-	        Tier:      task.Tier,
+		Persona:   personaPrompt,
+		ADRs:      adrs,
+		Standards: standards,
+		Tier:      task.Tier,
 	}); err != nil {
-	        return nil, fmt.Errorf("bridge: system template execution error: %w", err)
+		return nil, fmt.Errorf("bridge: system template execution error: %w", err)
 	}
 	// Surgical Context: Just the code nodes
 	var contextOut strings.Builder
@@ -171,7 +171,7 @@ func (f *Factory) GeneratePayload(taskID string, personaPrompt string) (*Context
 
 	return &ContextPayload{
 		SystemInstruction:   systemOut.String(),
-		SurgicalContext:    contextOut.String(),
+		SurgicalContext:     contextOut.String(),
 		TaskDescription:     task.Description,
 		VerificationCommand: verifyCmd,
 	}, nil

@@ -1,0 +1,3 @@
+- [x] Task 1: The ADR Tool Implementation (internal/agents/tools.go)
+- [x] Task 2: ADR Governance in the Engine (internal/bridge/prompt_factory.go, etc.)
+- [x] Task 3: Audit Violation Fixes (internal/graph/adr_generator_test.go)

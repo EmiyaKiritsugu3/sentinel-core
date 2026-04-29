@@ -49,7 +49,7 @@ func (r *Runner) ExecuteAudit(taskID string, command string) (bool, error) {
 	if err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			fmt.Println("🛑 ERROR: Audit Timeout Exceeded.")
-			exitCode = 124 
+			exitCode = 124
 		} else {
 			// Uso do errors.As para detecção robusta de erro de saída
 			var exitError *exec.ExitError

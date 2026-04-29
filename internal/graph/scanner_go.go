@@ -47,7 +47,7 @@ func (s *GoScanner) Scan(path string) ScanResult {
 					receiver = fmt.Sprintf("%s.", t.Name)
 				}
 			}
-			
+
 			funcID := fmt.Sprintf("func:%s:%s%s", path, receiver, x.Name.Name)
 			start := fset.Position(x.Pos()).Line
 			end := fset.Position(x.End()).Line

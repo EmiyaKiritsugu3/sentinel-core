@@ -51,7 +51,7 @@ func (e *Engine) ScanProject(root string) error {
 				if !ok {
 					continue
 				}
-				
+
 				// Verificação de Hash Incremental movida para o Engine para ser global
 				res := e.scanFileWithIncrementalCheck(scanner, path)
 				resultsChan <- res
@@ -113,7 +113,7 @@ func (e *Engine) scanFileWithIncrementalCheck(scanner FileScanner, path string) 
 	fileID := "file:" + path
 	err = e.db.Conn.QueryRow("SELECT hash FROM nodes WHERE id = ?", fileID).Scan(&existingHash)
 	if err == nil && existingHash == hash {
-		return ScanResult{} 
+		return ScanResult{}
 	}
 
 	res := scanner.Scan(path)

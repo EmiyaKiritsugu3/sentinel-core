@@ -99,6 +99,50 @@ CREATE TABLE IF NOT EXISTS performance_logs (
     FOREIGN KEY (specialist_id) REFERENCES specialist_registry(id),
     FOREIGN KEY (sub_task_id) REFERENCES sub_tasks(id)
 );
+
+CREATE TABLE IF NOT EXISTS specialist_registry (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    base_persona TEXT NOT NULL,
+    current_persona_path TEXT NOT NULL,
+    parent_specialist_id TEXT,
+    generation INTEGER DEFAULT 1,
+    reliability_score REAL DEFAULT 1.0,
+    success_rate REAL DEFAULT 0.0,
+    tasks_completed INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_specialist_id) REFERENCES specialist_registry(id)
+);
+
+CREATE TABLE IF NOT EXISTS sub_tasks (
+    id TEXT PRIMARY KEY,
+    parent_task_id TEXT NOT NULL,
+    specialist_id TEXT,
+    description TEXT NOT NULL,
+    status TEXT NOT NULL, -- PENDING, DISPATCHED, IN_PROGRESS, AUDITING, DONE, FAILED
+    worktree_path TEXT,
+    branch_name TEXT,
+    heartbeat TIMESTAMP,
+    required_capabilities TEXT, -- JSON array
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (specialist_id) REFERENCES specialist_registry(id)
+);
+
+CREATE TABLE IF NOT EXISTS performance_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    specialist_id TEXT,
+    task_id TEXT,
+    sub_task_id TEXT,
+    token_usage INTEGER,
+    duration_ms INTEGER,
+    audit_passed BOOLEAN,
+    failure_reason TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (specialist_id) REFERENCES specialist_registry(id),
+    FOREIGN KEY (sub_task_id) REFERENCES sub_tasks(id)
+);
 `
 func Migrate(db *sqlite.DB) error {
 	_, err := db.Conn.Exec(schema)

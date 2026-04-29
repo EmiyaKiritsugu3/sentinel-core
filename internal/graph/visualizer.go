@@ -55,7 +55,7 @@ func (v *Visualizer) GenerateTaskSnapshot(taskID, description string, impactFile
 		}
 		nodes = append(nodes, fileNodes...)
 	}
-	
+
 	edges, err := v.getEdges()
 	if err != nil {
 		return fmt.Errorf("viz: failed to fetch snapshot edges: %w", err)
@@ -132,7 +132,7 @@ func (v *Visualizer) formatMermaid(nodes []Node, edges []Edge) string {
 		} else if n.Type == "function" {
 			style = ":::func"
 		}
-		
+
 		safeID := utils.SanitizeID(n.ID)
 		sb.WriteString(fmt.Sprintf("    %s[\"%s (%s)\"]%s\n", safeID, n.Name, n.Type, style))
 	}
@@ -140,14 +140,14 @@ func (v *Visualizer) formatMermaid(nodes []Node, edges []Edge) string {
 	for _, e := range edges {
 		safeFrom := utils.SanitizeID(e.From)
 		safeTo := utils.SanitizeID(e.To)
-		
+
 		if nodeMap[e.From] && nodeMap[e.To] {
 			sb.WriteString(fmt.Sprintf("    %s -->|%s| %s\n", safeFrom, e.Rel, safeTo))
 		}
 	}
-	
+
 	sb.WriteString("\n    classDef struct fill:#f9f,stroke:#333,stroke-width:2px;\n")
 	sb.WriteString("    classDef func fill:#bbf,stroke:#333,stroke-width:1px;\n")
-	
+
 	return sb.String()
 }

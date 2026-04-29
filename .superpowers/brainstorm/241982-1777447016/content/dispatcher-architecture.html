@@ -1,0 +1,78 @@
+<h2>Dispatcher Architecture: The Neural Orchestra</h2>
+<p class="subtitle">High-level flow for parallel task execution with Git Worktrees</p>
+
+<div class="mockup">
+  <div class="mockup-header">System Flow: Chief -> Dispatcher -> Operators</div>
+  <div class="mockup-body">
+    <div style="display: flex; flex-direction: column; gap: 20px; align-items: center;">
+      <div class="card" style="width: 250px; background: #eef; border: 2px solid #336;">
+        <div class="card-body">
+          <h3 style="margin: 0;">Chief Engineer</h3>
+          <p style="font-size: 12px; margin: 5px 0 0;">Task decomposition & Coordination</p>
+        </div>
+      </div>
+      
+      <div style="height: 30px; border-left: 2px dashed #999;"></div>
+      
+      <div class="card" style="width: 300px; background: #efe; border: 2px solid #363;">
+        <div class="card-body">
+          <h3 style="margin: 0;">SQLite Neural Ledger</h3>
+          <p style="font-size: 12px; margin: 5px 0 0;">Table: <code>sub_tasks</code> (Event Log)</p>
+          <ul style="font-size: 11px; text-align: left; padding-left: 15px;">
+            <li>Status tracking</li>
+            <li>Heartbeat (Audit)</li>
+            <li>Worktree mapping</li>
+          </ul>
+        </div>
+      </div>
+
+      <div style="height: 30px; border-left: 2px dashed #999;"></div>
+
+      <div style="display: flex; gap: 30px;">
+        <div class="card" style="width: 180px; border: 1px solid #999;">
+          <div class="card-body">
+            <strong>Worktree A</strong>
+            <p style="font-size: 10px;">Branch: task-123</p>
+            <div class="placeholder" style="height: 40px; margin-top: 5px;">Operator 1</div>
+          </div>
+        </div>
+        <div class="card" style="width: 180px; border: 1px solid #999;">
+          <div class="card-body">
+            <strong>Worktree B</strong>
+            <p style="font-size: 10px;">Branch: task-456</p>
+            <div class="placeholder" style="height: 40px; margin-top: 5px;">Operator 2</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Question 1: Agent Personality Selection</h3>
+  <p>How should the Chief Engineer select the Specialist Operator for a sub-task?</p>
+  
+  <div class="options">
+    <div class="option" data-choice="static" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>Static / Mapping-Based</h3>
+        <p>Pre-defined operators (e.g., 'DocExpert', 'RefactorExpert') based on file paths or task categories.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="dynamic" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>Dynamic / Intent-Based</h3>
+        <p>Chief Engineer analyzes the sub-task description and generates a custom persona/instructions for a Universal Operator.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="autonomous" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>Autonomous Selection</h3>
+        <p>The Dispatcher has its own "Specialist Registry" and picks the best-fit agent based on historical performance/metadata.</p>
+      </div>
+    </div>
+  </div>
+</div>

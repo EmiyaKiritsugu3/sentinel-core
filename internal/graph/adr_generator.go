@@ -33,7 +33,7 @@ func (g *ADRGenerator) Generate(taskID string, intent string) (string, error) {
 
 	// Template Smart ADR com Frontmatter Blindado
 	now := time.Now().Format("2006-01-02")
-	
+
 	// Escapando campos para o YAML
 	safeTaskID := utils.EscapeYAML(taskID)
 	safeIntent := utils.EscapeYAML(intent)

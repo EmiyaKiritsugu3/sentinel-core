@@ -104,7 +104,7 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 	session := model.StartChat()
 	// Initial objective message
 	initialPrompt := fmt.Sprintf("TASK OBJECTIVE: %s\n\nSURGICAL CONTEXT:%s", payload.TaskDescription, payload.SurgicalContext)
-	
+
 	currentParts := []genai.Part{genai.Text(initialPrompt)}
 
 	for {
@@ -163,7 +163,7 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 			if err != nil {
 				log.Printf("[SENTINEL] Tool execution error: %v", err)
 				ctx.FailureCount++
-				
+
 				if e.shouldEscalate(ctx) {
 					e.escalate(ctx)
 					// Re-configure model with escalated identity
@@ -212,7 +212,7 @@ func (e *Engine) executeToolsWithResults(ctx *AgentContext, toolCalls []map[stri
 			}
 
 			args := call["args"].(map[string]interface{})
-			
+
 			// Hard Gate: Dynamic Argument Validation (Standard #10)
 			for key, val := range args {
 				if strVal, ok := val.(string); ok {
@@ -228,7 +228,7 @@ func (e *Engine) executeToolsWithResults(ctx *AgentContext, toolCalls []map[stri
 					}
 				}
 			}
-			
+
 			result, err := tool.Execute(gCtx, args)
 			if err != nil {
 				return err

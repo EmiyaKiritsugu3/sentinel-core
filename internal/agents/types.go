@@ -5,6 +5,22 @@ import (
 	"sync"
 )
 
+// Validator defines the security interface for path and command validation (Standard #10).
+type Validator interface {
+	ValidatePath(path string) error
+	ValidateCommand(cmd string) error
+}
+
+// Specialist represents an evolutionary agent persona in the registry (PID-SENTINEL-5.7).
+type Specialist struct {
+	ID                 string
+	Name               string
+	BasePersona        string
+	CurrentPersonaPath string
+	ReliabilityScore   float64
+	Capabilities       []string
+}
+
 // TokenBudget handles deterministic execution limits to prevent infinite loops (Standard #06).
 type TokenBudget struct {
 	mu         sync.RWMutex
@@ -31,14 +47,14 @@ func (b *TokenBudget) IncSteps() bool {
 
 // AgentDefinition represents the "Smart Agent Artifact" (.md + YAML).
 type AgentDefinition struct {
-	Name          string   `yaml:"name" validate:"required"`
-	Version       string   `yaml:"version"`
-	ModelID       string   `yaml:"model_id" validate:"required"`
-	Temperature   float64  `yaml:"temperature"`
-	MaxSteps      int      `yaml:"max_steps" validate:"required,min=1"`
-	Capabilities  []string `yaml:"capabilities"`
-	TierAccess    []string `yaml:"tier_access"`
-	SystemPrompt  string   `yaml:"-"` // From Markdown body
+	Name         string   `yaml:"name" validate:"required"`
+	Version      string   `yaml:"version"`
+	ModelID      string   `yaml:"model_id" validate:"required"`
+	Temperature  float64  `yaml:"temperature"`
+	MaxSteps     int      `yaml:"max_steps" validate:"required,min=1"`
+	Capabilities []string `yaml:"capabilities"`
+	TierAccess   []string `yaml:"tier_access"`
+	SystemPrompt string   `yaml:"-"` // From Markdown body
 }
 
 // Message represents a single interaction in the agent's memory.
@@ -58,6 +74,18 @@ type AgentContext struct {
 	FailureCount int    // Track consecutive failures
 	ActiveModel  string // Current model being used
 	Strategy     string // Current technical strategy (Sovereign Pivot)
+}
+
+// SubTask represents a unit of work assigned to a specialist (PID-SENTINEL-5.7).
+type SubTask struct {
+	ID                   string
+	ParentTaskID         string
+	SpecialistID         string
+	Description          string
+	Status               string // PENDING, DISPATCHED, IN_PROGRESS, AUDITING, DONE, FAILED
+	WorktreePath         string
+	BranchName           string
+	RequiredCapabilities []string
 }
 
 // NewAgentContext initializes a context with cancellation.

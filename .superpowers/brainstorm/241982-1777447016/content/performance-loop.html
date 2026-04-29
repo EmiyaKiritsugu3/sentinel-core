@@ -1,0 +1,67 @@
+<h2>Specialist Registry: The Performance Loop</h2>
+<p class="subtitle">Autonomous selection based on success rates and capability mapping</p>
+
+<div class="mockup">
+  <div class="mockup-header">Specialist Performance Database</div>
+  <div class="mockup-body">
+    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+      <thead>
+        <tr style="border-bottom: 2px solid #ddd; text-align: left;">
+          <th style="padding: 8px;">Specialist</th>
+          <th style="padding: 8px;">Capability</th>
+          <th style="padding: 8px;">Success Rate</th>
+          <th style="padding: 8px;">Reliability</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 8px;">Architect-Sub</td>
+          <td style="padding: 8px;"><span class="label" style="background: #eef;">refactoring</span></td>
+          <td style="padding: 8px;">94%</td>
+          <td style="padding: 8px; color: green;">★★★★★</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 8px;">Doc-Master</td>
+          <td style="padding: 8px;"><span class="label" style="background: #eef;">documentation</span></td>
+          <td style="padding: 8px;">89%</td>
+          <td style="padding: 8px; color: orange;">★★★★☆</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px;">Test-Runner</td>
+          <td style="padding: 8px;"><span class="label" style="background: #eef;">unit-testing</span></td>
+          <td style="padding: 8px;">72%</td>
+          <td style="padding: 8px; color: red;">★★★☆☆</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Question 2: Feedback Loop Mechanism</h3>
+  <p>How should we feed the performance data back into the registry after a task is "DONE"?</p>
+  
+  <div class="options">
+    <div class="option" data-choice="audit-based" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>Audit-Driven (Standard #08)</h3>
+        <p>The success score is updated automatically by the <code>audit</code> command results (Exit Code 0 = +1 Reliability).</p>
+      </div>
+    </div>
+    <div class="option" data-choice="human-in-the-loop" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>Human-Validated</h3>
+        <p>The user provides a 0-5 star rating after reviewing the final PR, which serves as the primary weight for selection.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="hybrid-feedback" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>Hybrid (Audit + User)</h3>
+        <p>Success is defined by the Audit passing, but "Excellence" (Bonus points) is awarded if the user merges the PR without any manual edits.</p>
+      </div>
+    </div>
+  </div>
+</div>

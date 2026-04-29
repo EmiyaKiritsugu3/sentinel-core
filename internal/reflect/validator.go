@@ -55,7 +55,7 @@ func (v *Validator) ValidateProject(root string) ([]Violation, error) {
 // ValidatePath garante que o caminho fornecido pelo agente é seguro (Standard #10).
 func (v *Validator) ValidatePath(path string) error {
 	cleanPath := filepath.Clean(path)
-	
+
 	// 1. Bloqueia caminhos absolutos
 	if filepath.IsAbs(cleanPath) {
 		return fmt.Errorf("security: absolute paths are forbidden: %s", path)
@@ -87,7 +87,7 @@ func (v *Validator) checkFile(path string) ([]Violation, error) {
 	}
 	defer file.Close()
 
-	// Quis custodiet ipsos custodes? 
+	// Quis custodiet ipsos custodes?
 	isValidatorItself := strings.Contains(path, "internal/reflect/validator.go")
 
 	var violations []Violation
@@ -106,7 +106,7 @@ func (v *Validator) checkFile(path string) ([]Violation, error) {
 				Reason:     "Violation of Standard #01: Use of os.ReadFile detected. Use buffered readers (bufio) instead.",
 			})
 		}
-		
+
 		// Standard #05: Anti-Silent Errors
 		if !isValidatorItself && strings.Contains(line, "return nil, err") && !strings.Contains(path, "legacy") {
 			violations = append(violations, Violation{

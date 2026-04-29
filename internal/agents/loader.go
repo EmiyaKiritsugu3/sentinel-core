@@ -33,7 +33,7 @@ func (l *Loader) LoadAgent(path string) (*AgentDefinition, error) {
 	var yamlBuilder strings.Builder
 	var mdBuilder strings.Builder
 	scanner := bufio.NewScanner(file)
-	
+
 	// Increase buffer size for large prompts (Standard #01)
 	const maxCapacity = 1 * 1024 * 1024
 	buf := make([]byte, 64*1024)
@@ -45,7 +45,7 @@ func (l *Loader) LoadAgent(path string) (*AgentDefinition, error) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		
+
 		if line == "---" {
 			if !frontmatterFound {
 				inYAML = true
