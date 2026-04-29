@@ -4,19 +4,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
 type mockValidator struct{}
 
-func (m *mockValidator) ValidatePath(path string) error {
-	return nil
-}
-
-func (m *mockValidator) ValidateCommand(cmd string) error {
-	return nil
-}
+func (m *mockValidator) ValidatePath(path string) error { return nil }
+func (m *mockValidator) ValidateCommand(cmd string) error { return nil }
 
 func TestGitShield_CreateWorktree(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "gitshield-test-*")
@@ -25,49 +19,34 @@ func TestGitShield_CreateWorktree(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Init a git repo in tmpDir
-	cmd := exec.Command("git", "init")
-	cmd.Dir = tmpDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to init git repo: %v", err)
+	// Init a git repo and initial commit
+	runCmd := func(args ...string) {
+		c := exec.Command("git", args...)
+		c.Dir = tmpDir
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v (output: %s)", args, err, out)
+		}
 	}
-
-	// Create a dummy commit so we have a branch
-	if err := os.WriteFile(filepath.Join(tmpDir, "dummy"), []byte("data"), 0644); err != nil {
-		t.Fatalf("failed to write dummy file: %v", err)
-	}
-	cmd = exec.Command("git", "add", ".")
-	cmd.Dir = tmpDir
-	cmd.Run()
-	cmd = exec.Command("git", "commit", "-m", "initial")
-	cmd.Dir = tmpDir
-	cmd.Run()
+	runCmd("init")
+	os.WriteFile(filepath.Join(tmpDir, "dummy"), []byte("data"), 0644)
+	runCmd("add", ".")
+	runCmd("commit", "-m", "initial")
+	
+	// Create a branch that is NOT checked out
+	runCmd("branch", "subtask-branch")
 
 	gs := NewGitShield(tmpDir, &mockValidator{})
-
-	// Ensure .worktrees directory exists
-	if err := os.Mkdir(filepath.Join(tmpDir, ".worktrees"), 0755); err != nil {
-		t.Fatalf("failed to create .worktrees dir: %v", err)
-	}
+	os.Mkdir(filepath.Join(tmpDir, ".worktrees"), 0755)
 
 	t.Run("Create Worktree Success", func(t *testing.T) {
-		// Detect default branch
-		branch := "master"
-		cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-		cmd.Dir = tmpDir
-		out, err := cmd.Output()
-		if err == nil {
-			branch = string(out)
-			branch = strings.TrimSpace(branch)
-		}
-
-		path, err := gs.CreateWorktree("task-123", branch)
+		path, err := gs.CreateWorktree("task-123", "subtask-branch")
 		if err != nil {
-			t.Fatalf("failed to create worktree with branch %s: %v", branch, err)
+			t.Fatalf("failed to create worktree: %v", err)
 		}
 
-		if _, err := os.Stat(filepath.Join(tmpDir, path)); os.IsNotExist(err) {
-			t.Errorf("worktree directory was not created: %s", path)
+		fullPath := filepath.Join(tmpDir, path)
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			t.Errorf("worktree directory was not created: %s", fullPath)
 		}
 	})
 
@@ -75,12 +54,6 @@ func TestGitShield_CreateWorktree(t *testing.T) {
 		err := gs.CleanupWorktrees()
 		if err != nil {
 			t.Fatalf("failed to cleanup worktrees: %v", err)
-		}
-
-		// Verify worktree list doesn't have our task
-		output, _ := gs.run("worktree", "list")
-		if testing.Verbose() {
-			t.Logf("Worktree list: %s", output)
 		}
 	})
 }
