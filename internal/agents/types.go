@@ -91,3 +91,15 @@ type Validator interface {
 	ValidateCommand(cmd string) error
 }
 
+
+// SubTask represents an atomic unit of work dispatched to a specialist.
+type SubTask struct {
+	ID                   string
+	ParentTaskID         string
+	SpecialistID         string
+	Description          string
+	Status               string
+	WorktreePath         string
+	BranchName           string
+	RequiredCapabilities []string
+}
