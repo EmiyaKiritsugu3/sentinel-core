@@ -22,7 +22,7 @@ func (e *MutationEngine) Mutate(ctx context.Context, specialistID string, rcaPro
 	var currentPath string
 	var generation int
 	query := `SELECT current_persona_path, generation FROM specialist_registry WHERE id = ?`
-	err := e.DB.QueryRow(query, specialistID).Scan(&currentPath, &generation)
+	err := e.DB.Conn.QueryRowContext(ctx, query, specialistID).Scan(&currentPath, &generation)
 	if err != nil {
 		return fmt.Errorf("failed to fetch specialist %s: %w", specialistID, err)
 	}
@@ -60,7 +60,7 @@ func (e *MutationEngine) Mutate(ctx context.Context, specialistID string, rcaPro
 		    parent_persona_path = ?, 
 		    generation = ? 
 		WHERE id = ?`
-	_, err = e.DB.Exec(updateQuery, newPath, currentPath, newGeneration, specialistID)
+	_, err = e.DB.Conn.ExecContext(ctx, updateQuery, newPath, currentPath, newGeneration, specialistID)
 	if err != nil {
 		return fmt.Errorf("failed to update registry for %s: %w", specialistID, err)
 	}
@@ -74,7 +74,8 @@ func (e *MutationEngine) Rollback(specialistID string) error {
 	var parentPath string
 	var currentGeneration int
 	query := `SELECT parent_persona_path, generation FROM specialist_registry WHERE id = ?`
-	err := e.DB.QueryRow(query, specialistID).Scan(&parentPath, &currentGeneration)
+	// Using Background context here since Rollback signature doesn't take context
+	err := e.DB.Conn.QueryRowContext(context.Background(), query, specialistID).Scan(&parentPath, &currentGeneration)
 	if err != nil {
 		return fmt.Errorf("failed to fetch parent info for %s: %w", specialistID, err)
 	}
@@ -97,10 +98,11 @@ func (e *MutationEngine) Rollback(specialistID string) error {
 		    parent_persona_path = '', -- Resetting parent for simplicity in this version
 		    generation = ? 
 		WHERE id = ?`
-	_, err = e.DB.Exec(updateQuery, parentPath, newGeneration, specialistID)
+	_, err = e.DB.Conn.ExecContext(context.Background(), updateQuery, parentPath, newGeneration, specialistID)
 	if err != nil {
 		return fmt.Errorf("failed to rollback registry for %s: %w", specialistID, err)
 	}
 
 	return nil
 }
+

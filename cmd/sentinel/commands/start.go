@@ -31,10 +31,20 @@ func NewStartCmd(db *sqlite.DB) *cobra.Command {
 			auth := &agents.SovereignAuthProvider{}
 			factory := bridge.NewFactory(db)
 			validator := reflect.NewValidator(db)
-			
+
+			// Task 6: Integration & Command Wiring
+			registryManager := agents.NewRegistryManager(db)
+			gitShield := agents.NewGitShield(".", validator)
+			dispatcher := agents.NewDispatcher(registryManager, gitShield, db)
+
+			// Clear any pending events before starting
+			if err := dispatcher.ReconcileEvents(context.Background()); err != nil {
+				fmt.Printf("⚠️  Sentinel: Event reconciliation failed: %v\n", err)
+			}
+
 			registry := agents.NewRegistry()
 			agents.RegisterCoreTools(registry, db)
-			
+
 			engine, err := agents.NewEngine(registry, auth, factory, validator)
 			if err != nil {
 				return fmt.Errorf("start: failed to initialize engine: %w", err)
@@ -51,7 +61,7 @@ func NewStartCmd(db *sqlite.DB) *cobra.Command {
 			// 4. Create Context and Execute
 			ctx := agents.NewAgentContext(context.Background(), taskID, agentDef)
 			fmt.Printf("🧠 Sentinel: Invoking '%s' (Model: %s)...\n", agentDef.Name, agentDef.ModelID)
-			
+
 			if err := engine.Execute(ctx); err != nil {
 				return fmt.Errorf("start: cognitive loop execution failed: %w", err)
 			}
