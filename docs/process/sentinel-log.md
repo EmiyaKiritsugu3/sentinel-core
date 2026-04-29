@@ -181,3 +181,11 @@ O `Registry` de ferramentas no comando `start` ainda está vazio. As ferramentas
 
 ---
 Related: [ROADMAP.md](../architecture/ROADMAP.md) | [EVOLUTION-INSIGHTS.md](./EVOLUTION-INSIGHTS.md)
+
+---
+
+## [2026-04-29] - Specialist Registry Implementation (v4.1.0)
+### [PID-SENTINEL-5.7] Task 2: Implement Specialist Registry foundation
+*   **Decision**: Implemented the Specialist data structure and RegistryManager for autonomous agent selection.
+*   **Context/Motivo**: Enable autonomous dispatching of specialists based on reliability scores and required capabilities for the subagent dispatcher.
+*   **Aprendizado/Trauma**: Discovered mismatch between implementation plan and current database schema; proactively updated internal/graph/schema.go to include capabilities column in specialist_registry table.

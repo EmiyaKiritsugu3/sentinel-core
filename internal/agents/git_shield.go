@@ -2,6 +2,7 @@ package agents
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -11,11 +12,12 @@ import (
 // GitShield handles task-specific branch management and atomic commits (Standard #10).
 type GitShield struct {
 	WorkingDir string
+	validator  Validator
 }
 
 // NewGitShield initializes a new GitShield agent.
-func NewGitShield(workingDir string) *GitShield {
-	return &GitShield{WorkingDir: workingDir}
+func NewGitShield(workingDir string, v Validator) *GitShield {
+	return &GitShield{WorkingDir: workingDir, validator: v}
 }
 
 // run executes a git command directly without shell wrapping (Standard #10).
@@ -47,6 +49,46 @@ func (g *GitShield) CreateTaskBranch(taskID string) (string, error) {
 		return "", err
 	}
 	return branchName, nil
+}
+
+// CreateWorktree creates a new isolated worktree for a task.
+func (g *GitShield) CreateWorktree(taskID string, branch string) (string, error) {
+	slug := utils.Slugify(taskID)
+	path := fmt.Sprintf(".worktrees/sentinel-task-%s", slug)
+
+	// Standard #10: Security - validate path before execution
+	if err := g.validator.ValidatePath(path); err != nil {
+		return "", fmt.Errorf("git: invalid worktree path: %w", err)
+	}
+
+	_, err := g.run("worktree", "add", path, branch)
+	if err != nil {
+		return "", fmt.Errorf("git: failed to create worktree: %w", err)
+	}
+
+	return path, nil
+}
+
+// CleanupWorktrees removes all sentinel-task worktrees (Sovereign GC).
+func (g *GitShield) CleanupWorktrees() error {
+	output, err := g.run("worktree", "list", "--porcelain")
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "worktree ") {
+			path := strings.TrimPrefix(line, "worktree ")
+			if strings.Contains(path, "sentinel-task-") {
+				if _, err := g.run("worktree", "remove", "--force", path); err != nil {
+					fmt.Fprintf(os.Stderr, "warning: git: could not remove worktree %s: %v\n", path, err)
+					continue
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // AtomicCommit stages all changes and creates a commit with the given message.

@@ -62,15 +62,44 @@ type AgentContext struct {
 
 // NewAgentContext initializes a context with cancellation.
 func NewAgentContext(ctx context.Context, stateID string, def *AgentDefinition) *AgentContext {
-	c, cancel := context.WithCancel(ctx)
-	return &AgentContext{
-		StateID:    stateID,
-		Definition: def,
-		Budget: &TokenBudget{
-			MaxSteps: def.MaxSteps,
-		},
-		Context:     c,
-		Cancel:      cancel,
-		ActiveModel: def.ModelID,
-	}
+        c, cancel := context.WithCancel(ctx)
+        return &AgentContext{
+                StateID:    stateID,
+                Definition: def,
+                Budget: &TokenBudget{
+                        MaxSteps: def.MaxSteps,
+                },
+                Context:     c,
+                Cancel:      cancel,
+                ActiveModel: def.ModelID,
+        }
+}
+
+// Specialist represents a persistent autonomous agent in the registry.
+type Specialist struct {
+	ID                 string
+	Name               string
+	BasePersona        string
+	CurrentPersonaPath string
+	ReliabilityScore   float64
+	Capabilities       []string
+}
+
+// Validator defines the security interface for path and command validation (Standard #10).
+type Validator interface {
+	ValidatePath(path string) error
+	ValidateCommand(cmd string) error
+}
+
+
+// SubTask represents an atomic unit of work dispatched to a specialist.
+type SubTask struct {
+	ID                   string
+	ParentTaskID         string
+	SpecialistID         string
+	Description          string
+	Status               string
+	WorktreePath         string
+	BranchName           string
+	RequiredCapabilities []string
 }
