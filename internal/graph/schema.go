@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS specialist_registry (
     reliability_score REAL DEFAULT 1.0,
     success_rate REAL DEFAULT 0.0,
     tasks_completed INTEGER DEFAULT 0,
+    capabilities TEXT, -- JSON array
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (parent_specialist_id) REFERENCES specialist_registry(id)
 );
