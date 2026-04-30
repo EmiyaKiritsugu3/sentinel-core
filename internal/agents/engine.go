@@ -235,8 +235,14 @@ func (e *Engine) processSubTasks(ctx *AgentContext) error {
 		if err := rows.Scan(&st.ID, &st.ParentTaskID, &st.Description, &st.Status, &st.BranchName, &capsJSON); err != nil {
 			return fmt.Errorf("engine: failed to scan sub-task: %w", err)
 		}
-		json.Unmarshal([]byte(capsJSON), &st.RequiredCapabilities)
+		if err := json.Unmarshal([]byte(capsJSON), &st.RequiredCapabilities); err != nil {
+			return fmt.Errorf("engine: failed to unmarshal capabilities for sub-task %s: %w", st.ID, err)
+		}
 		pending = append(pending, st)
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("engine: row iteration error: %w", err)
 	}
 
 	for _, st := range pending {

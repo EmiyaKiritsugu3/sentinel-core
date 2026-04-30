@@ -121,7 +121,9 @@ func Migrate(db *sqlite.DB) error {
 
 	for _, s := range seeds {
 		query := "INSERT OR IGNORE INTO specialist_registry (id, name, base_persona, current_persona_path, capabilities) VALUES (?, ?, ?, ?, ?)"
-		_, _ = db.Conn.Exec(query, s.id, s.name, "Base", "internal/agents/definitions/architect.md", s.caps)
+		if _, err := db.Conn.Exec(query, s.id, s.name, "Base", "internal/agents/definitions/architect.md", s.caps); err != nil {
+			return fmt.Errorf("migrate: failed to seed specialist %s: %w", s.id, err)
+		}
 	}
 
 	return nil

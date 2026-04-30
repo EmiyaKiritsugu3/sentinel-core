@@ -26,7 +26,9 @@ func TestDecomposeTool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create task: %v", err)
 	}
-	_ = mgr.StartTask(taskID)
+	if err := mgr.StartTask(taskID); err != nil {
+		t.Fatalf("Failed to start task: %v", err)
+	}
 
 	tool := &DecomposeTool{db: db}
 	args := map[string]interface{}{

@@ -99,5 +99,9 @@ func (m *Manager) ListTasks() ([]Task, error) {
 		tasks = append(tasks, t)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("state: row iteration error: %w", err)
+	}
+
 	return tasks, nil
 }

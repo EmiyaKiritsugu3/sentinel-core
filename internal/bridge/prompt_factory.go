@@ -214,6 +214,11 @@ func (f *Factory) loadSurgicalContext(taskID string) ([]ContextNode, error) {
 		}
 		nodes = append(nodes, n)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("bridge: row iteration error: %w", err)
+	}
+
 	return nodes, nil
 }
 

@@ -648,35 +648,66 @@ func (t *DecomposeTool) ValidateArguments(v *reflect.Validator, args map[string]
 		if branch, ok := task["branch_name"].(string); !ok || branch == "" {
 			return fmt.Errorf("decompose: subtask branch_name is required")
 		}
+
+		// Issue 5: Validate capabilities
+		capsRaw, ok := task["capabilities"]
+		if !ok {
+			return fmt.Errorf("decompose: subtask capabilities array is required")
+		}
+		caps, ok := capsRaw.([]interface{})
+		if !ok {
+			return fmt.Errorf("decompose: capabilities must be an array")
+		}
+		for _, c := range caps {
+			if _, ok := c.(string); !ok {
+				return fmt.Errorf("decompose: capability must be a string")
+			}
+		}
 	}
 	return nil
 }
 
 func (t *DecomposeTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
+	// Issue 2: Defensive validation before processing
+	if err := t.ValidateArguments(nil, args); err != nil {
+		return "", err
+	}
+
 	manager := state.NewManager(t.db)
 	parentTask, err := manager.GetActiveTask()
 	if err != nil {
 		return "", fmt.Errorf("decompose: no active task: %w", err)
 	}
 
-	subtasks, _ := args["subtasks"].([]interface{})
+	subtasks := args["subtasks"].([]interface{})
 	var results []string
+
+	// Issue 6: Atomic sub-task insertion via transaction
+	tx, err := t.db.Conn.BeginTx(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("decompose: failed to start transaction: %w", err)
+	}
+	defer tx.Rollback()
 
 	for _, stRaw := range subtasks {
 		st := stRaw.(map[string]interface{})
 		description := st["description"].(string)
 		branch := st["branch_name"].(string)
-		capabilities, _ := st["capabilities"].([]interface{})
+		capabilities := st["capabilities"].([]interface{})
 
 		capsJSON, _ := json.Marshal(capabilities)
 		id := uuid.New().String()[:8]
 
 		query := `INSERT INTO sub_tasks (id, parent_task_id, description, status, branch_name, required_capabilities) VALUES (?, ?, ?, ?, ?, ?)`
-		_, err = t.db.Conn.ExecContext(ctx, query, id, parentTask.ID, description, "PENDING", branch, string(capsJSON))
+		_, err = tx.ExecContext(ctx, query, id, parentTask.ID, description, "PENDING", branch, string(capsJSON))
 		if err != nil {
 			return "", fmt.Errorf("decompose: failed to insert sub-task %s: %w", id, err)
 		}
 		results = append(results, id)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("decompose: failed to commit transaction: %w", err)
 	}
 
 	return fmt.Sprintf("Successfully decomposed task into %d sub-tasks: %s", len(results), strings.Join(results, ", ")), nil
