@@ -1,8 +1,10 @@
 package agents
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -28,7 +30,15 @@ func (e *MutationEngine) Mutate(ctx context.Context, specialistID string, rcaPro
 		return fmt.Errorf("mutation: failed to find specialist: %w", err)
 	}
 
-	content, err := os.ReadFile(currentPath)
+	file, err := os.Open(currentPath)
+	if err != nil {
+		return fmt.Errorf("mutation: failed to open persona: %w", err)
+	}
+
+	// Standard #01: Use buffered reader (bufio) to read the persona file
+	reader := bufio.NewReader(file)
+	content, err := io.ReadAll(reader)
+	file.Close()
 	if err != nil {
 		return fmt.Errorf("mutation: failed to read persona: %w", err)
 	}
@@ -37,7 +47,7 @@ func (e *MutationEngine) Mutate(ctx context.Context, specialistID string, rcaPro
 	base := filepath.Base(currentPath)
 	ext := filepath.Ext(base)
 	nameOnly := base[:len(base)-len(ext)]
-	
+
 	// Robust version stripping
 	cleanName := versionRegex.ReplaceAllString(nameOnly, "")
 	newPath := filepath.Join(filepath.Dir(currentPath), fmt.Sprintf("%s-v%d%s", cleanName, newGeneration, ext))

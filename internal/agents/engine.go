@@ -242,7 +242,7 @@ func (e *Engine) executeToolsWithResults(ctx *AgentContext, toolCalls []map[stri
 	}
 
 	if err := g.Wait(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("engine: parallel execution failed: %w", err)
 	}
 	return results, nil
 }

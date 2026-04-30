@@ -58,7 +58,7 @@ func (a *Aggregator) FetchStats() (*ProjectStats, error) {
 	mgr := state.NewManager(a.db)
 	tasks, err := mgr.ListTasks()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("aggregator: failed to list tasks: %w", err)
 	}
 
 	for _, t := range tasks {

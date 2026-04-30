@@ -1,9 +1,11 @@
 package agents
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -73,7 +75,15 @@ func (d *Dispatcher) ReconcileEvents(ctx context.Context) error {
 		}
 
 		path := filepath.Join(eventDir, entry.Name())
-		data, err := os.ReadFile(path)
+		file, err := os.Open(path)
+		if err != nil {
+			continue
+		}
+
+		// Standard #01: Use buffered reader (bufio) to read the event file
+		reader := bufio.NewReader(file)
+		data, err := io.ReadAll(reader)
+		file.Close()
 		if err != nil {
 			continue
 		}
