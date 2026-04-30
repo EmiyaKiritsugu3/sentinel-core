@@ -56,6 +56,8 @@ func (d *Dispatcher) Dispatch(ctx context.Context, st *SubTask) error {
 			specialist_id=excluded.specialist_id,
 			status=excluded.status,
 			worktree_path=excluded.worktree_path,
+			branch_name=excluded.branch_name,
+			required_capabilities=excluded.required_capabilities,
 			updated_at=CURRENT_TIMESTAMP`
 	_, err = d.DB.Conn.ExecContext(ctx, query, st.ID, st.ParentTaskID, st.SpecialistID, st.Description, "DISPATCHED", st.WorktreePath, st.BranchName, string(capsJSON))
 	if err != nil {

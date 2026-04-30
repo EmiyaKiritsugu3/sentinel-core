@@ -12,6 +12,7 @@ import (
 )
 
 func TestDispatcher_ReconcileEvents(t *testing.T) {
+	ctx := context.Background()
 	db, err := sqlite.Init()
 	if err != nil {
 		t.Fatalf("failed to init db: %v", err)
@@ -25,11 +26,11 @@ func TestDispatcher_ReconcileEvents(t *testing.T) {
 	}
 
 	// Insert needed data for the test
-	_, err = db.Conn.Exec("INSERT INTO tasks (id, description, status) VALUES ('parent-1', 'Parent Task', 'IN_PROGRESS')")
+	_, err = db.Conn.ExecContext(ctx, "INSERT INTO tasks (id, description, status) VALUES ('parent-1', 'Parent Task', 'IN_PROGRESS')")
 	if err != nil {
 		t.Fatalf("failed to insert parent task: %v", err)
 	}
-	_, err = db.Conn.Exec("INSERT INTO sub_tasks (id, parent_task_id, description, status) VALUES ('task-1', 'parent-1', 'Test Subtask', 'PENDING')")
+	_, err = db.Conn.ExecContext(ctx, "INSERT INTO sub_tasks (id, parent_task_id, description, status) VALUES ('task-1', 'parent-1', 'Test Subtask', 'PENDING')")
 	if err != nil {
 		t.Fatalf("failed to insert sub-task: %v", err)
 	}
@@ -53,13 +54,13 @@ func TestDispatcher_ReconcileEvents(t *testing.T) {
 	}
 
 	d := NewDispatcher(nil, nil, db)
-	err = d.ReconcileEvents(context.Background())
+	err = d.ReconcileEvents(ctx)
 	if err != nil {
 		t.Fatalf("reconciliation failed: %v", err)
 	}
 
 	var status string
-	err = db.Conn.QueryRow("SELECT status FROM sub_tasks WHERE id = 'task-1'").Scan(&status)
+	err = db.Conn.QueryRowContext(ctx, "SELECT status FROM sub_tasks WHERE id = 'task-1'").Scan(&status)
 	if err != nil {
 		t.Fatalf("failed to query status: %v", err)
 	}

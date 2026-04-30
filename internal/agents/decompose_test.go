@@ -46,7 +46,8 @@ func TestDecomposeTool(t *testing.T) {
 		},
 	}
 
-	result, err := tool.Execute(context.Background(), args)
+	ctx := context.Background()
+	result, err := tool.Execute(ctx, args)
 	if err != nil {
 		t.Fatalf("Execute failed: %v", err)
 	}
@@ -55,7 +56,7 @@ func TestDecomposeTool(t *testing.T) {
 
 	// Verify DB
 	var count int
-	err = db.Conn.QueryRow("SELECT COUNT(*) FROM sub_tasks WHERE parent_task_id = ?", taskID).Scan(&count)
+	err = db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM sub_tasks WHERE parent_task_id = ?", taskID).Scan(&count)
 	if err != nil {
 		t.Fatalf("Query failed: %v", err)
 	}

@@ -30,18 +30,33 @@
 
 ---
 
-## 🏁 SOVEREIGN HANDOVER [S05.8 -> S05.8-KISS]
-**Status**: ALIGNED 🧠🛡️
-**Success Rate**: 100% (Alignment Restored)
+## [2026-04-30] Milestone: Orchestration Hardening [PID-SENTINEL-5.8]
+
+**Status**: COMPLETED
+**Impact**: HIGH (System Reliability)
+
+### 🔍 Analysis (Epiphanies)
+1.  **Atomic Integrity**: Validated that partial task decomposition leads to inconsistent system states. Transitioned `DecomposeTool` to utilize full SQL transactions.
+2.  **Context Sovereignty**: Enforced `ContextAware` DB operations across the orchestration layer to prevent resource leaks during long-running sub-agent executions.
+3.  **Idempotent Dispatch**: Refactored the `Dispatcher` to support `UPSERT` logic, allowing robust re-attempts of sub-tasks without data duplication or manual cleanup.
+
+### 💡 Key Learning
+"Consistency is not just a standard; it's a runtime requirement. A system that manages other agents must be twice as stable as the agents it controls."
+
+---
+
+## 🏁 SOVEREIGN HANDOVER [S05.8-KISS -> S06-GOVERNANCE]
+**Status**: STABLE 🛡️
+**Success Rate**: 100% (Hardening Verified)
 
 ### 🚀 Current Vector
-Sincronização total com GitHub (`main`). Sistema auditado e limpo. O foco agora é a implementação esquelética da ferramenta de decomposição.
+Orquestração sequencial funcional e resiliente. O sistema agora é capaz de decompor, persistir e despachar sub-tarefas de forma atômica.
 
 ### ⚠️ Technical Snag
-O Engine central precisa de uma pequena refatoração para reconhecer o retorno da ferramenta `sentinel:decompose` e entrar no loop de despacho sequencial.
+Nenhum detectado. O CI está verde e o linter `noctx` está satisfeito.
 
 ### 🎯 Chief's Priority (First Command)
-**"Sentinel, execute o Plano Elite KISS para a Fase 5.8: Implemente a ferramenta 'sentinel:decompose' e atualize o loop da Engine para processar sub-tarefas pendentes."**
+**"Sentinel, avance para a Fase 4 do Roadmap: Implemente a geração automática de ADRs (Auto-ADR) baseada no diálogo inicial de intenção."**
 
 ---
 Related: [ROADMAP.md](../architecture/ROADMAP.md) | [EVOLUTION-INSIGHTS.md](./EVOLUTION-INSIGHTS.md) | [ADR-841fa0a2](../architecture/adr/ADR-841fa0a2-self-audit-for-standard-compliance.md)

@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Update ADR-3c3075f2 (Complex Task: Documentation Evolution)
+## Task 1: Update ADR-3c3075f2 (Complex Task: Documentation Evolution)
 
 **Files:**
 - Modify: `docs/architecture/adr/ADR-3c3075f2-complex-task-documentation-evolution.md`
@@ -26,7 +26,7 @@ git add docs/architecture/adr/ADR-3c3075f2-complex-task-documentation-evolution.
 git commit -m "docs(adr): document evolution of complex task handling"
 ```
 
-### Task 2: Update ADR-841fa0a2 (Self-Audit for Standard Compliance)
+## Task 2: Update ADR-841fa0a2 (Self-Audit for Standard Compliance)
 
 **Files:**
 - Modify: `docs/architecture/adr/ADR-841fa0a2-self-audit-for-standard-compliance.md`
@@ -42,7 +42,7 @@ git add docs/architecture/adr/ADR-841fa0a2-self-audit-for-standard-compliance.md
 git commit -m "docs(adr): specify self-audit and compliance strategies"
 ```
 
-### Task 3: Update ADR-ad9933bf (Refatorar camada de persistencia)
+## Task 3: Update ADR-ad9933bf (Refatorar camada de persistencia)
 
 **Files:**
 - Modify: `docs/architecture/adr/ADR-ad9933bf-refatorar-camada-de-persistencia.md`
@@ -58,7 +58,7 @@ git add docs/architecture/adr/ADR-ad9933bf-refatorar-camada-de-persistencia.md
 git commit -m "docs(adr): document persistence layer refactoring to SQLite"
 ```
 
-### Task 4: Update ADR-fe2bb6f9 (Decisão Crítica --- special characters)
+## Task 4: Update ADR-fe2bb6f9 (Decisão Crítica --- special characters)
 
 **Files:**
 - Modify: `docs/architecture/adr/ADR-fe2bb6f9-deciso-crtica-com-caracteres-perigosos-aspas.md`
@@ -74,11 +74,11 @@ git add docs/architecture/adr/ADR-fe2bb6f9-deciso-crtica-com-caracteres-perigoso
 git commit -m "docs(adr): address special character handling in automation"
 ```
 
-### Task 5: Final Validation
+## Task 5: Final Validation
 
 - [ ] **Step 1: Verify all files**
 
 Run a check to ensure no `[Descreva...]` or `[Ponto...]` strings remain in the `docs/architecture/adr/` directory.
 
-Run: `grep -r "\[" docs/architecture/adr/`
-Expected: Only intentional brackets (like Task IDs) should remain.
+Run: `grep -R --line-number '\[Descreva\.\.\.\]|\[Ponto\.\.\.\]' docs/architecture/adr/`
+Expected: No matches (0 results). Any match means placeholders remain.
