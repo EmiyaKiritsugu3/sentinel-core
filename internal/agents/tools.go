@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -17,6 +18,7 @@ import (
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/google/generative-ai-go/genai"
 	"github.com/google/shlex"
+	"github.com/google/uuid"
 )
 
 // --- ReadFileTool ---
@@ -571,6 +573,115 @@ func (t *ScanTool) Execute(ctx context.Context, args map[string]interface{}) (st
 	return "Scan complete. Graph database updated successfully.", nil
 }
 
+// --- DecomposeTool ---
+
+type DecomposeTool struct {
+	db *sqlite.DB
+}
+
+func (t *DecomposeTool) Name() string { return "sentinel:decompose" }
+func (t *DecomposeTool) Description() string {
+	return "Decomposes a complex task into multiple atomic sub-tasks for parallel execution."
+}
+
+func (t *DecomposeTool) Definition() *genai.FunctionDeclaration {
+	return &genai.FunctionDeclaration{
+		Name:        t.Name(),
+		Description: t.Description(),
+		Parameters: &genai.Schema{
+			Type: genai.TypeObject,
+			Properties: map[string]*genai.Schema{
+				"subtasks": {
+					Type: genai.TypeArray,
+					Items: &genai.Schema{
+						Type: genai.TypeObject,
+						Properties: map[string]*genai.Schema{
+							"description": {
+								Type:        genai.TypeString,
+								Description: "Detailed intent of the sub-task.",
+							},
+							"capabilities": {
+								Type: genai.TypeArray,
+								Items: &genai.Schema{
+									Type: genai.TypeString,
+								},
+								Description: "List of required capabilities (e.g., 'go', 'git').",
+							},
+							"branch_name": {
+								Type:        genai.TypeString,
+								Description: "The ephemeral branch where the sub-task will operate.",
+							},
+						},
+						Required: []string{"description", "capabilities", "branch_name"},
+					},
+				},
+			},
+			Required: []string{"subtasks"},
+		},
+	}
+}
+
+func (t *DecomposeTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
+	subtasksRaw, ok := args["subtasks"]
+	if !ok {
+		return fmt.Errorf("decompose: missing 'subtasks' array")
+	}
+
+	subtasks, ok := subtasksRaw.([]interface{})
+	if !ok {
+		return fmt.Errorf("decompose: 'subtasks' must be an array")
+	}
+
+	// KISS Hard Gate: Max 5 subtasks
+	if len(subtasks) > 5 {
+		return fmt.Errorf("decompose: security violation - maximum of 5 subtasks allowed per goal")
+	}
+
+	for _, st := range subtasks {
+		task, ok := st.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("decompose: invalid subtask object")
+		}
+		if desc, ok := task["description"].(string); !ok || desc == "" {
+			return fmt.Errorf("decompose: subtask description is required")
+		}
+		if branch, ok := task["branch_name"].(string); !ok || branch == "" {
+			return fmt.Errorf("decompose: subtask branch_name is required")
+		}
+	}
+	return nil
+}
+
+func (t *DecomposeTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
+	manager := state.NewManager(t.db)
+	parentTask, err := manager.GetActiveTask()
+	if err != nil {
+		return "", fmt.Errorf("decompose: no active task: %w", err)
+	}
+
+	subtasks, _ := args["subtasks"].([]interface{})
+	var results []string
+
+	for _, stRaw := range subtasks {
+		st := stRaw.(map[string]interface{})
+		description := st["description"].(string)
+		branch := st["branch_name"].(string)
+		capabilities, _ := st["capabilities"].([]interface{})
+
+		capsJSON, _ := json.Marshal(capabilities)
+		id := uuid.New().String()[:8]
+
+		query := `INSERT INTO sub_tasks (id, parent_task_id, description, status, branch_name, required_capabilities) VALUES (?, ?, ?, ?, ?, ?)`
+		_, err = t.db.Conn.ExecContext(ctx, query, id, parentTask.ID, description, "PENDING", branch, string(capsJSON))
+		if err != nil {
+			return "", fmt.Errorf("decompose: failed to insert sub-task %s: %w", id, err)
+		}
+		results = append(results, id)
+	}
+
+	return fmt.Sprintf("Successfully decomposed task into %d sub-tasks: %s", len(results), strings.Join(results, ", ")), nil
+}
+
 // RegisterCoreTools adiciona as ferramentas fundamentais ao registro.
 func RegisterCoreTools(r *Registry, db *sqlite.DB) {
 	r.Tools["read_file"] = &ReadFileTool{db: db}
@@ -581,4 +692,5 @@ func RegisterCoreTools(r *Registry, db *sqlite.DB) {
 	r.Tools["sentinel:audit"] = &AuditTool{db: db}
 	r.Tools["sentinel:run"] = &RunTool{db: db}
 	r.Tools["sentinel:adr"] = &ADRTool{db: db}
+	r.Tools["sentinel:decompose"] = &DecomposeTool{db: db}
 }

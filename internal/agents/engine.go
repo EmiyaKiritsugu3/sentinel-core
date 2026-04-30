@@ -2,6 +2,7 @@ package agents
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/bridge"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/reflect"
+	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/google/generative-ai-go/genai"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/option"
@@ -43,10 +45,12 @@ type Engine struct {
 	authProvider  AuthProvider
 	promptFactory *bridge.Factory
 	validator     *reflect.Validator
+	Dispatcher    *Dispatcher // Added for Phase 5.8
+	DB            *sqlite.DB
 }
 
 // NewEngine initializes a new agent engine.
-func NewEngine(r *Registry, auth AuthProvider, factory *bridge.Factory, v *reflect.Validator) (*Engine, error) {
+func NewEngine(r *Registry, auth AuthProvider, factory *bridge.Factory, v *reflect.Validator, db *sqlite.DB) (*Engine, error) {
 	apiKey, err := auth.GetAPIKey()
 	if err != nil {
 		return nil, fmt.Errorf("engine: failed to get API key: %w", err)
@@ -63,6 +67,7 @@ func NewEngine(r *Registry, auth AuthProvider, factory *bridge.Factory, v *refle
 		authProvider:  auth,
 		promptFactory: factory,
 		validator:     v,
+		DB:            db,
 	}, nil
 }
 
@@ -176,6 +181,24 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 				continue
 			}
 
+			// KISS: Check if sentinel:decompose was called to trigger sub-task processing
+			decomposed := false
+			for _, call := range toolCalls {
+				if call["name"].(string) == "sentinel:decompose" {
+					decomposed = true
+					break
+				}
+			}
+
+			if decomposed && e.Dispatcher != nil {
+				log.Printf("[PHASE: ORCHESTRATION] Processing sub-tasks for goal %s", ctx.StateID)
+				if err := e.processSubTasks(ctx); err != nil {
+					log.Printf("[SENTINEL] Orchestration failed: %v", err)
+					currentParts = []genai.Part{genai.Text(fmt.Sprintf("ERROR: Orchestration failed: %v. Please adjust your decomposition strategy.", err))}
+					continue
+				}
+			}
+
 			// Format results as FunctionResponses for the next turn
 			var responseParts []genai.Part
 			for name, result := range results {
@@ -193,6 +216,41 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 	}
 
 	log.Printf("[SENTINEL] Agent '%s' completed successfully.", ctx.Definition.Name)
+	return nil
+}
+
+// processSubTasks handles the KISS sequential execution of pending sub-tasks.
+func (e *Engine) processSubTasks(ctx *AgentContext) error {
+	query := "SELECT id, parent_task_id, description, status, branch_name, required_capabilities FROM sub_tasks WHERE parent_task_id = ? AND status = 'PENDING'"
+	rows, err := e.DB.Conn.QueryContext(ctx.Context, query, ctx.StateID)
+	if err != nil {
+		return fmt.Errorf("engine: failed to query sub-tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var pending []SubTask
+	for rows.Next() {
+		var st SubTask
+		var capsJSON string
+		if err := rows.Scan(&st.ID, &st.ParentTaskID, &st.Description, &st.Status, &st.BranchName, &capsJSON); err != nil {
+			return fmt.Errorf("engine: failed to scan sub-task: %w", err)
+		}
+		json.Unmarshal([]byte(capsJSON), &st.RequiredCapabilities)
+		pending = append(pending, st)
+	}
+
+	for _, st := range pending {
+		log.Printf("[ORCHESTRATOR] Dispatching sub-task %s: %s", st.ID, st.Description)
+		if err := e.Dispatcher.Dispatch(ctx.Context, &st); err != nil {
+			return fmt.Errorf("engine: failed to dispatch sub-task %s: %w", st.ID, err)
+		}
+
+		// KISS: For now, we simulate success or wait for manual confirmation?
+		// In a real autonomous loop, we would start another Engine instance here.
+		// For Phase 5.8, we just mark as DISPATCHED and let the user know.
+		log.Printf("[ORCHESTRATOR] Sub-task %s dispatched to worktree %s", st.ID, st.WorktreePath)
+	}
+
 	return nil
 }
 
