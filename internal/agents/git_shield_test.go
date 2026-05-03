@@ -9,7 +9,7 @@ import (
 
 type mockValidator struct{}
 
-func (m *mockValidator) ValidatePath(path string) error { return nil }
+func (m *mockValidator) ValidatePath(path string) error   { return nil }
 func (m *mockValidator) ValidateCommand(cmd string) error { return nil }
 
 func TestGitShield_CreateWorktree(t *testing.T) {
@@ -31,7 +31,7 @@ func TestGitShield_CreateWorktree(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "dummy"), []byte("data"), 0644)
 	runCmd("add", ".")
 	runCmd("commit", "-m", "initial")
-	
+
 	// Create a branch that is NOT checked out
 	runCmd("branch", "subtask-branch")
 

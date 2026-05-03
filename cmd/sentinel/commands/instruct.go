@@ -50,7 +50,7 @@ func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 
 			// 2. Sovereign Triage & Data-Driven Scout
 			fmt.Printf("\n🔍 Sentinel: Analisando '%s'...\n", intent)
-			
+
 			// Busca por 'God Objects' ou pontos de impacto se a intenção for vaga
 			isVague := len(strings.Split(intent, " ")) < 3 || strings.Contains(strings.ToLower(intent), "performance")
 			var evidence string
@@ -78,7 +78,7 @@ func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 			}
 
 			adrData := graph.ADRData{
-				Title: intent,
+				Title:  intent,
 				Status: "PROPOSED",
 			}
 
@@ -167,7 +167,7 @@ func performDiagnostic(ctx context.Context, db *sqlite.DB) string {
 func runSocraticInterview(intent string, evidence string) graph.ADRData {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("\n--- ENTREVISTA ADR ---")
-	
+
 	fmt.Println("\n1. Qual o CONTEXTO ou problema técnico? (Enter para aceitar sugestão)")
 	if evidence != "" {
 		fmt.Printf("Sugestão baseada em dados: %s\n", evidence)

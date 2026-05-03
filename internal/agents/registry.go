@@ -37,7 +37,7 @@ func (m *RegistryManager) SelectBest(ctx context.Context, caps []string) (*Speci
 
 		if err := json.Unmarshal([]byte(capsJSON), &s.Capabilities); err != nil {
 			// If invalid JSON, skip or log? Standard #05 says consistent error handling.
-			continue 
+			continue
 		}
 
 		if m.matchesAll(s.Capabilities, caps) {
