@@ -61,6 +61,8 @@ func (d *Dispatcher) Dispatch(ctx context.Context, st *SubTask) error {
 			updated_at=CURRENT_TIMESTAMP`
 	_, err = d.DB.Conn.ExecContext(ctx, query, st.ID, st.ParentTaskID, st.SpecialistID, st.Description, "DISPATCHED", st.WorktreePath, st.BranchName, string(capsJSON))
 	if err != nil {
+		// Best-effort rollback of worktree on DB failure
+		_ = d.Shield.RemoveWorktree(st.WorktreePath)
 		return fmt.Errorf("dispatcher: failed to log sub-task: %w", err)
 	}
 

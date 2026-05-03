@@ -26,7 +26,7 @@ func NewManager(db *sqlite.DB) *Manager {
 
 // CreateTask cria uma nova tarefa no banco
 func (m *Manager) CreateTask(description string, tier string, verificationCmd string) (string, error) {
-	id := uuid.New().String()[:8]
+	id := uuid.New().String()
 	query := `INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)`
 	_, err := m.db.Conn.Exec(query, id, description, "PENDING", tier, verificationCmd)
 	if err != nil {

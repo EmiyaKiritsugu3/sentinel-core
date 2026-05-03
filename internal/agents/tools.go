@@ -509,7 +509,8 @@ func (t *ADRTool) Definition() *genai.FunctionDeclaration {
 
 func (t *ADRTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
 	for _, field := range []string{"title", "context", "decision", "consequences", "verification_command"} {
-		if _, ok := args[field].(string); !ok {
+		value, ok := args[field].(string)
+		if !ok || strings.TrimSpace(value) == "" {
 			return fmt.Errorf("adr tool: missing or invalid '%s'", field)
 		}
 	}
@@ -706,7 +707,7 @@ func (t *DecomposeTool) Execute(ctx context.Context, args map[string]interface{}
 		capabilities := st["capabilities"].([]interface{})
 
 		capsJSON, _ := json.Marshal(capabilities)
-		id := uuid.New().String()[:8]
+		id := uuid.New().String()
 
 		query := `INSERT INTO sub_tasks (id, parent_task_id, description, status, branch_name, required_capabilities) VALUES (?, ?, ?, ?, ?, ?)`
 		_, err = tx.ExecContext(ctx, query, id, parentTask.ID, description, "PENDING", branch, string(capsJSON))

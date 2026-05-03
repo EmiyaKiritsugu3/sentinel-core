@@ -48,6 +48,7 @@ func (g *ADRGenerator) Generate(data ADRData) (string, error) {
 	if status == "" {
 		status = "PROPOSED"
 	}
+	safeStatus := utils.EscapeYAML(status)
 
 	// Escapando campos para o YAML
 	safeTaskID := utils.EscapeYAML(data.TaskID)
@@ -74,13 +75,13 @@ author: "Sentinel Auto-ADR"
 
 ## Protocolo de Verificação
 Este ADR é um contrato determinístico. Para ser validado, o comando abaixo deve passar:
-` + "```bash" + `
+`+"```bash"+`
 %s
-` + "```" + `
+`+"```"+`
 
 ## Referências
 - Task ID: [%s]
-`, safeTaskID, safeTitle, now, status, data.TaskID, data.Title, data.Context, data.Decision, data.Consequences, data.VerificationCommand, data.TaskID)
+`, safeTaskID, safeTitle, now, safeStatus, data.TaskID, data.Title, data.Context, data.Decision, data.Consequences, data.VerificationCommand, data.TaskID)
 
 	// Garante que o diretório existe
 	if err := os.MkdirAll(g.basePath, 0755); err != nil {

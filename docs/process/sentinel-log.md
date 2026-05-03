@@ -53,7 +53,7 @@
 2.  **Executable Governance**: Transitioned ADRs from static documentation to "Executable Contracts". Every ADR now requires a `Verification Protocol` (shell command).
 3.  **The Hard Gate**: A task's completion is now deterministic. It requires the ADR's verification command to return Exit Code 0, preventing "guessing" and ensuring solid, step-by-step progress.
 
-### 💡 Key Learning
+### 💡 Key Learning (continued)
 "Documentation is only as strong as its ability to be verified. An ADR that cannot be tested is merely a suggestion. A protocol that enforces its own rules is the foundation of true autonomy."
 
 ---

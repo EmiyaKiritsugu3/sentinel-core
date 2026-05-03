@@ -2,6 +2,7 @@ package commands
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -54,7 +55,7 @@ func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 			isVague := len(strings.Split(intent, " ")) < 3 || strings.Contains(strings.ToLower(intent), "performance")
 			var evidence string
 			if isVague && !quick {
-				evidence = performDiagnostic(db)
+				evidence = performDiagnostic(cmd.Context(), db)
 				if evidence != "" {
 					fmt.Println("\n⚠️  EVIDÊNCIA ENCONTRADA (Sessão de Diagnóstico):")
 					fmt.Println(evidence)
@@ -100,6 +101,10 @@ func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 			}
 
 			// 4. Persistência
+			if adrData.Status != "DRAFT" && strings.TrimSpace(adrData.VerificationCommand) == "" {
+				return fmt.Errorf("instruct: verification command is required for non-draft ADRs")
+			}
+
 			manager := state.NewManager(db)
 			id, err := manager.CreateTask(intent, "T1", adrData.VerificationCommand)
 			if err != nil {
@@ -125,7 +130,7 @@ func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 	return cmd
 }
 
-func performDiagnostic(db *sqlite.DB) string {
+func performDiagnostic(ctx context.Context, db *sqlite.DB) string {
 	// Query real no banco para encontrar os 3 arquivos mais complexos (God Objects)
 	query := `
 		SELECT n.file_path, COUNT(e.from_node_id) as degree
@@ -136,7 +141,7 @@ func performDiagnostic(db *sqlite.DB) string {
 		ORDER BY degree DESC
 		LIMIT 3
 	`
-	rows, err := db.Conn.Query(query)
+	rows, err := db.Conn.QueryContext(ctx, query)
 	if err != nil {
 		return ""
 	}
@@ -148,9 +153,14 @@ func performDiagnostic(db *sqlite.DB) string {
 		var path string
 		var degree int
 		if err := rows.Scan(&path, &degree); err == nil {
-			evidence.WriteString(fmt.Sprintf("- %s (%d conexões)\n", path, degree))
+			fmt.Fprintf(&evidence, "- %s (%d conexões)\n", path, degree)
 		}
 	}
+
+	if err := rows.Err(); err != nil {
+		return ""
+	}
+
 	return evidence.String()
 }
 
