@@ -69,6 +69,14 @@ func (g *GitShield) CreateWorktree(taskID string, branch string) (string, error)
 	return path, nil
 }
 
+// RemoveWorktree removes a specific worktree by path.
+func (g *GitShield) RemoveWorktree(path string) error {
+	if _, err := g.run("worktree", "remove", "--force", path); err != nil {
+		return fmt.Errorf("git: failed to remove worktree at %s: %w", path, err)
+	}
+	return nil
+}
+
 // CleanupWorktrees removes all sentinel-task worktrees (Sovereign GC).
 func (g *GitShield) CleanupWorktrees() error {
 	output, err := g.run("worktree", "list", "--porcelain")

@@ -30,7 +30,8 @@ O Sentinel deve ser capaz de gerir projetos Web de vanguarda.
 Transformar o Sentinel em um guia proativo para o usuário.
 - [x] Saneamento de Grafo via .gitignore (Hybrid Filter).
 - [x] Modo Entrevista (Comando `instruct` blindado para CI/CD).
-- [x] **Auto-ADR**: Gera o rascunho do ADR baseado na conversa inicial.
+- [x] **Auto-ADR**: Gera rascunhos técnicos precisos e baseados em dados do grafo (Protocolo Scout).
+- [x] **Hard Gate Verification**: Vincula comandos de verificação aos ADRs para garantir progresso sólido.
 - [x] **Dashboard Visibility**: Vincula fisicamente tarefas aos ADRs no relatório.
 - [ ] **Subagent Dispatcher**: Ferramenta nativa para o Chief Engineer invocar e monitorar Operadores.
 *Critério de Sucesso: Criação de uma feature completa apenas via diálogo, sem intervenção manual no plano.*

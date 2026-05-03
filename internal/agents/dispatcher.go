@@ -49,9 +49,20 @@ func (d *Dispatcher) Dispatch(ctx context.Context, st *SubTask) error {
 	}
 
 	// Persistir sub-task no Ledger Central (Apenas o Dispatcher escreve aqui)
-	query := "INSERT INTO sub_tasks (id, parent_task_id, specialist_id, description, status, worktree_path, branch_name, required_capabilities) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+	query := `
+		INSERT INTO sub_tasks (id, parent_task_id, specialist_id, description, status, worktree_path, branch_name, required_capabilities)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			specialist_id=excluded.specialist_id,
+			status=excluded.status,
+			worktree_path=excluded.worktree_path,
+			branch_name=excluded.branch_name,
+			required_capabilities=excluded.required_capabilities,
+			updated_at=CURRENT_TIMESTAMP`
 	_, err = d.DB.Conn.ExecContext(ctx, query, st.ID, st.ParentTaskID, st.SpecialistID, st.Description, "DISPATCHED", st.WorktreePath, st.BranchName, string(capsJSON))
 	if err != nil {
+		// Best-effort rollback of worktree on DB failure
+		_ = d.Shield.RemoveWorktree(st.WorktreePath)
 		return fmt.Errorf("dispatcher: failed to log sub-task: %w", err)
 	}
 

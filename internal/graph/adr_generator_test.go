@@ -14,11 +14,17 @@ func TestADRGenerator_Generate(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	gen := &ADRGenerator{basePath: tempDir}
-	taskID := "test-task"
-	// Simulating the fullIntent that ADRTool sends
-	fullIntent := "Title\n\nContext: Context details\nDecision: The decision made\nConsequences: Resulting trade-offs"
+	data := ADRData{
+		TaskID:              "test-task",
+		Title:               "Test Title",
+		Context:             "Context details",
+		Decision:            "The decision made",
+		Consequences:        "Resulting trade-offs",
+		VerificationCommand: "go test ./...",
+		Status:              "PROPOSED",
+	}
 
-	path, err := gen.Generate(taskID, fullIntent)
+	path, err := gen.Generate(data)
 	if err != nil {
 		t.Fatalf("Generate() failed: %v", err)
 	}
@@ -38,12 +44,15 @@ func TestADRGenerator_Generate(t *testing.T) {
 
 	// Check if the detailed parts are present
 	if !strings.Contains(contentStr, "Context details") {
-		t.Errorf("Generated ADR missing context details. Content: %s", contentStr)
+		t.Errorf("Generated ADR missing context details")
 	}
 	if !strings.Contains(contentStr, "The decision made") {
-		t.Errorf("Generated ADR missing decision. Content: %s", contentStr)
+		t.Errorf("Generated ADR missing decision")
 	}
-	if !strings.Contains(contentStr, "Resulting trade-offs") {
-		t.Errorf("Generated ADR missing consequences. Content: %s", contentStr)
+	if !strings.Contains(contentStr, "Protocolo de Verificação") {
+		t.Errorf("Generated ADR missing Verification Protocol section")
+	}
+	if !strings.Contains(contentStr, "go test ./...") {
+		t.Errorf("Generated ADR missing verification command")
 	}
 }

@@ -41,10 +41,11 @@ func NewStartCmd(db *sqlite.DB) *cobra.Command {
 				return fmt.Errorf("start: event reconciliation failed: %w", err)
 			}
 
-			engine, err := agents.NewEngine(registry, auth, factory, validator)
+			engine, err := agents.NewEngine(registry, auth, factory, validator, db)
 			if err != nil {
 				return fmt.Errorf("start: failed to initialize engine: %w", err)
 			}
+			engine.Dispatcher = dispatcher // Wired for Phase 5.8
 			defer engine.Close()
 
 			loader := agents.NewLoader()

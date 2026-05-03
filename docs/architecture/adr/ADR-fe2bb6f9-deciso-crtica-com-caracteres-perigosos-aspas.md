@@ -13,11 +13,11 @@ Esta decisão foi capturada proativamente pelo Sentinel via comando 'instruct'.
 Intenção original: Decisão Crítica --- com : caracteres @ perigosos "aspas"
 
 ## Decisão
-[Descreva aqui a abordagem técnica e as ferramentas escolhidas]
+Estabeleceremos um protocolo rigoroso de sanitização e escaping para títulos e descrições que contenham caracteres especiais (`:`, `@`, `"`, `-`). O gerador automático de ADRs e o comando `instruct` devem aplicar neutralização de strings para evitar quebra de YAML frontmatter e garantir que caracteres perigosos não sejam interpretados erroneamente como comandos shell ou delimitadores de sistema durante a automação.
 
 ## Consequências
-- [Ponto Positivo 1]
-- [Ponto Negativo 1]
+- **Positivo**: Robustez do sistema contra injeção de comandos e erros de parsing em metadados, permitindo flexibilidade total na nomenclatura de tarefas.
+- **Negativo**: Adiciona uma pequena sobrecarga de processamento de strings em todas as operações de entrada do usuário.
 
 ## Referências
 - Task ID: [fe2bb6f9]

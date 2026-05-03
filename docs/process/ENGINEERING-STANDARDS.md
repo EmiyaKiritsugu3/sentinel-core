@@ -39,5 +39,9 @@ Este documento define os padrões técnicos inegociáveis do Sentinel Core. Toda
     - **T3 (Arquitetura)**: Atualização obrigatória de Logs, Evolution Insights e ADRs.
     Nenhuma mudança estrutural pode ser selada sem o registro de sua pegada intelectual.
 
+*   **Standard #12 (Deterministic ADRs)**: Todo Registro de Decisão Arquitetural (ADR) deve conter obrigatoriamente um **Protocolo de Verificação** (comando shell). Um ADR sem comando de prova é considerado uma "Dívida de Documentação" (T3).
+
+*   **Standard #15 (The Hard Gate Enforcement)**: O status `COMPLETED` de uma tarefa é um portão de ferro. Ele é bloqueado sistematicamente até que o comando contido no ADR vinculado retorne `Exit Code 0`. O progresso é medido por evidência física, não por intenção.
+
 ---
-*Última Atualização: 2026-04-26*
+*Última Atualização: 2026-05-03*

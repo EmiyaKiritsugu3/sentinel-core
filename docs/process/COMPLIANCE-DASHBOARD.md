@@ -26,3 +26,4 @@
 | `ad9933bf` | T1 | PENDING | Refatorar camada de persistencia | [View ADR](../architecture/adr/ADR-ad9933bf-refatorar-camada-de-persistencia.md) |
 | `aca540c1` | T1 | PENDING | Implementar Auto-ADR Engine | N/A |
 | `de75082b` | T1 | PENDING | Auditoria de Seguranca de vanguarda | N/A |
+| `66d2618f` | T1 | PROPOSED | melhorar performance | [View ADR](../architecture/adr/ADR-66d2618f-melhorar-performance.md) |

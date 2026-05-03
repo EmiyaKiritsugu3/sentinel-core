@@ -20,48 +20,68 @@ func NewADRGenerator() *ADRGenerator {
 	}
 }
 
-// Generate cria um novo arquivo de ADR baseado na intenção e ID da tarefa
-func (g *ADRGenerator) Generate(taskID string, intent string) (string, error) {
-	slug := utils.Slugify(intent)
+// ADRData contém todas as informações necessárias para gerar um registro de decisão
+type ADRData struct {
+	TaskID              string
+	Title               string
+	Context             string
+	Decision            string
+	Consequences        string
+	VerificationCommand string
+	Status              string // Ex: PROPOSED, ACCEPTED, DRAFT
+}
+
+// Generate cria um novo arquivo de ADR baseado nos dados fornecidos
+func (g *ADRGenerator) Generate(data ADRData) (string, error) {
+	slug := utils.Slugify(data.Title)
 	// Limita o slug para não estourar o nome do arquivo
 	if len(slug) > 50 {
 		slug = slug[:50]
 	}
 
-	filename := fmt.Sprintf("ADR-%s-%s.md", taskID, slug)
+	filename := fmt.Sprintf("ADR-%s-%s.md", data.TaskID, slug)
 	fullPath := filepath.Join(g.basePath, filename)
 
 	// Template Smart ADR com Frontmatter Blindado
 	now := time.Now().Format("2006-01-02")
+	status := data.Status
+	if status == "" {
+		status = "PROPOSED"
+	}
+	safeStatus := utils.EscapeYAML(status)
 
 	// Escapando campos para o YAML
-	safeTaskID := utils.EscapeYAML(taskID)
-	safeIntent := utils.EscapeYAML(intent)
+	safeTaskID := utils.EscapeYAML(data.TaskID)
+	safeTitle := utils.EscapeYAML(data.Title)
 
 	content := fmt.Sprintf(`---
 task_id: "%s"
 title: "%s"
 date: "%s"
-status: "PROPOSED"
+status: "%s"
 author: "Sentinel Auto-ADR"
 ---
 
 # ADR-%s: %s
 
 ## Contexto
-Esta decisão foi capturada proativamente pelo Sentinel via comando 'instruct'.
-Intenção original: %s
+%s
 
 ## Decisão
-[Descreva aqui a abordagem técnica e as ferramentas escolhidas]
+%s
 
 ## Consequências
-- [Ponto Positivo 1]
-- [Ponto Negativo 1]
+%s
+
+## Protocolo de Verificação
+Este ADR é um contrato determinístico. Para ser validado, o comando abaixo deve passar:
+`+"```bash"+`
+%s
+`+"```"+`
 
 ## Referências
 - Task ID: [%s]
-`, safeTaskID, safeIntent, now, taskID, intent, intent, taskID)
+`, safeTaskID, safeTitle, now, safeStatus, data.TaskID, data.Title, data.Context, data.Decision, data.Consequences, data.VerificationCommand, data.TaskID)
 
 	// Garante que o diretório existe
 	if err := os.MkdirAll(g.basePath, 0755); err != nil {

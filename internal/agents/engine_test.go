@@ -21,7 +21,7 @@ func TestNewEngine(t *testing.T) {
 	factory := bridge.NewFactory(nil)
 	validator := reflect.NewValidator(nil)
 
-	engine, err := NewEngine(registry, auth, factory, validator)
+	engine, err := NewEngine(registry, auth, factory, validator, nil)
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}

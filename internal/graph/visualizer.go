@@ -99,6 +99,11 @@ func (v *Visualizer) getNodes(filterFile string) ([]Node, error) {
 		}
 		nodes = append(nodes, n)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("viz: row iteration error (nodes): %w", err)
+	}
+
 	return nodes, nil
 }
 
@@ -117,6 +122,11 @@ func (v *Visualizer) getEdges() ([]Edge, error) {
 		}
 		edges = append(edges, e)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("viz: row iteration error (edges): %w", err)
+	}
+
 	return edges, nil
 }
 

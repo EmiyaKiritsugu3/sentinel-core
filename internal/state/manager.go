@@ -26,7 +26,7 @@ func NewManager(db *sqlite.DB) *Manager {
 
 // CreateTask cria uma nova tarefa no banco
 func (m *Manager) CreateTask(description string, tier string, verificationCmd string) (string, error) {
-	id := uuid.New().String()[:8]
+	id := uuid.New().String()
 	query := `INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)`
 	_, err := m.db.Conn.Exec(query, id, description, "PENDING", tier, verificationCmd)
 	if err != nil {
@@ -97,6 +97,10 @@ func (m *Manager) ListTasks() ([]Task, error) {
 		// SQLite CURRENT_TIMESTAMP é "YYYY-MM-DD HH:MM:SS"
 		t.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
 		tasks = append(tasks, t)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("state: row iteration error: %w", err)
 	}
 
 	return tasks, nil

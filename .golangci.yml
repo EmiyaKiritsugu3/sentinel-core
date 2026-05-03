@@ -1,0 +1,34 @@
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+  noctx:
+    # check for context-less DB calls (standard #11)
+    re: "^(Query|QueryRow|Exec|Begin)$"
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gocyclo
+    - revive
+    - noctx
+    - misspell
+    - bodyclose
+
+run:
+  timeout: 5m
+  tests: true
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
