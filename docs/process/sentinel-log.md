@@ -30,18 +30,31 @@
 
 ---
 
-## [2026-04-30] Milestone: Orchestration Hardening [PID-SENTINEL-5.8]
+## [2026-05-03] Sovereign Loop Audit (Security Session)
 
-**Status**: COMPLETED
-**Impact**: HIGH (System Reliability)
+**Status**: AUDITED 🛡️
+**Impact**: HIGH (Process Stability)
 
-### 🔍 Analysis (Epiphanies)
-1.  **Atomic Integrity**: Validated that partial task decomposition leads to inconsistent system states. Transitioned `DecomposeTool` to utilize full SQL transactions.
-2.  **Context Sovereignty**: Enforced `ContextAware` DB operations across the orchestration layer to prevent resource leaks during long-running sub-agent executions.
-3.  **Idempotent Dispatch**: Refactored the `Dispatcher` to support `UPSERT` logic, allowing robust re-attempts of sub-tasks without data duplication or manual cleanup.
+### 🔍 Analysis (Findings)
+1.  **Generation Protection**: Validated that `MaxSteps` in `Engine.go` atua como um disjuntor (circuit breaker) infalível contra loops de tentativa-erro em agentes.
+2.  **Audit Safety**: O `AuditRunner` foi confirmado com timeout de 30s, prevenindo travamento por comandos bloqueantes ou interativos.
+3.  **Recursive Vulnerability**: Identificado que o sistema carece de um limite de profundidade para sub-tarefas geradas recursivamente. Risco adicionado ao `TECHNICAL-DEBT.md`.
 
 ### 💡 Key Learning
-"Consistency is not just a standard; it's a runtime requirement. A system that manages other agents must be twice as stable as the agents it controls."
+"A arquitetura de agentes é uma árvore de recursão. Sem um limite de profundidade, a autonomia se torna instabilidade. O próximo nível de maturidade exige 'Depth Governance'."
+
+---
+
+**Status**: COMPLETED
+**Impact**: STRATEGIC (High - Process Governance)
+
+### 🔍 Analysis (Epiphanies)
+1.  **Vagueness vs. Evidence**: Implemented the "Scout" protocol. The Sentinel now uses the `graph.db` (SQLite) to find "God Objects" and hotspots when the user provides vague intents (e.g., "improve performance"), transforming abstract ideas into data-driven proposals.
+2.  **Executable Governance**: Transitioned ADRs from static documentation to "Executable Contracts". Every ADR now requires a `Verification Protocol` (shell command).
+3.  **The Hard Gate**: A task's completion is now deterministic. It requires the ADR's verification command to return Exit Code 0, preventing "guessing" and ensuring solid, step-by-step progress.
+
+### 💡 Key Learning
+"Documentation is only as strong as its ability to be verified. An ADR that cannot be tested is merely a suggestion. A protocol that enforces its own rules is the foundation of true autonomy."
 
 ---
 

@@ -497,14 +497,18 @@ func (t *ADRTool) Definition() *genai.FunctionDeclaration {
 					Type:        genai.TypeString,
 					Description: "Expected trade-offs (positive and negative).",
 				},
+				"verification_command": {
+					Type:        genai.TypeString,
+					Description: "A shell command (e.g., go test) to verify the implementation.",
+				},
 			},
-			Required: []string{"title", "context", "decision", "consequences"},
+			Required: []string{"title", "context", "decision", "consequences", "verification_command"},
 		},
 	}
 }
 
 func (t *ADRTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
-	for _, field := range []string{"title", "context", "decision", "consequences"} {
+	for _, field := range []string{"title", "context", "decision", "consequences", "verification_command"} {
 		if _, ok := args[field].(string); !ok {
 			return fmt.Errorf("adr tool: missing or invalid '%s'", field)
 		}
@@ -524,11 +528,17 @@ func (t *ADRTool) Execute(ctx context.Context, args map[string]interface{}) (str
 	contextStr, _ := args["context"].(string)
 	decision, _ := args["decision"].(string)
 	consequences, _ := args["consequences"].(string)
+	verification, _ := args["verification_command"].(string)
 
-	fullIntent := fmt.Sprintf("%s\n\nContext: %s\nDecision: %s\nConsequences: %s",
-		title, contextStr, decision, consequences)
-
-	path, err := gen.Generate(task.ID, fullIntent)
+	path, err := gen.Generate(graph.ADRData{
+		TaskID:              task.ID,
+		Title:               title,
+		Context:             contextStr,
+		Decision:            decision,
+		Consequences:        consequences,
+		VerificationCommand: verification,
+		Status:              "PROPOSED",
+	})
 	if err != nil {
 		return "", fmt.Errorf("adr tool: generation failed: %w", err)
 	}
