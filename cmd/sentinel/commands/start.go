@@ -6,10 +6,15 @@ import (
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/agents"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/bridge"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/reflect"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/registry"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/state"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/spf13/cobra"
 )
+
+func init() {
+	registry.Register(NewStartCmd)
+}
 
 func NewStartCmd(db *sqlite.DB) *cobra.Command {
 	return &cobra.Command{
@@ -43,7 +48,8 @@ func NewStartCmd(db *sqlite.DB) *cobra.Command {
 
 			engine, err := agents.NewEngine(registry, auth, factory, validator, db)
 			if err != nil {
-				return fmt.Errorf("start: failed to initialize engine: %w", err)
+				fmt.Printf("⚠️  Sentinel: Cognitive engine offline (%v). Task is IN_PROGRESS locally.\n", err)
+				return nil
 			}
 			engine.Dispatcher = dispatcher // Wired for Phase 5.8
 			defer engine.Close()

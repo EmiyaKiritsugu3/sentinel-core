@@ -6,10 +6,15 @@ import (
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/audit"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/reflect"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/registry"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/state"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/spf13/cobra"
 )
+
+func init() {
+	registry.Register(NewAuditCmd)
+}
 
 func NewAuditCmd(db *sqlite.DB) *cobra.Command {
 	return &cobra.Command{

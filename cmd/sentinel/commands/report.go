@@ -3,10 +3,15 @@ package commands
 import (
 	"fmt"
 
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/registry"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/report"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/spf13/cobra"
 )
+
+func init() {
+	registry.Register(NewReportCmd)
+}
 
 func NewReportCmd(db *sqlite.DB) *cobra.Command {
 	return &cobra.Command{

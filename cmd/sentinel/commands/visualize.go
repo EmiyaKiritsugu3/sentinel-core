@@ -4,9 +4,14 @@ import (
 	"fmt"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/registry"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/spf13/cobra"
 )
+
+func init() {
+	registry.Register(NewVisualizeCmd)
+}
 
 func NewVisualizeCmd(db *sqlite.DB) *cobra.Command {
 	return &cobra.Command{
@@ -18,10 +23,15 @@ func NewVisualizeCmd(db *sqlite.DB) *cobra.Command {
 
 			err := viz.GenerateMasterDiagram()
 			if err != nil {
-				return fmt.Errorf("visualize: failed: %w", err)
+				return fmt.Errorf("visualize: master graph failed: %w", err)
 			}
 
-			fmt.Println("✅ MASTER-GRAPH.md generated in docs/architecture/")
+			err = viz.GenerateC4ContainerDiagram()
+			if err != nil {
+				return fmt.Errorf("visualize: C4 container diagram failed: %w", err)
+			}
+
+			fmt.Println("✅ MASTER-GRAPH.md and C4-CONTAINER-GRAPH.md generated in docs/architecture/")
 			return nil
 		},
 	}
