@@ -100,7 +100,13 @@ func (e *Engine) ScanProject(root string) error {
 	if err != nil {
 		return fmt.Errorf("engine: walk failed: %w", err)
 	}
-	return scanErr
+
+	if scanErr != nil {
+		return scanErr
+	}
+
+	// 4. Linker Phase (S11: Dependency Linker)
+	return e.LinkDependencies()
 }
 
 func (e *Engine) scanFileWithIncrementalCheck(scanner FileScanner, path string) ScanResult {
