@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
+	"net/url"
 	"sync"
 	"time"
 
@@ -34,8 +34,12 @@ var upgrader = websocket.Upgrader{
 		if origin == "" {
 			return true
 		}
-		host := r.Host
-		return strings.HasPrefix(origin, "http://"+host) || strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "http://127.0.0.1")
+		u, err := url.Parse(origin)
+		if err != nil {
+			return false
+		}
+		host := u.Hostname() // strips port, no prefix-match bypass
+		return host == "localhost" || host == "127.0.0.1"
 	},
 }
 
