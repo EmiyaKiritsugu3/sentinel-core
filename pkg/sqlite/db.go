@@ -15,15 +15,19 @@ type DB struct {
 
 // Init inicializa a conexão com o SQLite e configura as Pragmas de Elite
 func Init() (*DB, error) {
-	sentinelDir := ".sentinel"
-	if _, err := os.Stat(sentinelDir); os.IsNotExist(err) {
-		err := os.Mkdir(sentinelDir, 0755)
+	return InitAtPath(".sentinel/graph.db")
+}
+
+// InitAtPath inicializa a conexão com o SQLite em um caminho específico
+func InitAtPath(dbPath string) (*DB, error) {
+	sentinelDir := filepath.Dir(dbPath)
+	if _, err := os.Stat(sentinelDir); os.IsNotExist(err) && sentinelDir != "." {
+		err := os.MkdirAll(sentinelDir, 0755)
 		if err != nil {
-			return nil, fmt.Errorf("sqlite: could not create .sentinel directory: %w", err)
+			return nil, fmt.Errorf("sqlite: could not create directory %s: %w", sentinelDir, err)
 		}
 	}
 
-	dbPath := filepath.Join(sentinelDir, "graph.db")
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: could not open db: %w", err)

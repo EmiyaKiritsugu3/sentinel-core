@@ -1,4 +1,4 @@
-# GEMINI.md — Project Sentinel Protocol (v4.0.1)
+# GEMINI.md — Project Sentinel Protocol (v4.1.0)
 
 ## 🌌 Antigravity Interception Rules
 
@@ -10,16 +10,16 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
 
 ## 🛡️ Sovereign Council Mandate
 
-1.  **Compiled Brain Priority**: Antes de começar QUALQUER tarefa, o agente DEVE ler `docs/process/wiki-index.md` e o `sentinel-log.md`. Esta é a fonte de verdade.
-2.  **Startup Ritual (Auto-Bootstrap)**: No primeiro turno de cada sessão, o agente deve AUTOMATICAMENTE:
+1. **Compiled Brain Priority**: Antes de começar QUALQUER tarefa, o agente DEVE ler `docs/process/wiki-index.md` e o `sentinel-log.md`. Esta é a fonte de verdade.
+2. **Startup Ritual (Auto-Bootstrap)**: No primeiro turno de cada sessão, o agente deve AUTOMATICAMENTE:
     - Ler o `sentinel-log.md` para recuperar o Handover.
     - Ler o `ROADMAP.md` para identificar o vetor atual.
     - Executar `sentinel scan` para sincronizar o grafo.
     - Apresentar um resumo: "Sentinel Acordado: [Status], [Task Atual], [Próximo Passo]".
-3.  **Arqueologia Obrigatória (ADF)**: Antes de qualquer depuração de infraestrutura, deve-se realizar a análise histórica conforme `docs/process/ADF-PROTOCOL.md`.
-3.  **Traceability Mandate**: Cada nova funcionalidade ou correção deve ser explicitamente linkada à sua Spec de origem e Plano de Execução no `wiki-index.md`.
-4.  **Synthesis Requirement**: Após completar uma mudança arquitetural, o agente DEVE atualizar o `sentinel-log.md`.
-5.  **Proof of State**: Verificações devem fornecer evidências físicas (logs, prints ou resultados de teste).
+3. **Arqueologia Obrigatória (ADF)**: Antes de qualquer depuração de infraestrutura, deve-se realizar a análise histórica conforme `docs/process/ADF-PROTOCOL.md`.
+4. **Traceability Mandate**: Cada nova funcionalidade ou correção deve ser explicitamente linkada à sua Spec de origem e Plano de Execução no `wiki-index.md`.
+5. **Synthesis Requirement**: Após completar uma mudança arquitetural, o agente DEVE atualizar o `sentinel-log.md`.
+6. **Proof of State**: Verificações devem fornecer evidências físicas (logs, prints ou resultados de teste).
 
 ## 🔒 Protocolo de Bloqueio (Hardened)
 
@@ -42,10 +42,10 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
 
 ## 🏛️ Architectural Principles
 
-1.  **Orchestration Sovereignty**: Always decouple file discovery and database persistence from language-specific parsing logic.
-2.  **Immutable ScanResults**: Scanners must return immutable result structures (Nodes/Edges) to ensure thread-safety during parallel orchestration.
-3.  **Skip-if-Hash-Match**: Maintain the hash-based incremental scanning pattern in the central Engine to respect developer time and optimize I/O.
-4.  **Dependency Sovereignty**: Prefer constructor-based dependency injection (e.g., passing DB handles) over global instances to maintain testability and clean bin architecture.
+1. **Orchestration Sovereignty**: Always decouple file discovery and database persistence from language-specific parsing logic.
+2. **Immutable ScanResults**: Scanners must return immutable result structures (Nodes/Edges) to ensure thread-safety during parallel orchestration.
+3. **Skip-if-Hash-Match**: Maintain the hash-based incremental scanning pattern in the central Engine to respect developer time and optimize I/O.
+4. **Dependency Sovereignty**: Prefer constructor-based dependency injection (e.g., passing DB handles) over global instances to maintain testability and clean bin architecture.
 
 ## 🏗️ Engineering Workflow
 
@@ -67,13 +67,12 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
   2. O pacote deve conter o *Current Vector*, *Technical Snag* e o *First Command* para o próximo agente.
   3. Limpar arquivos de planos concluídos para evitar poluição de contexto futuro.
 
-
-
 ## graphify
 
 This project has a graphify knowledge graph at graphify-out/.
 
 Rules:
+
 - Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
 - If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
 - For cross-module "how does X relate to Y" questions, prefer `graphify query "<question>"`, `graphify path "<A>" "<B>"`, or `graphify explain "<concept>"` over grep — these traverse the graph's EXTRACTED + INFERRED edges instead of scanning files

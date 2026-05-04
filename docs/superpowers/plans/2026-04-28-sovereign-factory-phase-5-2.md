@@ -10,9 +10,10 @@
 
 ---
 
-### Task 1: Seamless Authentication & Provider Setup
+## Task 1: Seamless Authentication & Provider Setup
 
 **Files:**
+
 - Create: `internal/agents/auth_provider.go`
 - Test: `internal/agents/auth_provider_test.go`
 
@@ -22,24 +23,24 @@
 package agents
 
 import (
-	"os"
-	"fmt"
+ "os"
+ "fmt"
 )
 
 type AuthProvider interface {
-	GetAPIKey() (string, error)
+ GetAPIKey() (string, error)
 }
 
 type SovereignAuthProvider struct{}
 
 func (p *SovereignAuthProvider) GetAPIKey() (string, error) {
-	// 1. Check environment
-	key := os.Getenv("GOOGLE_API_KEY")
-	if key != "" {
-		return key, nil
-	}
-	// TODO: Add detection for ~/.gemini/settings.json in next step
-	return "", fmt.Errorf("no GOOGLE_API_KEY found in environment")
+ // 1. Check environment
+ key := os.Getenv("GOOGLE_API_KEY")
+ if key != "" {
+  return key, nil
+ }
+ // TODO: Add detection for ~/.gemini/settings.json in next step
+ return "", fmt.Errorf("no GOOGLE_API_KEY found in environment")
 }
 ```
 
@@ -49,19 +50,19 @@ func (p *SovereignAuthProvider) GetAPIKey() (string, error) {
 package agents
 
 import (
-	"os"
-	"testing"
+ "os"
+ "testing"
 )
 
 func TestSovereignAuthProvider_GetAPIKey(t *testing.T) {
-	os.Setenv("GOOGLE_API_KEY", "test_key")
-	defer os.Unsetenv("GOOGLE_API_KEY")
+ os.Setenv("GOOGLE_API_KEY", "test_key")
+ defer os.Setenv("GOOGLE_API_KEY", "")
 
-	p := &SovereignAuthProvider{}
-	key, err := p.GetAPIKey()
-	if err != nil || key != "test_key" {
-		t.Errorf("expected test_key, got %s (err: %v)", key, err)
-	}
+ p := &SovereignAuthProvider{}
+ key, err := p.GetAPIKey()
+ if err != nil || key != "test_key" {
+  t.Errorf("expected test_key, got %s (err: %v)", key, err)
+ }
 }
 ```
 
@@ -81,6 +82,7 @@ git commit -m "feat(agents): add seamless auth provider"
 ### Task 2: Git Shield & Ephemeral Branches
 
 **Files:**
+
 - Create: `internal/agents/git_shield.go`
 - Test: `internal/agents/git_shield_test.go`
 
@@ -90,31 +92,31 @@ git commit -m "feat(agents): add seamless auth provider"
 package agents
 
 import (
-	"fmt"
-	"os/exec"
-	"strings"
+ "fmt"
+ "os/exec"
+ "strings"
 )
 
 type GitShield struct {
-	BaseBranch string
+ BaseBranch string
 }
 
 func (g *GitShield) CreateTaskBranch(taskID string) (string, error) {
-	branchName := fmt.Sprintf("sentinel/task-%s", taskID)
-	cmd := exec.Command("git", "checkout", "-b", branchName)
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to create branch %s: %w", branchName, err)
-	}
-	return branchName, nil
+ branchName := fmt.Sprintf("sentinel/task-%s", taskID)
+ cmd := exec.Command("git", "checkout", "-b", branchName)
+ if err := cmd.Run(); err != nil {
+  return "", fmt.Errorf("failed to create branch %s: %w", branchName, err)
+ }
+ return branchName, nil
 }
 
 func (g *GitShield) AtomicCommit(message string) error {
-	addCmd := exec.Command("git", "add", ".")
-	if err := addCmd.Run(); err != nil {
-		return fmt.Errorf("failed to stage changes: %w", err)
-	}
-	commitCmd := exec.Command("git", "commit", "-m", message)
-	return commitCmd.Run()
+ addCmd := exec.Command("git", "add", ".")
+ if err := addCmd.Run(); err != nil {
+  return fmt.Errorf("failed to stage changes: %w", err)
+ }
+ commitCmd := exec.Command("git", "commit", "-m", message)
+ return commitCmd.Run()
 }
 ```
 
@@ -126,15 +128,15 @@ package agents
 import "testing"
 
 func TestGitShield_BranchName(t *testing.T) {
-	gs := &GitShield{BaseBranch: "main"}
-	taskID := "abc12345"
-	expected := "sentinel/task-abc12345"
-	// Note: Real git commands skipped in unit test to avoid env pollution
-	// Just verifying name generation logic for now
-	name := fmt.Sprintf("sentinel/task-%s", taskID)
-	if name != expected {
-		t.Errorf("expected %s, got %s", expected, name)
-	}
+ gs := &GitShield{BaseBranch: "main"}
+ taskID := "abc12345"
+ expected := "sentinel/task-abc12345"
+ // Note: Real git commands skipped in unit test to avoid env pollution
+ // Just verifying name generation logic for now
+ name := fmt.Sprintf("sentinel/task-%s", taskID)
+ if name != expected {
+  t.Errorf("expected %s, got %s", expected, name)
+ }
 }
 ```
 
@@ -150,6 +152,7 @@ git commit -m "feat(agents): implement git shield with ephemeral branches"
 ### Task 3: Neural Bridge - Model Escalation Trigger
 
 **Files:**
+
 - Modify: `internal/agents/engine.go`
 - Modify: `internal/agents/types.go`
 
@@ -188,6 +191,7 @@ git commit -m "feat(agents): add model escalation trigger logic"
 ### Task 4: PAC Tripartite Deliberation Logic
 
 **Files:**
+
 - Modify: `internal/agents/engine.go`
 
 - [ ] **Step 1: Implement the deliberation loop**
@@ -228,6 +232,7 @@ git commit -m "feat(agents): implement PAC deliberation state machine"
 ### Task 5: Final Neural Wiring (Gemini SDK)
 
 **Files:**
+
 - Modify: `internal/agents/engine.go`
 - Modify: `go.mod`
 

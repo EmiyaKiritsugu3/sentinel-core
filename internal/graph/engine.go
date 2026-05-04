@@ -6,21 +6,39 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/utils"
 )
 
 type Engine struct {
-	db       *sqlite.DB
-	scanners map[string]FileScanner
-	filter   *utils.IgnoreFilter
+	db        *sqlite.DB
+	scanners  map[string]FileScanner
+	filter    *utils.IgnoreFilter
+	observers []Observer
+	mu        sync.RWMutex
 }
 
 func NewEngine(db *sqlite.DB) *Engine {
 	return &Engine{
 		db:       db,
 		scanners: make(map[string]FileScanner),
+	}
+}
+
+func (e *Engine) RegisterObserver(o Observer) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.observers = append(e.observers, o)
+}
+
+func (e *Engine) notifyObservers(event GraphEvent) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	for _, o := range e.observers {
+		// Notifica de forma assíncrona para não bloquear o processamento principal
+		go o.Notify(event)
 	}
 }
 
@@ -32,6 +50,9 @@ func (e *Engine) RegisterScanner(s FileScanner) {
 
 // ScanProject varre o diretório e coordena os scanners registrados
 func (e *Engine) ScanProject(root string) error {
+	e.notifyObservers(GraphEvent{Type: EventScanStarted, Time: time.Now()})
+	defer e.notifyObservers(GraphEvent{Type: EventScanCompleted, Time: time.Now()})
+
 	// Inicializa o filtro soberano baseado no .gitignore
 	e.filter = utils.NewIgnoreFilter(root)
 
@@ -164,7 +185,20 @@ func (e *Engine) persistResult(res ScanResult) error {
 		}
 	}
 
-	return tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("engine: commit failed: %w", err)
+	}
+
+	// Notifica observadores após commit bem sucedido
+	for _, n := range res.Nodes {
+		e.notifyObservers(GraphEvent{Type: EventNodeUpserted, Payload: n, Time: time.Now()})
+	}
+	for _, ed := range res.Edges {
+		e.notifyObservers(GraphEvent{Type: EventEdgeCreated, Payload: ed, Time: time.Now()})
+	}
+
+	return nil
 }
 
 func (e *Engine) upsertNodeTx(tx *sql.Tx, n Node) error {

@@ -1,39 +1,318 @@
 {
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/main.go": 1777190600.4317153,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/audit.go": 1777190600.4316323,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/instruct.go": 1777190600.4317153,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/plan.go": 1777190600.4317153,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/report.go": 1777190600.4317153,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/root.go": 1777190600.4317153,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/scan.go": 1777190600.4317153,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/start.go": 1777190600.4317153,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/status.go": 1777190600.4317153,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/visualize.go": 1777190600.4317153,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/audit/runner.go": 1777190600.4325306,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/bridge/prompt_factory.go": 1777190600.4325306,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/graph/scanner_go.go": 1777190600.4326732,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/graph/schema.go": 1777190600.4327428,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/graph/visualizer.go": 1777190600.4327428,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/reflect/validator.go": 1777190600.4327428,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/report/aggregator.go": 1777190600.4327428,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/state/manager.go": 1777190600.4327428,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/legacy/ts/src/brainstorm.ts": 1777190600.433142,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/legacy/ts/src/cli.ts": 1777190600.4332554,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/legacy/ts/src/config-loader.ts": 1777190600.4332554,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/legacy/ts/src/forge-engine.ts": 1777190600.4332554,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/legacy/ts/src/sentinel-wrapper.ts": 1777190600.4332554,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/pkg/sqlite/db.go": 1777190600.4334848,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/pkg/utils/hash.go": 1777190600.4335818,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/pkg/utils/text.go": 1777190600.4336286,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/GEMINI.md": 1777191075.175437,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/README.md": 1777190600.4310486,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/process/ADF-PROTOCOL.md": 1777032854.2400384,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/process/wiki-index.md": 1777032854.2433465,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/process/COMPLIANCE-DASHBOARD.md": 1777190600.4321556,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/process/ENGINEERING-STANDARDS.md": 1777191380.8053906,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/process/EVOLUTION-INSIGHTS.md": 1777191408.4682958,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/process/sentinel-log.md": 1777190600.4321556,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/MASTER-GRAPH.md": 1777190600.4317153,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/ROADMAP.md": 1777190600.4321556,
-  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/SENTINEL-SYSTEM-DESIGN.md": 1777190600.4321556
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/main.go": {
+    "mtime": 1777192603.5288296,
+    "hash": "d289781c9c7c85edefbfc9d6c1c4ab6e"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/audit.go": {
+    "mtime": 1777864506.3265755,
+    "hash": "8e9fb62c6efc6c4f11cc1f7acc8630d1"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/plan.go": {
+    "mtime": 1777864074.2073746,
+    "hash": "6f5ce136c62aa19270f7786bbbd4425e"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/root.go": {
+    "mtime": 1777864419.9836948,
+    "hash": "9070b905cbdb011f49b0e3afe5c822d4"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/status.go": {
+    "mtime": 1777864469.431514,
+    "hash": "3d1d53697cdb7a9ce654d250982df530"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/visualize.go": {
+    "mtime": 1777868734.5546281,
+    "hash": "e154bf36c9adb0994f90f26d75f02cef"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/report.go": {
+    "mtime": 1777864084.3503535,
+    "hash": "c74943cd1577450fa4ca1adb76bc8f7c"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/scan.go": {
+    "mtime": 1777864094.5850556,
+    "hash": "1ccc4e46a64bcdaead34f47f709ad97b"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/instruct.go": {
+    "mtime": 1777864043.8894374,
+    "hash": "80a46e21cafcf435deef999837d2d3d1"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/cmd/sentinel/commands/start.go": {
+    "mtime": 1777864506.3325756,
+    "hash": "0fff4f00446c0fb5bf26bd7b0000b94a"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/audit/runner.go": {
+    "mtime": 1777497248.203059,
+    "hash": "7d29248ee614321be2cd2a9bc0c9a0ae"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/bridge/prompt_factory.go": {
+    "mtime": 1777808409.8628914,
+    "hash": "27aee509e92012eb581974c9aa31df11"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/graph/scanner_treesitter.go": {
+    "mtime": 1777865877.8966422,
+    "hash": "95bd43878fe71974c0abb63a13dc79ed"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/graph/types.go": {
+    "mtime": 1777381169.4157026,
+    "hash": "d261290728a3a9fe8d30d71f89803d48"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/graph/schema_test.go": {
+    "mtime": 1777497242.7753327,
+    "hash": "f1a65e13ce8ebdfc8e8e64fa84dd97fc"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/graph/engine.go": {
+    "mtime": 1777865448.9588656,
+    "hash": "f2e8283642794618fd7b5b3c3716eec3"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/graph/scanner_go.go": {
+    "mtime": 1777869507.993598,
+    "hash": "befb8e13febf1d792e3ab414012fe3cc"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/graph/adr_generator.go": {
+    "mtime": 1777808409.8632753,
+    "hash": "b8c784169c096b41657758f2e40c533c"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/graph/adr_generator_test.go": {
+    "mtime": 1777808409.8633728,
+    "hash": "49568df95f47e7ee89bcedbf039a6c3f"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/graph/schema.go": {
+    "mtime": 1777808409.863463,
+    "hash": "17373fbe0c96a3f20d21ff4e32583cff"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/graph/visualizer.go": {
+    "mtime": 1777872343.3658075,
+    "hash": "fd85bd5f54864804d752459cb11a70f8"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/graph/linker.go": {
+    "mtime": 1777872343.360921,
+    "hash": "874eacd44e67e9d858e4c60db2b0c878"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/graph/linker_integration_test.go": {
+    "mtime": 1777882465.8879387,
+    "hash": "46630bddfa660b9b7af8134d7c141424"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/reflect/validator.go": {
+    "mtime": 1777497248.2035162,
+    "hash": "5b50ec979c6c6814864454cb068faab5"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/report/aggregator.go": {
+    "mtime": 1777509311.868925,
+    "hash": "c9e1f04a0cebef5ea5205fd433105422"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/state/manager.go": {
+    "mtime": 1777808409.8636324,
+    "hash": "af44abb981a1493d14ce0795a58a454b"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/auth_provider.go": {
+    "mtime": 1777497242.7744076,
+    "hash": "89f665ce8d43e2b44e1e83f8890d20f7"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/auth_provider_test.go": {
+    "mtime": 1777497242.7744675,
+    "hash": "b962d68e20ad1aa789a5a4ef42eb7219"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/mutation.go": {
+    "mtime": 1777509191.6386418,
+    "hash": "814919a90ddd7d2ebeacb95988969c8c"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/registry.go": {
+    "mtime": 1777815150.8292038,
+    "hash": "a74c000d620be3ac2aaf0bf285af9791"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/registry_test.go": {
+    "mtime": 1777497242.7750592,
+    "hash": "4c2124c6dabc6eaf2903e9dd09bb7d67"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/loader.go": {
+    "mtime": 1777497248.2027974,
+    "hash": "2a149c60d9785bcde8e26c8c71257129"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/types.go": {
+    "mtime": 1777497283.089312,
+    "hash": "355a223dda2174240bad853187c23d5b"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/git_shield_test.go": {
+    "mtime": 1777815150.8273013,
+    "hash": "9725e9659b95ec2ce9f6f0d3612928cb"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/decompose_test.go": {
+    "mtime": 1777808409.8619254,
+    "hash": "7a758c931b70b0c171787ae02ae4dfd8"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/dispatcher.go": {
+    "mtime": 1777808409.862045,
+    "hash": "5bbc412242a2aee24d88396c1b199e18"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/dispatcher_test.go": {
+    "mtime": 1777808409.8621876,
+    "hash": "e53793e71d722636f8d4c890fe1e49a3"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/engine.go": {
+    "mtime": 1777808409.862399,
+    "hash": "8aba38a151bb6ab7f4511927d51e8512"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/engine_test.go": {
+    "mtime": 1777808409.8625135,
+    "hash": "ef943e7c9a7b77972006add9c5c60df3"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/git_shield.go": {
+    "mtime": 1777808409.8626206,
+    "hash": "0d73d5ca786b398cdfa85336df3483a8"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/tools.go": {
+    "mtime": 1777808409.8628314,
+    "hash": "742aa1e34fca64747bd51225c418cb3e"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/registry/commands.go": {
+    "mtime": 1777863913.2368758,
+    "hash": "58347cde2f6ace258ed1dad09a1710f9"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/legacy/ts/src/brainstorm.ts": {
+    "mtime": 1777190600.433142,
+    "hash": "855834425e7a5e824edfa507f8910b5f"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/legacy/ts/src/cli.ts": {
+    "mtime": 1777190600.4332554,
+    "hash": "85db63ffd1edaff06e570f8d4039d220"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/legacy/ts/src/config-loader.ts": {
+    "mtime": 1777190600.4332554,
+    "hash": "b1850e692cf8a967f22349dc80aa6089"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/legacy/ts/src/forge-engine.ts": {
+    "mtime": 1777190600.4332554,
+    "hash": "c7e986a397e0a1a7a5c8274fe39d9fa3"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/legacy/ts/src/sentinel-wrapper.ts": {
+    "mtime": 1777190600.4332554,
+    "hash": "84907abab8f6d42a49e0c15248227f86"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/pkg/sqlite/db.go": {
+    "mtime": 1777882404.560074,
+    "hash": "d0fa25241fb4f1d87171ef3cb494ad4a"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/pkg/utils/hash.go": {
+    "mtime": 1777190600.4335818,
+    "hash": "205fd01affd3d2f37d0f972faaeb200d"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/pkg/utils/filter.go": {
+    "mtime": 1777497248.2036889,
+    "hash": "d36d2b40c7c6270eb9c950c62e5e769f"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/pkg/utils/text.go": {
+    "mtime": 1777497248.203754,
+    "hash": "64437fa2f2597df964fbf3d019248520"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/GEMINI.md": {
+    "mtime": 1777881968.018198,
+    "hash": "8ac1ca4603d63f8b0d538c2be8166c6c"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/README.md": {
+    "mtime": 1777826765.0988436,
+    "hash": "afe9adfca6786a8ce8027bb36d91fe71"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/process/ADF-PROTOCOL.md": {
+    "mtime": 1777823035.3543146,
+    "hash": "ff68a3986ea43006917ac6d0ab18c7ed"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/process/wiki-index.md": {
+    "mtime": 1777860288.8739905,
+    "hash": "0d5a99536efee09ffc8bde4b9bfc4366"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/process/EVOLUTION-INSIGHTS.md": {
+    "mtime": 1777823035.3543146,
+    "hash": "44394c02a4135ee51d5624b98224382b"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/process/COMPLIANCE-DASHBOARD.md": {
+    "mtime": 1777808409.8614838,
+    "hash": "fcd0d904cface857c16111b454daca69"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/process/ENGINEERING-STANDARDS.md": {
+    "mtime": 1777860265.2403214,
+    "hash": "39e41b6412fe17c10de0f70e03e4bd31"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/process/TECHNICAL-DEBT.md": {
+    "mtime": 1777823035.3543146,
+    "hash": "939bc8fbbbb90d421604a4b62a205b73"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/process/sentinel-log.md": {
+    "mtime": 1777882494.146799,
+    "hash": "38f52a1a7da72279502f590ce4fc6233"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/process/wiki-ast-expansion.md": {
+    "mtime": 1777860323.1761127,
+    "hash": "0b0286c4dcbe9873c5feb69282db0632"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/MASTER-GRAPH.md": {
+    "mtime": 1777870124.1898587,
+    "hash": "b5ddf15d958853de1f45e52f4d219843"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/SENTINEL-SYSTEM-DESIGN.md": {
+    "mtime": 1777829982.7378895,
+    "hash": "4abed63c5a455ede8c52ee7af89152d0"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/ROADMAP.md": {
+    "mtime": 1777881387.9067268,
+    "hash": "a10de1e538e58ebaa6ea924105cabc32"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/C4-CONTAINER-GRAPH.md": {
+    "mtime": 1777870124.1918585,
+    "hash": "2d76c6c64d991c8049a9b654e62e8936"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/adr/ADR-3c3075f2-complex-task-documentation-evolution.md": {
+    "mtime": 1777823035.3543146,
+    "hash": "d42a42a452fd34fae9747c7163a40533"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/adr/ADR-66d2618f-melhorar-performance.md": {
+    "mtime": 1777823035.3543146,
+    "hash": "ad963968e4c94b92b1d8136dce73dc59"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/adr/ADR-841fa0a2-self-audit-for-standard-compliance.md": {
+    "mtime": 1777823035.3543146,
+    "hash": "a1c32640b74a8736cf801fb65b5be40f"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/adr/ADR-ad9933bf-refatorar-camada-de-persistencia.md": {
+    "mtime": 1777823035.3543146,
+    "hash": "bf4d6dcf22e8d84256e6c4841a735a90"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/adr/ADR-d0555ca9-2139-4b67-8261-5a64afd44e24-implementar-golangci-lint-foundational-layer.md": {
+    "mtime": 1777834633.623592,
+    "hash": "f6ecf6b16895a8cee415cc3459f388a6"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/adr/ADR-fe2bb6f9-deciso-crtica-com-caracteres-perigosos-aspas.md": {
+    "mtime": 1777823035.3543146,
+    "hash": "8cef980018155874b7c682e75121c679"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/adr/ADR-0baf39c0-e9aa-451b-97dd-414ac65350dc-implementar-script-de-pre-flight-check-local.md": {
+    "mtime": 1777823035.3528433,
+    "hash": "02a2630c0e394477bf9e7138f156968e"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/architecture/adr/ADR-306b0ea4-2d45-445c-b098-8efca7a98745-implementar-markdownlint-para-padronizao-de-docume.md": {
+    "mtime": 1777834678.914433,
+    "hash": "2dcc60acb24021d46931f60d0910d382"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/superpowers/plans/2024-05-20-git-shield-implementation.md": {
+    "mtime": 1777834772.1479821,
+    "hash": "3ee4335046733e83611a70183c961452"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/superpowers/plans/2026-04-28-sovereign-factory-phase-5-2.md": {
+    "mtime": 1777834802.25348,
+    "hash": "873e9a2705e4ced678add69c0e26150a"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/superpowers/plans/PID-SENTINEL-QUALITY-FIREWALL.md": {
+    "mtime": 1777834867.0714993,
+    "hash": "6d076fadec2d4c07bcce7dbe7992212c"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/docs/superpowers/plans/PID-SENTINEL-HUB-DECOUPLING-V2.md": {
+    "mtime": 1777864571.8152306,
+    "hash": "f08bbcb9a3bd299c9fca54b259163b6d"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/internal/agents/definitions/architect.md": {
+    "mtime": 1777381169.4150143,
+    "hash": "84c7fe7cc6415e8832cd36beace1d918"
+  },
+  "/home/emiyakiritsugu/Projetos_Antigravity/sentinel-core/graphify-out/memory/query_20260426_082509_why_does_manager_connect_ai_bridge_to_governance.md": {
+    "mtime": 1777191909.5133142,
+    "hash": "74cf018f90135c2728042218d703d108"
+  }
 }
