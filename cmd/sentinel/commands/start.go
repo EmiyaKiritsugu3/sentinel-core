@@ -48,8 +48,11 @@ func NewStartCmd(db *sqlite.DB) *cobra.Command {
 
 			engine, err := agents.NewEngine(registry, auth, factory, validator, db)
 			if err != nil {
-				_ = mgr.UpdateStatus(taskID, "PENDING")
-				fmt.Printf("⚠️  Sentinel: Cognitive engine offline (%v). Task reset to PENDING.\n", err)
+				if rollbackErr := mgr.UpdateStatus(taskID, "PENDING"); rollbackErr != nil {
+					fmt.Printf("⚠️  Sentinel: Cognitive engine offline (%v). Rollback also failed: %v. Task may still be IN_PROGRESS.\n", err, rollbackErr)
+				} else {
+					fmt.Printf("⚠️  Sentinel: Cognitive engine offline (%v). Task reset to PENDING.\n", err)
+				}
 				return fmt.Errorf("start: cognitive engine failed to initialize: %w", err)
 			}
 			engine.Dispatcher = dispatcher // Wired for Phase 5.8

@@ -22,7 +22,7 @@ A depuração deve seguir esta ordem rigorosa de baixo para cima, validando cada
 
 1. **INFRA**: A raiz segue o padrão da versão atual do framework?
 2. **ESTÁTICA**: O `tsc --noEmit` está verde? (Não depure renderização com TSC quebrado).
-3. **ENGINE**: O build nativo completa com um layout minimalista?
+3. **ENGINE**: O build nativo é concluído com um layout minimalista?
 4. **UI**: O erro ocorre no componente específico ou no seu contexto (Providers)?
 
 ## 4. Reducionismo de Isolação
@@ -52,7 +52,7 @@ No encerramento de tarefas complexas ou resoluções de bugs críticos, o agente
 
 ## 7. Governança de Raiz (Next.js 15 Special)
 
-- Proibido arquivos de instrumentação customizados (ex: `instrumentation-client.ts`).
+- São proibidos arquivos de instrumentação customizados (ex: `instrumentation-client.ts`).
 - Sentry deve usar obrigatoriamente os 3 arquivos de config + `withSentryConfig`.
 - Tags `<html>` e `<body>` são reservadas para arquivos de layout raiz ou erro global.
 

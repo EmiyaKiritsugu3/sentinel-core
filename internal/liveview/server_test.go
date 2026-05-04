@@ -16,7 +16,9 @@ import (
 
 func TestServer_Broadcast(t *testing.T) {
 	server := NewServer()
-	go server.Run(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go server.Run(ctx)
 
 	// Start test HTTP server
 	ts := httptest.NewServer(http.HandlerFunc(server.serveWS))
@@ -31,8 +33,22 @@ func TestServer_Broadcast(t *testing.T) {
 	}
 	defer conn.Close()
 
-	// Give time for registration to process
-	time.Sleep(50 * time.Millisecond)
+	// Poll until the hub has registered the client instead of sleeping a fixed duration.
+	deadline := time.After(2 * time.Second)
+	for {
+		server.mu.RLock()
+		registered := len(server.clients) > 0
+		server.mu.RUnlock()
+		if registered {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatal("timed out waiting for client registration")
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
 
 	// Send an event
 	event := graph.GraphEvent{
@@ -61,7 +77,9 @@ func TestServer_Broadcast(t *testing.T) {
 
 func TestServer_ConcurrentNotify(t *testing.T) {
 	server := NewServer()
-	go server.Run(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go server.Run(ctx)
 
 	var wg sync.WaitGroup
 
