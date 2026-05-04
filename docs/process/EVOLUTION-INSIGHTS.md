@@ -3,6 +3,7 @@
 Este documento registra as fissuras estruturais e ideias de vanguarda descobertas durante a execução. Ele serve como o backlog de maturação do Arquiteto.
 
 ## 🔍 Gaps Estruturais (Technical Debt & Traumas)
+
 - [x] **CLI Input Blocking (Trauma)**: Bug nas versões v0.40.x da Gemini CLI em Linux. Enter falha em prompts interativos. **Solução**: Usar `Ctrl + J`.
 - [x] **String Sanitization Leak**: Centralizado em `pkg/utils/text.go`.
 - [x] **Full-Scan Bottleneck**: Implementado Scan Incremental via hashes SHA256.
@@ -11,6 +12,7 @@ Este documento registra as fissuras estruturais e ideias de vanguarda descoberta
 - [ ] **Cascading Pruning**: O scan atual não limpa arestas de arquivos deletados.
 
 ## 🧊 The Icebox (Potential Evolutions)
+
 - **Protocolo Bonsai (KISS Optimization)**: Sistema de poda automática de complexidade e redundância (Backlog de vanguarda).
 - **SOLID Governance Module**: Validador semântico de princípios SOLID via análise de grafo AST.
 - **Compiled Knowledge Engine**: Sistema de injeção automática de erros passados no prompt.

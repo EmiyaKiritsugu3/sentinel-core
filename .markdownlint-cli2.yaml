@@ -1,0 +1,19 @@
+config:
+  default: true
+  # Rule exclusions for specific project needs
+  MD013: false # Line length (ignored for long technical explanations)
+  MD024:
+    siblings_only: true # Allow same heading text in different sections
+  MD025: false # Allow multiple H1 (Frontmatter title + Body H1)
+  MD033: false # Allow Inline HTML (used for notes and badges)
+  MD036: false # Allow emphasis as heading (used for signatures)
+  MD041: false # First line doesn't need to be a top-level heading
+
+globs:
+  - "docs/**/*.md"
+  - "README.md"
+  - "GEMINI.md"
+
+ignores:
+  - "node_modules"
+  - "vendor"

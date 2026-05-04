@@ -8,10 +8,15 @@ import (
 	"strings"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/registry"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/state"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/spf13/cobra"
 )
+
+func init() {
+	registry.Register(NewInstructCmd)
+}
 
 func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 	var message string
@@ -27,8 +32,8 @@ func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 			if message != "" {
 				intent = message
 			} else {
-				stat, _ := os.Stdin.Stat()
-				if (stat.Mode() & os.ModeCharDevice) == 0 {
+				stat, err := os.Stdin.Stat()
+				if err == nil && (stat.Mode()&os.ModeCharDevice) == 0 {
 					scanner := bufio.NewScanner(os.Stdin)
 					if scanner.Scan() {
 						intent = strings.TrimSpace(scanner.Text())

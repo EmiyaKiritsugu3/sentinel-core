@@ -6,11 +6,13 @@
 **Impact**: HIGH (System Integrity & Development Strategy)
 
 ### 🔍 Analysis (Epiphanies)
-1.  **CLI Resilience**: Identified a critical input blocking bug in Gemini CLI v0.40.0 (Linux/WSL). Validated `Ctrl + J` as the sovereign bypass for non-responsive Enter keys in interactive prompts.
-2.  **Standards Enforcement**: Applied automated remediation for Standards STD-01 (Buffered I/O) and STD-05 (Error Governance). The audit gate is now 100% compliant.
-3.  **VCS Modernization**: Renamed default branch from `master` to `main` and pruned legacy branches, achieving architectural purity in the Git record.
+
+1. **CLI Resilience**: Identified a critical input blocking bug in Gemini CLI v0.40.0 (Linux/WSL). Validated `Ctrl + J` as the sovereign bypass for non-responsive Enter keys in interactive prompts.
+2. **Standards Enforcement**: Applied automated remediation for Standards STD-01 (Buffered I/O) and STD-05 (Error Governance). The audit gate is now 100% compliant.
+3. **VCS Modernization**: Renamed default branch from `master` to `main` and pruned legacy branches, achieving architectural purity in the Git record.
 
 ### 💡 Key Learning
+
 "A tool that cannot be audited is a liability. A process that cannot be simplified is a trap. Stability is the precursor to autonomy."
 
 ---
@@ -21,11 +23,13 @@
 **Impact**: STRATEGIC (High)
 
 ### 🔍 Analysis (Epiphanies)
-1.  **Premature Optimization Trauma**: Identified a move towards over-engineering (Protocolo Bonsai/SOLID Module) before delivering basic functionality.
-2.  **Pareto Alignment**: Realized that 80% of project value currently resides in functional task decomposition, not in automated refactoring of non-existent code.
-3.  **Strategic Realignment**: Pivoted the Phase 5.8 plan to a "KISS & Deliver" model, focusing on the minimum viable tool for task breakdown.
+
+1. **Premature Optimization Trauma**: Identified a move towards over-engineering (Protocolo Bonsai/SOLID Module) before delivering basic functionality.
+2. **Pareto Alignment**: Realized that 80% of project value currently resides in functional task decomposition, not in automated refactoring of non-existent code.
+3. **Strategic Realignment**: Pivoted the Phase 5.8 plan to a "KISS & Deliver" model, focusing on the minimum viable tool for task breakdown.
 
 ### 💡 Key Learning
+
 "Do not build a shipyard before you have a ship. Architecture must emerge from necessity, not from a desire for infinite polish."
 
 ---
@@ -36,11 +40,13 @@
 **Impact**: HIGH (Process Stability)
 
 ### 🔍 Analysis (Findings)
-1.  **Generation Protection**: Validated that `MaxSteps` in `Engine.go` atua como um disjuntor (circuit breaker) infalível contra loops de tentativa-erro em agentes.
-2.  **Audit Safety**: O `AuditRunner` foi confirmado com timeout de 30s, prevenindo travamento por comandos bloqueantes ou interativos.
-3.  **Recursive Vulnerability**: Identificado que o sistema carece de um limite de profundidade para sub-tarefas geradas recursivamente. Risco adicionado ao `TECHNICAL-DEBT.md`.
+
+1. **Generation Protection**: Validated that `MaxSteps` in `Engine.go` atua como um disjuntor (circuit breaker) infalível contra loops de tentativa-erro em agentes.
+2. **Audit Safety**: O `AuditRunner` foi confirmado com timeout de 30s, prevenindo travamento por comandos bloqueantes ou interativos.
+3. **Recursive Vulnerability**: Identificado que o sistema carece de um limite de profundidade para sub-tarefas geradas recursivamente. Risco adicionado ao `TECHNICAL-DEBT.md`.
 
 ### 💡 Key Learning
+
 "A arquitetura de agentes é uma árvore de recursão. Sem um limite de profundidade, a autonomia se torna instabilidade. O próximo nível de maturidade exige 'Depth Governance'."
 
 ---
@@ -49,43 +55,178 @@
 **Impact**: STRATEGIC (High - Process Governance)
 
 ### 🔍 Analysis (Epiphanies)
-1.  **Vagueness vs. Evidence**: Implemented the "Scout" protocol. The Sentinel now uses the `graph.db` (SQLite) to find "God Objects" and hotspots when the user provides vague intents (e.g., "improve performance"), transforming abstract ideas into data-driven proposals.
-2.  **Executable Governance**: Transitioned ADRs from static documentation to "Executable Contracts". Every ADR now requires a `Verification Protocol` (shell command).
-3.  **The Hard Gate**: A task's completion is now deterministic. It requires the ADR's verification command to return Exit Code 0, preventing "guessing" and ensuring solid, step-by-step progress.
+
+1. **Vagueness vs. Evidence**: Implemented the "Scout" protocol. The Sentinel now uses the `graph.db` (SQLite) to find "God Objects" and hotspots when the user provides vague intents (e.g., "improve performance"), transforming abstract ideas into data-driven proposals.
+2. **Executable Governance**: Transitioned ADRs from static documentation to "Executable Contracts". Every ADR now requires a `Verification Protocol` (shell command).
+3. **The Hard Gate**: A task's completion is now deterministic. It requires the ADR's verification command to return Exit Code 0, preventing "guessing" and ensuring solid, step-by-step progress.
 
 ### 💡 Key Learning (continued)
+
 "Documentation is only as strong as its ability to be verified. An ADR that cannot be tested is merely a suggestion. A protocol that enforces its own rules is the foundation of true autonomy."
 
 ---
 
 ---
 
-## [2026-05-03] Milestone: Sovereign Quality Firewall - Foundational Layer
+## [2026-05-03] Milestone: AST Expansion & Start Snag Resolution [PID-SENTINEL-AST-EXPANSION]
 
-**Status**: IN_PROGRESS
-**Impact**: MEDIUM (Development Workflow)
+**Status**: COMPLETED 🛡️
+**Impact**: HIGH (Architectural Capability & Operational Stability)
 
-### 🔍 Analysis (Findings)
-1.  **Environment Conflict**: Attempted integration of `golangci-lint` (v1.55) on Go 1.26. Identified a compilation failure in internal tool dependencies (`golang.org/x/tools`). 
-2.  **Strategic Pivot**: Switched to a "Native-First" approach for the Quality Firewall. Foundational linting will utilize `go vet` and `go fmt` to avoid external dependency bloat and environment conflicts while maintaining Standard #11 compliance.
+### 🔍 Analysis (Epiphanies)
+
+1. **Engine Resilience**: O desacoplamento da inicialização da engine no comando `sentinel start` permite que o sistema opere em modo "Local-First" quando o `GOOGLE_API_KEY` está ausente. Isso remove o bloqueio técnico para progressão manual de tarefas.
+2. **Tree-sitter Integration**: A transição de regex para o motor real Tree-sitter (`smacker/go-tree-sitter`) elevou a precisão da extração de símbolos em TypeScript/TSX. O sistema agora mapeia componentes React, interfaces e classes com fidelidade sintática.
+3. **Elite Concurrency (Standard #10)**: Identificada e corrigida uma condição de corrida (Race Condition) no scanner AST. Implementado `sync.Pool` para gerenciar instâncias de `sitter.Parser`, garantindo que múltiplos workers operem simultaneamente sem corromper a memória CGO.
+4. **Memory Integrity (Standard #07)**: Implementada a liberação explícita de memória CGO via `tree.Close()` e `cursor.Close()`. Sem isso, o scanner vazaria memória proporcional ao tamanho do projeto.
+5. **Declarative Extraction**: Migrado de travessia manual de árvore para `Query-based extraction`. O uso de S-expressions (Lisp-like) permite capturar padrões complexos como interfaces e componentes com maior robustez e menor overhead de código.
 
 ### 💡 Key Learning
-"Ecosystem tools must evolve with the compiler. When third-party linters fail, native tools provide the most resilient Hard Gate. Always have a fallback for environmental edge cases."
+
+"A inteligência de um scanner é proporcional à sua compreensão da gramática, não de padrões de texto. Em sistemas multi-thread que utilizam CGO, a segurança de memória e a concorrência não são opcionais—são os alicerces da soberania tecnológica."
 
 ---
 
-## 🏁 SOVEREIGN HANDOVER [S06-GOVERNANCE -> S07-QUALITY-FIREWALL]
+## 🏁 SOVEREIGN HANDOVER [S08-AST-EXPANSION -> S09-COMPONENT-RELATIONS]
+
 **Status**: STABLE 🛡️
-**Success Rate**: 100% (Phase 4 Delivered)
+**Success Rate**: 100% (Elite AST Gates Operational)
 
 ### 🚀 Current Vector
-Governança proativa e contratos executáveis funcionais. A Fase 4 foi entregue com o **Protocolo Scout** e os **Hard Gates** via ADR. Iniciada a construção da **Muralha de Qualidade**.
+
+Capacidade de análise multi-linguagem fortificada. O Sentinel agora processa Go e TypeScript com segurança de memória e alta performance (concorrente). O próximo vetor estratégico é o mapeamento profundo de dependências entre componentes (Relações de Renderização).
 
 ### ⚠️ Technical Snag
-Incompatibilidade do `golangci-lint` v1.55 com a arquitetura do Go 1.26 (nodwarf5). O Gate 1.1 foi transicionado para ferramentas nativas.
+
+Embora a extração de símbolos seja agora 'Elite', o linker ainda requer a resolução de caminhos relativos em imports de TypeScript para IDs de arquivo canônicos.
 
 ### 🎯 Chief's Priority (First Command)
-**"Sentinel, finalize o Step 1.1 usando `go vet` e `go fmt`, e prossiga para o Step 1.2 (Markdownlint)."**
+
+**"Sentinel, implemente o Linker de Dependências para TypeScript para converter 'import:path' em relações reais entre nós de arquivo no SQLite."**
 
 ---
-Related: [ROADMAP.md](../architecture/ROADMAP.md) | [ENGINEERING-STANDARDS.md](./ENGINEERING-STANDARDS.md) | [ADR-d0555ca9](../architecture/adr/ADR-d0555ca9-2139-4b67-8261-5a64afd44e24-implementar-golangci-lint-foundational-layer.md)
+
+## [2026-05-03] Milestone: Dependency Linker & Grammar Resilience [PID-SENTINEL-LINKER]
+
+**Status**: COMPLETED 🛡️
+**Impact**: HIGH (Graph Connectivity & Deep Context)
+
+### 🔍 Analysis (Epiphanies)
+
+1. **Grammar Resilience**: Refatorado o `TreeSitterScanner` para utilizar Queries genéricas sem dependência de nomes de campos rígidos (ex: `name:`). A extração agora percorre os filhos nomeados em busca de identificadores, tornando o Sentinel compatível com múltiplas versões das gramáticas de TypeScript/TSX.
+2. **Sovereign Linking (S11)**: Implementado o `Linker` no motor central. O Sentinel agora resolve caminhos relativos em imports e cria relações reais de dependência entre arquivos no SQLite. Isso elimina as "ilhas de código" e permite uma análise de impacto sistêmica.
+3. **CGO Stability**: Corrigidos erros de segmentação em ambientes concorrentes através da validação rigorosa de ponteiros nulos em objetos Tree-sitter (`tree`, `query`, `cursor`).
+
+### 💡 Key Learning
+
+"Um grafo de dependências sem links é apenas um inventário. A inteligência reside na conexão. Ao resolver imports brutos em relações canônicas, transformamos o banco de dados em um mapa de navegação real para agentes autônomos."
+
+---
+
+## 🏁 SOVEREIGN HANDOVER [S11-DEPENDENCY-LINKER -> S12-C4-VISUALIZATION]
+
+**Status**: STABLE 🛡️
+**Success Rate**: 100% (Dependency Linker Operational)
+
+### 🚀 Current Vector
+
+Capacidade de mapeamento relacional completa. O Sentinel agora entende não apenas o que está dentro dos arquivos, mas como eles se conectam. O próximo vetor estratégico é a geração automática de diagramas C4 dinâmicos baseados nestas relações reais.
+
+### ⚠️ Technical Snag
+
+A resolução de imports atuais foca em arquivos locais. Imports de pacotes externos (ex: `inquirer`, `fs`) são mantidos como `unresolved_import`. Futuras versões podem integrar um mapeamento de `node_modules` ou `go.mod`.
+
+### 🎯 Chief's Priority (First Command)
+
+**"Sentinel, utilize o novo grafo conectado para gerar um diagrama C4 de Nível 2 (Container) em tempo real."**
+
+---
+
+## [2026-05-03] Milestone: C4 Visualization & Go AST Expansion [PID-SENTINEL-C4-VIS]
+
+**Status**: COMPLETED 🛡️
+**Impact**: HIGH (Architecture Visibility & DX)
+
+### 🔍 Analysis (Epiphanies)
+
+1. **C4 Level 2 Automation**: Implementada a geração automática de diagramas C4 de Nível 2 (Container) via Mermaid. O Sentinel agora agrega milhares de micro-relações em um mapa de alto nível, permitindo visualizar a interação entre `CLI`, `Agents`, `Graph`, `Audit` e `Database`.
+2. **Go AST Maturity**: Expandido o `GoScanner` para extrair declarações de importação. Isso permite que o Sentinel mapeie dependências internas do projeto Go com a mesma precisão do TypeScript, unificando a visão sistêmica.
+3. **Cross-Language Linking**: O `Linker` foi aprimorado para resolver módulos Go (baseados no `go.mod`) e caminhos relativos TS/JS, garantindo que o grafo de containers reflita a realidade física do repositório.
+
+### 💡 Key Learning
+
+"A transparência arquitetural é o maior inimigo da entropia. Ao transformar o grafo bruto em uma visão C4, permitimos que tanto humanos quanto agentes compreendam o impacto de mudanças sistêmicas antes da primeira linha de código ser escrita."
+
+---
+
+## [2026-05-04] Milestone: Linker Integration & Test Resilience [PID-SENTINEL-LINKER-TESTS]
+
+**Status**: COMPLETED 🛡️
+**Impact**: HIGH (Graph Reliability & Testability)
+
+### 🔍 Analysis (Epiphanies)
+
+1. **Testable Persistence**: Refatorado o pacote `sqlite` para suportar `InitAtPath`, permitindo a criação de bancos de dados isolados em diretórios temporários. Isso resolve o problema de poluição do banco de dados de produção durante a execução de testes.
+2. **FileSystem Isolation**: Implementada a prática de utilizar `t.TempDir()` combinada com `os.Chdir()` para simular estruturas de diretórios complexas. Isso garante que as heurísticas de resolução de import do `Linker` sejam validadas em um ambiente controlado e reproduzível.
+3. **Deep Resolution Coverage**: A suíte de testes agora valida resoluções de múltiplos níveis (`../../`), index patterns (`/index.ts`), e variadas extensões Web (`.tsx`, `.ts`). O `Linker` foi provado resiliente contra estruturas de pastas profundas.
+4. **Database Integrity Audit**: Validado que o `Linker` limpa corretamente os nós de `unresolved_import` apenas após a criação bem-sucedida das relações reais, mantendo a consistência do grafo.
+
+### 💡 Key Learning
+
+"A confiabilidade de um grafo é ditada pela precisão de seus links. Uma suíte de testes que simula a realidade física do projeto é o único 'Hard Gate' aceitável para garantir que a inteligência relacional do Sentinel não degrade com a evolução das gramáticas."
+
+---
+
+## [2026-05-04] Milestone: Live View WebSocket Infrastructure [PID-SENTINEL-LIVE-VIEW-INFRA]
+
+**Status**: COMPLETED 🛡️
+**Impact**: HIGH (Interactive Architecture Visibility)
+
+### 🔍 Analysis (Epiphanies)
+
+1. **Non-Blocking Observability**: Implementamos o padrão Observer no `Engine`, porém garantimos que o envio para os observadores seja não-bloqueante (`select { case s.broadcast <- event: default: }`). Isso é crucial; se o servidor WebSocket estiver lento ou clientes acumularem, a análise AST não será penalizada. A performance do motor CGO prevalece.
+2. **Concurrent Data Safety**: O uso de `sync.RWMutex` tanto no gerenciamento de observadores no `Engine` quanto nas conexões de clientes no `liveview.Server` previne as condições de corrida validadas no `go test -race`.
+3. **Graceful Degradation (Standard #05)**: Falhas de `json.Marshal` nos eventos GraphEvent são interceptadas e logadas isoladamente, impedindo o *panic* do hub de eventos inteiro. A integridade do servidor foi fortificada contra payloads malformados.
+
+### 💡 Key Learning
+
+"A visualização em tempo real não pode comprometer a velocidade da extração de dados subjacente. A dissociação através de canais não-bloqueantes garante que a UI atue como um espelho assíncrono da realidade, e não como uma âncora que atrasa o progresso."
+
+---
+
+## [2026-05-04] Milestone: Live View Frontend (S15) [PID-SENTINEL-LIVE-FRONTEND]
+
+**Status**: COMPLETED 🛡️
+**Impact**: HIGH (Interactive Architecture Visibility & DX)
+
+### 🔍 Analysis (Epiphanies)
+
+1. **Frictionless DX (KISS Protocol)**: Decidimos não usar um servidor Node/Next.js separado em desenvolvimento/produção. Em vez disso, usamos Vite + React para compilar arquivos estáticos (`web/dist`) que o próprio servidor Go serve (`http.FileServer`). Isso garante que o usuário rode apenas um comando (`sentinel live`) para subir backend e frontend.
+2. **Race Condition Prevention (Buffer Protocol)**: Para garantir que nenhum evento seja perdido, o frontend usa um React hook (`useSentinelData`) que: 1. Conecta no WebSocket. 2. Coloca os eventos `NODE_UPSERTED` e `EDGE_CREATED` num array temporário. 3. Faz o fetch HTTP de `/api/graph`. 4. Renderiza tudo. 5. Dá o flush do array.
+3. **DOM Performance (Cytoscape vs React)**: Para suportar milhares de eventos sem congelar a UI, não usamos state do React para gerir os nós. O hook usa `useRef` e chama os métodos mutáveis nativos do Cytoscape (`cy.add()`), pulando o Virtual DOM do React totalmente para atualizações de grafo em tempo real.
+
+### 💡 Key Learning
+
+"A integração entre backend de alta performance (Go) e frontends declarativos (React) pode gerar gargalos se não respeitarmos a natureza de cada engine. Pular o Virtual DOM e escrever diretamente no Canvas do Cytoscape foi essencial para a viabilidade do Live View sob carga maciça."
+
+---
+
+## 🏁 SOVEREIGN HANDOVER [S15-LIVE-FRONTEND -> S16-SENTINEL-ORCHESTRATOR]
+
+**Status**: STABLE 🛡️
+**Success Rate**: 100% (Frontend and Backend Integrated)
+
+### 🚀 Current Vector
+
+A Fase 5 (Visual Sovereign) tem seu esqueleto totalmente funcional. O usuário pode rodar `sentinel live` e visualizar o grafo auto-atualizável no navegador via React e Cytoscape. O próximo passo lógico do *ROADMAP.md* é expandir o **Subagent Dispatcher** (Fase 5.8 Early Access), também conhecido como o sistema de orquestração de especialistas (Agentic State Machine) baseado na tríade Warden, Auditor, Chief.
+
+### ⚠️ Technical Snag
+
+A UI do Cytoscape está funcional mas ainda básica visualmente. Layouts automáticos como 'cose' ou 'concentric' podem sobrepor nós se o grafo for excessivamente denso sem uma categorização (compound nodes) de diretórios.
+
+### 🎯 Chief's Priority (First Command)
+
+**"Sentinel, revise a infraestrutura de agentes (`internal/agents`) para garantir que o dispatcher consiga lidar com múltiplos subagentes concorrentes durante a resolução de problemas complexos."**
+
+---
+Related: [ROADMAP.md](../architecture/ROADMAP.md) | [PID-SENTINEL-QUALITY-FIREWALL](../superpowers/plans/PID-SENTINEL-QUALITY-FIREWALL.md) | [ADR-d0555ca9](../architecture/adr/ADR-d0555ca9-2139-4b67-8261-5a64afd44e24-implementar-golangci-lint-foundational-layer.md)

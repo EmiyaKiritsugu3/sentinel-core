@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
+	"strings"
 )
 
 type GoScanner struct {
@@ -35,6 +36,25 @@ func (s *GoScanner) Scan(path string) ScanResult {
 		Type:     "file",
 		FilePath: path,
 	})
+
+	// Extrai Imports do arquivo Go
+	for _, imp := range f.Imports {
+		importPath := strings.Trim(imp.Path.Value, "\"")
+		importID := fmt.Sprintf("import:%s:%s", path, importPath)
+
+		res.Nodes = append(res.Nodes, Node{
+			ID:       importID,
+			Name:     importPath,
+			Type:     "unresolved_import",
+			FilePath: path,
+		})
+
+		res.Edges = append(res.Edges, Edge{
+			From: fileID,
+			To:   importID,
+			Rel:  "imports",
+		})
+	}
 
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch x := n.(type) {
