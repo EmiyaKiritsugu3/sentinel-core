@@ -15,7 +15,7 @@ Intenção: melhorar performance
 
 ## Decisão
 
-[Descreva a abordagem técnica]
+Investigar e refatorar as operações síncronas do sistema (como análise AST e I/O de rede) utilizando Goroutines e canais não-bloqueantes com proteções apropriadas (e.g., `sync.Pool`, `sync.RWMutex`) para permitir processamento concorrente sem comprometer a segurança da memória CGO.
 
 ## Consequências
 

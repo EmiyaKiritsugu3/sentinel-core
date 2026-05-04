@@ -1,6 +1,7 @@
 package liveview
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -51,9 +52,17 @@ func NewServer() *Server {
 }
 
 // Run starts the internal hub logic for managing connections
-func (s *Server) Run() {
+func (s *Server) Run(ctx context.Context) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("liveview: hub panic: %v", r)
+		}
+	}()
+
 	for {
 		select {
+		case <-ctx.Done():
+			return ctx.Err()
 		case client := <-s.register:
 			s.mu.Lock()
 			s.clients[client] = true
@@ -81,9 +90,8 @@ func (s *Server) Run() {
 				if err != nil {
 					log.Printf("liveview: write failed: %v\n", err)
 					client.Close()
-					delete(s.clients, client) // Unsafe map delete, but handled gracefully below or should we delegate?
-					// It is better to rely on the unregister channel, but since we are holding RLock, we can't write to unregister safely if it blocks.
-					// Actually, writing to client.Close() is enough; the read pump will catch the error and send to unregister.
+					// DO NOT delete from map while iterating with RLock.
+					// The readPump will fail and send to unregister channel.
 				}
 			}
 			s.mu.RUnlock()
@@ -167,4 +175,3 @@ func (s *Server) StartHTTP(port int, db *sqlite.DB) error {
 
 	return http.ListenAndServe(addr, nil)
 }
-

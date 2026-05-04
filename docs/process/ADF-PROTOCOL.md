@@ -25,7 +25,7 @@ A depuração deve seguir esta ordem rigorosa de baixo para cima, validando cada
 3. **ENGINE**: O build nativo completa com um layout minimalista?
 4. **UI**: O erro ocorre no componente específico ou no seu contexto (Providers)?
 
-## 3. Reducionismo de Isolação
+## 4. Reducionismo de Isolação
 
 Se o build falhar na fase de renderização, o agente DEVE:
 
@@ -33,7 +33,7 @@ Se o build falhar na fase de renderização, o agente DEVE:
 - Se o erro persistir: O problema é **CONFIG/DEPENDÊNCIA**.
 - Se o erro sumir: O problema é **LÓGICA/UI**.
 
-## 4. Matriz de Rastreabilidade (Traceability Chain)
+## 5. Matriz de Rastreabilidade (Traceability Chain)
 
 Para evitar regressões e perda de propósito, cada alteração deve seguir a cadeia de custódia:
 
@@ -42,7 +42,7 @@ Para evitar regressões e perda de propósito, cada alteração deve seguir a ca
 3. **SÍNTESE**: Após a conclusão, o aprendizado (positivo ou negativo) DEVE ser registrado no `sentinel-log.md`.
 4. **INDEXAÇÃO**: Novos documentos críticos devem ser linkados no `wiki-index.md`.
 
-## 5. Protocolo de Epifania (The Learning Loop)
+## 6. Protocolo de Epifania (The Learning Loop)
 
 No encerramento de tarefas complexas ou resoluções de bugs críticos, o agente DEVE processar o aprendizado:
 
@@ -50,7 +50,7 @@ No encerramento de tarefas complexas ou resoluções de bugs críticos, o agente
 2. **Filtro B (Projeto/Arquitetura)**: É uma nova regra de projeto? -> Registrar em `sentinel-log.md`.
 3. **Filtro C (Comportamento/Global)**: É uma falha no método de raciocínio da IA? -> Invocar `save_memory` e adicionar a `GEMINI.md`.
 
-## 6. Governança de Raiz (Next.js 15 Special)
+## 7. Governança de Raiz (Next.js 15 Special)
 
 - Proibido arquivos de instrumentação customizados (ex: `instrumentation-client.ts`).
 - Sentry deve usar obrigatoriamente os 3 arquivos de config + `withSentryConfig`.

@@ -125,7 +125,10 @@ func (g *GitShield) AtomicCommit(message string) error {
 ```go
 package agents
 
-import "testing"
+import (
+ "fmt"
+ "testing"
+)
 
 func TestGitShield_BranchName(t *testing.T) {
  gs := &GitShield{BaseBranch: "main"}

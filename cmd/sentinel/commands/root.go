@@ -15,12 +15,17 @@ var RootCmd = &cobra.Command{
 }
 
 func NewRootCmd(db *sqlite.DB) *cobra.Command {
-	// Agrega todos os subcomandos registrados dinamicamente
-	for _, factory := range registry.GetCommands() {
-		RootCmd.AddCommand(factory(db))
+	root := &cobra.Command{
+		Use:   "sentinel",
+		Short: "Sentinel Core: Governance & Context Engine for AI-Native Development",
 	}
 
-	return RootCmd
+	// Agrega todos os subcomandos registrados dinamicamente
+	for _, factory := range registry.GetCommands() {
+		root.AddCommand(factory(db))
+	}
+
+	return root
 }
 
 func Execute(db *sqlite.DB) {

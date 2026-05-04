@@ -1,6 +1,7 @@
 package liveview
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -15,7 +16,7 @@ import (
 
 func TestServer_Broadcast(t *testing.T) {
 	server := NewServer()
-	go server.Run()
+	go server.Run(context.Background())
 
 	// Start test HTTP server
 	ts := httptest.NewServer(http.HandlerFunc(server.serveWS))
@@ -60,7 +61,7 @@ func TestServer_Broadcast(t *testing.T) {
 
 func TestServer_ConcurrentNotify(t *testing.T) {
 	server := NewServer()
-	go server.Run()
+	go server.Run(context.Background())
 
 	var wg sync.WaitGroup
 

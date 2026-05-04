@@ -15,7 +15,7 @@ Decouple the `NewRootCmd` (CLI Dispatcher) from explicit sub-command instantiati
 - [ ] **Task 1.1**: Create `internal/commands/registry.go`.
   - Define `CommandFactory` type: `func(*sqlite.DB) *cobra.Command`.
   - Implement a global slice and a `Register(CommandFactory)` function.
-  - Implement `GetCommands(db *sqlite.DB)` to return the instantiated commands.
+  - Implement `GetCommands() []CommandFactory` to return the registered factories.
 
 ### Phase 2: Command Discovery Migration
 
@@ -24,7 +24,7 @@ Decouple the `NewRootCmd` (CLI Dispatcher) from explicit sub-command instantiati
   - Add an `init()` block to each that calls `registry.Register(New...Cmd)`.
 - [ ] **Task 2.2**: Decouple `cmd/sentinel/commands/root.go`.
   - Remove all explicit `New...Cmd` calls.
-  - Replace with a loop: `for _, cmd := range registry.GetCommands(db) { RootCmd.AddCommand(cmd) }`.
+  - Replace with a loop: `for _, factory := range registry.GetCommands() { RootCmd.AddCommand(factory(db)) }`.
 
 ### Phase 3: Sovereign Verification
 

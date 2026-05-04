@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/registry"
@@ -25,8 +27,11 @@ func NewStatusCmd(db *sqlite.DB) *cobra.Command {
 			mgr := state.NewManager(db)
 			task, err := mgr.GetActiveTask()
 			if err != nil {
-				fmt.Println("✅ System Idle. No active tasks.")
-				return nil
+				if errors.Is(err, sql.ErrNoRows) {
+					fmt.Println("✅ System Idle. No active tasks.")
+					return nil
+				}
+				return fmt.Errorf("failed to read active task: %w", err)
 			}
 
 			fmt.Println("🚀 ACTIVE TASK:")

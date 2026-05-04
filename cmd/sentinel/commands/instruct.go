@@ -32,8 +32,8 @@ func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 			if message != "" {
 				intent = message
 			} else {
-				stat, _ := os.Stdin.Stat()
-				if (stat.Mode() & os.ModeCharDevice) == 0 {
+				stat, err := os.Stdin.Stat()
+				if err == nil && (stat.Mode()&os.ModeCharDevice) == 0 {
 					scanner := bufio.NewScanner(os.Stdin)
 					if scanner.Scan() {
 						intent = strings.TrimSpace(scanner.Text())

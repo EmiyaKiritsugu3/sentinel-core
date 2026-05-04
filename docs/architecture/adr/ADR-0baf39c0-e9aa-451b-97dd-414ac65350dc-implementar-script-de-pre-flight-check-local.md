@@ -15,7 +15,7 @@ Intenção: Implementar script de Pre-Flight Check local
 
 ## Decisão
 
-[Descreva a abordagem técnica]
+Criar e integrar um script shell `scripts/audit-local.sh` que execute uma matriz de conformidade antes dos commits, garantindo verificação contínua e impedindo que código que não compila ou que viola o lint chegue à branch principal.
 
 ## Consequências
 

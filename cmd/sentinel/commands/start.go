@@ -48,8 +48,9 @@ func NewStartCmd(db *sqlite.DB) *cobra.Command {
 
 			engine, err := agents.NewEngine(registry, auth, factory, validator, db)
 			if err != nil {
-				fmt.Printf("⚠️  Sentinel: Cognitive engine offline (%v). Task is IN_PROGRESS locally.\n", err)
-				return nil
+				_ = mgr.UpdateStatus(taskID, "PENDING")
+				fmt.Printf("⚠️  Sentinel: Cognitive engine offline (%v). Task reset to PENDING.\n", err)
+				return fmt.Errorf("start: cognitive engine failed to initialize: %w", err)
 			}
 			engine.Dispatcher = dispatcher // Wired for Phase 5.8
 			defer engine.Close()

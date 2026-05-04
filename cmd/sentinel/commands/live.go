@@ -24,9 +24,17 @@ func NewLiveCmd(db *sqlite.DB) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// 1. Instantiates LiveView Server
 			server := liveview.NewServer()
-			go server.Run()
+
+			errChan := make(chan error, 1)
+			go func() {
+				errChan <- server.Run(cmd.Context())
+			}()
 
 			// 2. Registers Server as an Observer to the Engine
+			if err := graph.Migrate(db); err != nil {
+				return fmt.Errorf("live: migration failed: %w", err)
+			}
+
 			engine := graph.NewEngine(db)
 			engine.RegisterObserver(server)
 
@@ -40,7 +48,19 @@ func NewLiveCmd(db *sqlite.DB) *cobra.Command {
 			}()
 
 			// 3. Starts the HTTP server
-			return server.StartHTTP(port, db)
+			go func() {
+				errChan <- server.StartHTTP(port, db)
+			}()
+
+			select {
+			case err := <-errChan:
+				if err != nil {
+					return err
+				}
+			case <-cmd.Context().Done():
+				return cmd.Context().Err()
+			}
+			return nil
 		},
 	}
 

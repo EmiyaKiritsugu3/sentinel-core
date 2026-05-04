@@ -2,9 +2,8 @@ package agents
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
-	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
@@ -12,14 +11,12 @@ import (
 )
 
 func TestRegistryManager_SelectBest(t *testing.T) {
-	dbPath := "test_registry.db"
-	defer os.Remove(dbPath)
-
-	rawDB, err := sql.Open("sqlite", dbPath)
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test_registry.db")
+	db, err := sqlite.InitAtPath(dbPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
-	db := &sqlite.DB{Conn: rawDB}
 	defer db.Close()
 
 	// Create tables
