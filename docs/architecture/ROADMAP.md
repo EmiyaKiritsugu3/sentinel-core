@@ -50,6 +50,55 @@ A visualização de arquitetura deve ser interativa.
 - [ ] **Interactive C4**: Clique no nó do diagrama para abrir o código ou ver o ADR relacionado.
 *Critério de Sucesso: Visualização em tempo real no browser enquanto o código muda.*
 
+### Fase 6: The Prompt Intelligence Layer
+
+Tornar o sentinel consciente da intenção do usuário e do contexto semântico.
+
+- [ ] **Subsystem B — Smart Context Routing**: `IntentClassifier` (heurístico + Gemini fallback) + `ContextRouter` que seleciona nodes por intent (diagnose/implement/refactor/review). Spec: `docs/superpowers/specs/2026-05-04-prompt-intelligence-design.md`.
+- [ ] **Subsystem A — Input Disambiguation**: `Disambiguator` com `VaguenessScore` que detecta descrições vagas e sugere alternativas ancoradas no grafo. Flags `--refine` / `--no-suggest` no `sentinel plan`.
+*Critério de Sucesso: `sentinel plan "fix bug"` exibe sugestão ancorada no grafo; `GeneratePayload` injeta contexto diferenciado por intent.*
+
 ---
-*Atualizado em: 2026-05-03*
+
+## 🔭 Fase Futura: The Knowledge Sovereign
+
+Ideias com mérito técnico validado, sem data definida. Cada uma tem uma **pré-condição explícita** — não iniciar sem validá-la.
+
+### Semantic Search — `sentinel search "query"`
+
+**O que é:** Busca semântica por similaridade vetorial nos documentos do projeto (ADRs, knowledge base, sentinel-log, TECHNICAL-DEBT). Usa Gemini Embedding API + SQLite para armazenar vetores. Retorna documentos relacionados por significado, não por keyword.
+
+**Por que é útil:** Quando a base de documentos cresce além de ~100 arquivos, `grep` começa a retornar ruído. Busca semântica encontra "race condition em goroutine" mesmo que o documento use "concorrência sem mutex".
+
+**Pré-condição obrigatória:** Base de conhecimento com 100+ documentos curados. Construir infraestrutura de busca para base vazia é desperdício de manutenção.
+
+**Stack mínima:** `gemini.EmbedContent()` → vetor em SQLite BLOB → cosine similarity em Go (sem nova dependência). Complementa Obsidian + Smart Connections, não substitui.
+
+### Session Debrief — `sentinel debrief`
+
+**O que é:** Comando que roda ao final de cada sessão de desenvolvimento. Extrai insights da sessão atual (padrões que funcionaram, padrões que falharam, decisões arquiteturais), categoriza por domínio (hardware/methodology/tools/systems) e persiste em `~/knowledge/`. Alimenta o banco de conhecimento que torna o Semantic Search útil.
+
+**Por que é útil:** Sessões longas com AI geram ~10% de conteúdo durável. Sem captura estruturada, esse conhecimento morre com o contexto. Com debrief sistemático, cada sessão alimenta a próxima.
+
+**Pré-condição:** Definir estrutura de `~/knowledge/` e template de debrief antes de automatizar. A automação sem curadoria manual validada indexa ruído.
+
+### Smart CLAUDE.md — `sentinel context "query"`
+
+**O que é:** Dado um domínio ou task, o sentinel seleciona automaticamente os arquivos de `~/knowledge/` mais relevantes e os injeta no CLAUDE.md do projeto. O AI começa cada sessão com contexto real do histórico de decisões, não do zero.
+
+**Por que é útil:** Elimina o "AI esquece tudo entre sessões" — o contexto histórico fica no arquivo, não na memória do modelo. Especialmente valioso em projetos com múltiplos domínios sobrepostos.
+
+**Pré-condição:** Semantic Search implementado + base de conhecimento com 50+ documentos.
+
+### Pattern Capture — taxonomia de falhas e sucessos de workflow
+
+**O que é:** Estrutura de `~/knowledge/meta/patterns.md` que registra padrões de desenvolvimento que funcionaram e que falharam — não prompts específicos, mas princípios: "diagnóstico sem dado empírico = loop", "especificar artefato de saída reduz iterações", "auditoria troca modo cognitivo de construtivo para destrutivo".
+
+**Por que é útil:** Os mesmos anti-padrões reaparecem em projetos diferentes. Capturar uma vez, aplicar sempre. A `Audit Depth Rule` definida nesta sessão é um exemplo concreto deste padrão.
+
+**Pré-condição:** Nenhuma técnica — só disciplina de captura ao final de cada sessão. Pode começar hoje.
+
+---
+
+*Atualizado em: 2026-05-05*
 *Assinado: Sovereign Council*
