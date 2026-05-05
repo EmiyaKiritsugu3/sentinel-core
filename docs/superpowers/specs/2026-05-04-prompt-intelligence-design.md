@@ -1,8 +1,8 @@
 # Prompt Intelligence System — Design Spec
 **Date:** 2026-05-04  
-**Status:** Approved for implementation  
+**Status:** Ready for audit round 2 (Section 2 critical issues corrected)  
 **Estimated implementation:** ~4h  
-**Audit budget spent:** ~1.2h (within 30% rule)
+**Audit budget spent:** ~1.5h (within 30% rule)
 
 ---
 
@@ -123,7 +123,32 @@ type IntentClassifier struct {
 | refactor | refactor, cleanup, reorganize, extract, move, simplify, refatorar |
 | review | review, audit, check, verify, analyze, validate, revisar, auditar |
 
-Confidence = `matched_keywords / total_keywords_in_description`. No match → confidence = 0 → AI fallback.
+**Confidence algorithm — presence + ambiguity, not word ratio:**
+
+```
+keywords_matched = keywords found in description (any category)
+categories_hit   = number of distinct Intent categories with at least 1 match
+
+if categories_hit == 0 → confidence = 0.00  (no match → AI fallback)
+if categories_hit == 1 → confidence = 0.85  (unambiguous → heuristic wins)
+if categories_hit >= 2 → confidence = 0.30  (ambiguous → AI fallback)
+```
+
+Intent = category with most keyword matches. Tie → lower confidence (0.30), AI decides.
+
+Rationale: `matched/total` always produces low confidence for descriptive tasks
+("fix JWT validation in internal/agents/auth_provider.go" → 1/7 = 0.14), defeating
+the heuristic path entirely. Presence+ambiguity is semantically correct.
+
+**GeminiClassifier — prompt and parsing:**
+
+```
+System prompt: "You are a task classifier. Respond with exactly one word."
+User prompt:   "Classify this software task: diagnose, implement, refactor, or review.\nTask: {description}"
+Parse:         strings.ToLower(strings.TrimSpace(response))
+Validation:    if parsed value not in {diagnose, implement, refactor, review} → return IntentUnknown, nil
+               (not an error — unknown is a valid graceful result)
+```
 
 **Construction in `NewEngine`** (reuses existing `genai.Client`):
 
@@ -136,23 +161,35 @@ factory := bridge.NewFactory(db, classifier)
 
 `Factory` signature change: `NewFactory(db *sqlite.DB, classifier *IntentClassifier) *Factory`
 
+**Breaking call sites — must update:**
+- `cmd/sentinel/commands/start.go:34` → `bridge.NewFactory(db)` → `bridge.NewFactory(db, classifier)`
+- `internal/agents/engine_test.go:21` → `bridge.NewFactory(nil)` → `bridge.NewFactory(nil, bridge.NewNilClassifier())`
+
+`NilClassifier` is a null object implementing `AIClassifier` that always returns `IntentUnknown`.
+This preserves test isolation without panics.
+
 ### router.go
+
+`ContextStrategy` fields split by data source — DB-queryable vs file-based:
 
 ```go
 type ContextStrategy struct {
-    IncludeHighCoupling  bool
-    IncludeRecentChanges bool
-    IncludeTests         bool
-    IncludeADRs          bool
-    IncludeDebtMarkers   bool
-    NodeLimit            int
+    // DB-queryable (nodes + edges tables)
+    HighCoupling  bool  // SELECT to_node_id, COUNT(*) FROM edges GROUP BY to_node_id ORDER BY COUNT DESC
+    RecentChanges bool  // ORDER BY last_indexed DESC (already default — acts as tie-breaker weight)
+    IncludeTests  bool  // WHERE file_path LIKE '%_test.go'
+    NodeLimit     int
+
+    // File-based (direct read, not DB)
+    IncludeADRs        bool  // reads docs/architecture/adr/*.md
+    IncludeDebtMarkers bool  // reads TECHNICAL-DEBT.md, extracts sections matching task keywords
 }
 
 var strategyByIntent = map[Intent]ContextStrategy{
-    IntentDiagnose:  {IncludeHighCoupling: true,  IncludeRecentChanges: true,  NodeLimit: 15},
-    IntentImplement: {IncludeTests: true,          IncludeADRs: true,           NodeLimit: 10},
-    IntentRefactor:  {IncludeHighCoupling: true,   IncludeDebtMarkers: true,    NodeLimit: 12},
-    IntentReview:    {IncludeADRs: true,                                         NodeLimit: 8},
+    IntentDiagnose:  {HighCoupling: true,  RecentChanges: true,  NodeLimit: 15},
+    IntentImplement: {IncludeTests: true,  IncludeADRs: true,    NodeLimit: 10},
+    IntentRefactor:  {HighCoupling: true,  IncludeDebtMarkers: true, NodeLimit: 12},
+    IntentReview:    {IncludeADRs: true,   NodeLimit: 8},
     IntentUnknown:   {},  // empty → Factory uses current behavior (top 10 by last_indexed)
 }
 ```
@@ -249,9 +286,16 @@ func init() {
 
 | Mode | Trigger | Behavior |
 |---|---|---|
-| Default | `sentinel plan "..."` | Save original + print suggestion in yellow |
+| Default | `sentinel plan "..."` | Save original + print `[SUGGEST] did you mean: <node> in <file>?` |
 | Interactive | `--refine` / `-r` | Prompt user, save chosen description |
 | Silent | `--no-suggest` | Save original, no output (CI-safe) |
+
+**Color output:** no color library — use `[SUGGEST]` prefix, consistent with existing `[SENTINEL]`/`warning:` patterns.
+
+**Flag conflict:** `--refine` takes precedence over `--no-suggest` when both are passed. One validation line in `RunE`:
+```go
+if flagRefine && flagNoSuggest { flagNoSuggest = false }
+```
 
 **Note:** isatty auto-detection for CI excluded from MVP. Operators use `--no-suggest` explicitly.
 
