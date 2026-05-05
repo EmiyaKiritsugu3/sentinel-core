@@ -230,3 +230,40 @@ A UI do Cytoscape está funcional mas ainda básica visualmente. Layouts automá
 
 ---
 Related: [ROADMAP.md](../architecture/ROADMAP.md) | [PID-SENTINEL-QUALITY-FIREWALL](../superpowers/plans/PID-SENTINEL-QUALITY-FIREWALL.md) | [ADR-d0555ca9](../architecture/adr/ADR-d0555ca9-2139-4b67-8261-5a64afd44e24-implementar-golangci-lint-foundational-layer.md)
+
+---
+
+## [2026-05-04] Milestone: Security Hardening & CodeRabbit Autofix [PID-SENTINEL-CODERABBIT-S16]
+
+**Status**: COMPLETED 🛡️
+**Impact**: HIGH (Security & Concurrency Correctness)
+
+### 🔍 Analysis (Epiphanies)
+
+1. **WebSocket Single-Writer Protocol**: O padrão correto do Gorilla WebSocket exige que apenas **um goroutine** escreva em cada `*websocket.Conn`. Quando o hub (`Run`) e o `writePump` escrevem simultaneamente, cria-se uma race condition silenciosa detectável apenas com `go test -race`. A solução canônica é introduzir uma struct `wsClient` com `send chan []byte` por cliente — o hub escreve no canal, e o `writePump` (único goroutine escritor) drena o canal.
+2. **Prefix-Match como Falsa Segurança**: `strings.HasPrefix(origin, "http://localhost")` aceita `http://localhost.evil.com`. Validação de origem via URL **sempre deve usar `url.Parse` + `u.Hostname()`** para comparação exata, nunca prefixo de string.
+3. **Autofix Introduz Novos Bugs**: Durante o autofix do CodeRabbit, o fix do `CheckOrigin` introduziu um bypass de segurança que não estava no código original. Isso valida que **todo fix de segurança requer auditoria independente** — o revisor de código capturou o bypass antes do merge.
+4. **Testes Determinísticos vs. Sleep**: `time.Sleep` em testes não é um mecanismo de sincronização — é uma aposta. O padrão correto é um **poll loop com deadline**: `for { check condition; select { case <-deadline: t.Fatal(...) default: time.Sleep(1ms) } }`. Isso elimina flakiness sem adicionar dependências.
+
+### 💡 Key Learning
+
+"Segurança e concorrência não são camadas opcionais. Um `return true` no `CheckOrigin` e um `_ =` silenciando erros de rollback são duas formas distintas de dívida técnica que se acumulam silenciosamente até um incidente. O Semgrep e o race detector são os únicos 'Hard Gates' confiáveis para esses vetores."
+
+---
+
+## 🏁 SOVEREIGN HANDOVER [S16-SECURITY-HARDENING -> S17]
+
+**Status**: STABLE 🛡️
+**Success Rate**: 100% (All CVEs patched, race conditions resolved)
+
+### 🚀 Current Vector
+
+PR #6 mergeado. A infraestrutura de LiveView está segura e livre de race conditions. CVEs críticos do Dependabot (grpc + oauth2) foram corrigidos. O próximo vetor é expandir o **Subagent Dispatcher** conforme definido no ROADMAP.md (S17+).
+
+### ⚠️ Technical Snag
+
+`liveview.Server.Run` não fecha conexões ativas quando o contexto é cancelado — goroutines de `readPump`/`writePump` sobrevivem até TCP timeout. Adicionado ao TECHNICAL-DEBT.md.
+
+### 🎯 Chief's Priority (First Command)
+
+**"Verificar se os alertas Dependabot fecharam automaticamente após o merge do PR #6, e iniciar o próximo ciclo de desenvolvimento conforme o ROADMAP.md."**

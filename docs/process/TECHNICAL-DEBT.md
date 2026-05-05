@@ -11,5 +11,10 @@
 - **Dashboard Growth**: `COMPLIANCE-DASHBOARD.md` crescerá linearmente. Falta suporte para arquivamento ou paginação.
 - **Missing CLI Metadata**: O relatório CLI não exibe o `created_at`, dificultando a análise cronológica.
 
+## [2026-05-04] WebSocket & Dependency Security (Filtro A)
+
+- **liveview Graceful Shutdown**: `liveview.Server.Run` retorna quando o contexto é cancelado, mas não fecha as conexões `wsClient` abertas. Os goroutines `readPump`/`writePump` de clientes ativos sobrevivem até o TCP timeout. Impacto: aceitável para CLI dev tool; crítico se o servidor evoluir para produção. Fix: iterar `s.clients` no `ctx.Done()` e fechar todos os canais `send`.
+- **Indirect Dependency CVEs**: `grpc` e `oauth2` são dependências indiretas (via `google/generative-ai-go`) que tiveram CVEs críticos sem update automático. Mitigação: rodar `go list -m -u all | grep available` periodicamente ou adicionar Dependabot ao workflow de CI para monitorar upgrades automáticos de dependências indiretas.
+
 ---
 *Assinado: Security Auditor & Senior Architect*
