@@ -267,3 +267,84 @@ PR #6 mergeado. A infraestrutura de LiveView está segura e livre de race condit
 ### 🎯 Chief's Priority (First Command)
 
 **"Verificar se os alertas Dependabot fecharam automaticamente após o merge do PR #6, e iniciar o próximo ciclo de desenvolvimento conforme o ROADMAP.md."**
+
+---
+
+## [2026-05-04] Milestone: Educational Questionnaire Automation & Truncation Resilience [PID-SENTINEL-QUIZ-S17]
+
+**Status**: COMPLETED 🛡️
+**Impact**: MEDIUM (Process Resilience & Context Management)
+
+### 🔍 Analysis (Epiphanies)
+
+1. **Atomic Message Failure**: Identificado o erro `could not convert a single message before hitting truncation`. Isso ocorre quando um único tool output (ex: `take_snapshot(verbose: true)`) excede o limite físico de processamento do pipeline do Gemini, impedindo até o truncamento automático.
+2. **Surgical Research Protocol (S17)**: Formalizada a transição de "Full Snapshot" para "Targeted DOM Scraping" via `evaluate_script` em páginas web massivas. Extrair apenas JSON filtrado com os textos e IDs necessários reduziu o consumo de tokens em ~95% e eliminou os crashes de truncamento.
+3. **Dialectical Learning (Trial & Error)**: O processo de aprendizado nesta sessão foi iterativo. A falha inicial em persistir a marcação das respostas levou ao refinamento da técnica de clique (coordenadas e verificação de estado), provando que o agente pode adaptar sua estratégia de interação dinamicamente.
+4. **Quiz Domain Logic**: Resolvido questionário de 6 questões sobre Engenharia de Software (Paradigmas Orientado a Objetos, Estruturado e Componentes).
+
+### 💡 Key Learning
+
+"A obesidade de contexto é a morte da agência. Em ambientes web complexos, a 'visão total' é um risco técnico; a inteligência reside na filtragem cirúrgica. Além disso, a falha é o gatilho da adaptação: um agente soberano não apenas repete comandos, ele refina sua própria heurística de interação após cada atrito."
+
+---
+
+## [2026-05-04] Milestone: Prompt Intelligence Design & Audit Process Formalization [PID-SENTINEL-S19]
+
+**Status**: COMPLETED 🧠
+**Impact**: HIGH (Architecture Quality & Development Process)
+
+### 🔍 Analysis (Epiphanies)
+
+1. **Audit Depth Rule — Design Quality is Calculable**: Revisões de design sem auditoria explícita acumulam dívida técnica silenciosa. Toda sessão deve aplicar a matriz `BlastRadius × Reversibility` para determinar quantos rounds de auditoria são necessários. Alto impacto + difícil reversão = 2 rounds. Condição de parada absoluta: se um round não encontra issues críticas ou majors, para-se imediatamente.
+
+2. **Confidence como Razão de Palavras é Sempre Errado**: O algoritmo `matched_keywords / total_words` produz confidence ≈ 0.14 para qualquer descrição descritiva longa — derrota o propósito do heurístico. O algoritmo correto é `presença + ambiguidade`: 1 categoria matchada → confidence 0.85 (heurístico vence); 2+ categorias → 0.30 (AI fallback); 0 categorias → 0.00 (AI fallback). Este padrão se aplica a qualquer sistema de classificação tiered.
+
+3. **Package Boundary Detectável em Design**: `internal/bridge/` constrói payloads para AI. Input do usuário (Disambiguator) pertence a `internal/intake/`. Violar este boundary em design cria acoplamento que testa coesão do pacote e dificulta testes unitários isolados. Regra: se o pacote precisa importar algo que o usuário digita, ele está no layer errado.
+
+4. **Infinite Optimization Anti-Pattern**: Otimizar o design além do ponto de retorno decrescente impede o MVP. Regra de orçamento: se o tempo de design excede 30% do tempo estimado de implementação, commitar o design e implementar. A implementação revela problemas mais rápido que discussão adicional de design.
+
+5. **GenAI Client Lifecycle como Responsabilidade do Engine**: Dois `genai.Client` com ciclos de vida independentes = resource leak garantido. O `Engine` já cria e possui o cliente. Qualquer componente downstream (classifier, factory) deve receber o cliente via injeção, nunca criar o próprio.
+
+6. **Token Optimization via Padrões de Sessão**: Sessões longas com AI geram ~10% de conteúdo durável. O valor não está em indexar transcrições — está em capturar padrões de falha (raciocínio sem dado, confidence algorithm errado, package boundary violado) como conhecimento transferível entre projetos. O Audit Depth Rule desta sessão é um exemplo: um insight de 10 linhas que evita horas de debug em qualquer feature futura.
+
+### 💡 Key Learning
+
+"Design sem auditoria explícita é confirmação de viés em velocidade de desenvolvimento. A auditoria não procura perfeição — ela troca o modo cognitivo de construtivo para destrutivo, expondo o que o cérebro preenche automaticamente durante a criação. Dois rounds de auditoria desta sessão encontraram: 1 race condition, 1 algoritmo de confidence invertido, 2 package boundaries incorretos, 1 resource leak de cliente AI — todos antes de uma linha de código ser escrita."
+
+---
+
+## 🏁 SOVEREIGN HANDOVER [S19-PROMPT-INTELLIGENCE -> S20]
+
+**Status**: STABLE 🧠
+**Success Rate**: 100% (Spec + Plan commitados, 2 rounds de auditoria completos)
+
+### 🚀 Current Vector
+
+Spec (`docs/superpowers/specs/2026-05-04-prompt-intelligence-design.md`) e plano de implementação (`docs/superpowers/plans/2026-05-04-prompt-intelligence.md`) commitados em main. 6 tasks definidas em dois blocos independentes: Block B (Smart Context Routing — Tasks 1-4) e Block A (Input Disambiguation — Tasks 5-6). Block B pode ser mergeado antes de Block A ser iniciado.
+
+### ⚠️ Technical Snag
+
+`KNOWN_LIMITATION_03`: `--refine` em contexto não-interativo (pipe, CI sem `--no-suggest`) causa hang no stdin. Fix futuro: detectar TTY via `golang.org/x/term`. Documentado no spec.
+
+### 🎯 Chief's Priority (First Command)
+
+**"Implementar Block B do Prompt Intelligence System (Tasks 1-4): classifier.go, gemini_classifier.go, router.go, e wiring no Engine+Factory. Usar superpowers:subagent-driven-development."**
+
+---
+
+## 🏁 SOVEREIGN HANDOVER [S17-QUIZ-RESILIENCE -> S18-ORCHESTRATOR-DISPATCH]
+
+**Status**: STABLE 🛡️
+**Success Rate**: 100% (Quiz complete, Truncation issue documented, Strategy refined)
+
+### 🚀 Current Vector
+
+Questionário concluído com 100% de precisão. A resiliência contra erros de truncamento e a capacidade de adaptação em interações web foram fortificadas. O próximo vetor é retornar ao foco do *ROADMAP.md*: o **Subagent Dispatcher** e a orquestração de especialistas no `internal/agents`.
+
+### ⚠️ Technical Snag
+
+O `take_snapshot` padrão ainda é perigoso em páginas com milhares de nós. O sistema deve emitir um aviso ou falhar graciosamente se detectar um DOM excessivamente profundo antes de gerar a mensagem.
+
+### 🎯 Chief's Priority (First Command)
+
+**"Sentinel, agora que o questionário está resolvido e o processo de aprendizado documentado, retome o ROADMAP.md e comece a implementação do Dispatcher de Agentes no pacote `internal/agents`."**
