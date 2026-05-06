@@ -418,7 +418,7 @@ type ContextStrategy struct {
 
 	// File-based fields (direct filesystem read)
 	IncludeADRs        bool // reads docs/architecture/adr/*.md
-	IncludeDebtMarkers bool // reads TECHNICAL-DEBT.md, filters by task keywords
+	IncludeDebtMarkers bool // reads docs/process/TECHNICAL-DEBT.md, filters by task keywords
 }
 
 var strategyByIntent = map[Intent]ContextStrategy{
@@ -572,12 +572,12 @@ func (f *Factory) loadContextByStrategy(taskID string, strategy ContextStrategy)
 		nodes = append(nodes, adrNodes...)
 	}
 	if strategy.IncludeDebtMarkers {
-		debtContent, _ := extractLines("TECHNICAL-DEBT.md", 1, 100)
+		debtContent, _ := extractLines("docs/process/TECHNICAL-DEBT.md", 1, 100)
 		if debtContent != "" {
 			nodes = append(nodes, ContextNode{
 				Name:        "TECHNICAL-DEBT",
 				Type:        "doc",
-				FilePath:    "TECHNICAL-DEBT.md",
+				FilePath:    "docs/process/TECHNICAL-DEBT.md",
 				CodeSnippet: debtContent,
 			})
 		}

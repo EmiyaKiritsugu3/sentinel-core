@@ -11,6 +11,10 @@ Este documento registra as fissuras estruturais e ideias de vanguarda descoberta
 - [ ] **Task Metadata Anemia**: A struct de Tarefa no `internal/state` carece de contexto sobre o ambiente de execução e logs de erro passados.
 - [ ] **Cascading Pruning**: O scan atual não limpa arestas de arquivos deletados.
 
+## 💡 Cognitive Patterns (Heuristics)
+
+- **Threshold-Sensitive Testing**: Quando testar classificadores baseados em pesos (ex: `VaguenessScore`), descrições curtas e ambíguas podem falhar no threshold se não incluírem sinais múltiplos (ex: Verb + Pronoun). Testes devem ser desenhados para atingir picos de sinal claros (> 0.60) para evitar flakiness em mudanças de pesos.
+
 ## 🧊 The Icebox (Potential Evolutions)
 
 - **Protocolo Bonsai (KISS Optimization)**: Sistema de poda automática de complexidade e redundância (Backlog de vanguarda).

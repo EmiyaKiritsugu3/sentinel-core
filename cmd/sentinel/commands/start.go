@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/agents"
-	"github.com/EmiyaKiritsugu3/sentinel-core/internal/bridge"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/reflect"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/registry"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/state"
@@ -31,7 +30,6 @@ func NewStartCmd(db *sqlite.DB) *cobra.Command {
 			fmt.Printf("🚀 Sentinel: Task [%s] is now IN_PROGRESS.\n", taskID)
 
 			auth := &agents.SovereignAuthProvider{}
-			factory := bridge.NewFactory(db)
 			validator := reflect.NewValidator(db)
 			registry := agents.NewRegistry()
 			agents.RegisterCoreTools(registry, db)
@@ -46,7 +44,7 @@ func NewStartCmd(db *sqlite.DB) *cobra.Command {
 				return fmt.Errorf("start: event reconciliation failed: %w", err)
 			}
 
-			engine, err := agents.NewEngine(registry, auth, factory, validator, db)
+			engine, err := agents.NewEngine(registry, auth, validator, db)
 			if err != nil {
 				if rollbackErr := mgr.UpdateStatus(taskID, "PENDING"); rollbackErr != nil {
 					fmt.Printf("⚠️  Sentinel: Cognitive engine offline (%v). Rollback also failed: %v. Task may still be IN_PROGRESS.\n", err, rollbackErr)
