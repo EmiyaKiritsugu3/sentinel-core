@@ -1,6 +1,7 @@
 package report
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,6 +24,7 @@ type ProjectStats struct {
 	CompletedTasks int
 	FailedTasks    int
 	SuccessRate    float64
+	AvgMathDelta   float64
 	Tasks          []TaskInfo
 }
 
@@ -49,9 +51,15 @@ func (a *Aggregator) FetchStats() (*ProjectStats, error) {
 	a.db.Conn.QueryRow("SELECT COUNT(*) FROM tasks WHERE status = 'DONE'").Scan(&stats.CompletedTasks)
 	a.db.Conn.QueryRow("SELECT COUNT(*) FROM tasks WHERE status = 'FAILED'").Scan(&stats.FailedTasks)
 
-	// 3. Cálculo de Success Rate
+	// 3. Cálculo de Success Rate e SME
 	if stats.TotalTasks > 0 {
 		stats.SuccessRate = float64(stats.CompletedTasks) / float64(stats.TotalTasks) * 100
+
+		var avgDelta sql.NullFloat64
+		_ = a.db.Conn.QueryRow("SELECT AVG(math_delta) FROM tasks WHERE status = 'DONE'").Scan(&avgDelta)
+		if avgDelta.Valid {
+			stats.AvgMathDelta = avgDelta.Float64
+		}
 	}
 
 	// 4. Listagem Detalhada de Tasks (Sovereign Link Discovery)
@@ -84,6 +92,7 @@ func (a *Aggregator) GenerateMarkdown(stats *ProjectStats) error {
 	content += "| Métrica | Valor |\n"
 	content += "| :--- | :--- |\n"
 	content += fmt.Sprintf("| **Engineering Success Rate** | %.2f%% |\n", stats.SuccessRate)
+	content += fmt.Sprintf("| **Sovereign Math Engine (Δ)** | %+.2f |\n", stats.AvgMathDelta)
 	content += fmt.Sprintf("| **Total Architecture Nodes** | %d |\n", stats.TotalNodes)
 	content += fmt.Sprintf("| **Files Tracked** | %d |\n", stats.TotalFiles)
 	content += fmt.Sprintf("| **Functions & Structs** | %d |\n", stats.TotalFunctions+stats.TotalStructs)
