@@ -9,11 +9,13 @@ import (
 	"sync"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/bridge"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/math"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/reflect"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/google/generative-ai-go/genai"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/option"
+	"time"
 )
 
 // Tool defines the interface for agent capabilities.
@@ -220,6 +222,18 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 	}
 
 	log.Printf("[SENTINEL] Agent '%s' completed successfully.", ctx.Definition.Name)
+
+	ctx.EndTime = time.Now()
+	latency := float64(ctx.EndTime.Sub(ctx.StartTime).Milliseconds())
+
+	// Default probabilities until Phase 7.3 Bayesian inference
+	delta := math.CalculateDelta(0.5, 5.0, latency, ctx.APICost)
+
+	query := "UPDATE tasks SET latency_ms = ?, tokens_used = ?, api_cost = ?, math_delta = ? WHERE id = ?"
+	if _, err := e.DB.Conn.Exec(query, latency, ctx.TokensUsed, ctx.APICost, delta, ctx.StateID); err != nil {
+		log.Printf("engine: failed to persist math metrics: %v", err)
+	}
+
 	return nil
 }
 

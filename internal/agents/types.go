@@ -3,6 +3,7 @@ package agents
 import (
 	"context"
 	"sync"
+	"time"
 )
 
 // Validator defines the security interface for path and command validation (Standard #10).
@@ -74,6 +75,12 @@ type AgentContext struct {
 	FailureCount int    // Track consecutive failures
 	ActiveModel  string // Current model being used
 	Strategy     string // Current technical strategy (Sovereign Pivot)
+
+	// SME Metrics
+	StartTime  time.Time
+	EndTime    time.Time
+	TokensUsed int
+	APICost    float64
 }
 
 // SubTask represents a unit of work assigned to a specialist (PID-SENTINEL-5.7).
