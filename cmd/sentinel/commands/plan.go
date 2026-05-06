@@ -55,9 +55,14 @@ func NewPlanCmd(db *sqlite.DB) *cobra.Command {
 						if scanner.Scan() {
 							line := strings.TrimSpace(scanner.Text())
 							if idx := parseChoice(line, len(suggestions)); idx > 0 {
-								description = suggestions[idx-1].NodeName + " — " + suggestions[idx-1].FilePath
-							}
-						}
+								// Preserve action (first word) if possible
+								action := ""
+								if parts := strings.Fields(description); len(parts) > 0 {
+									action = parts[0]
+								}
+								description = fmt.Sprintf("%s (focus: %s in %s)",
+									action, suggestions[idx-1].NodeName, suggestions[idx-1].FilePath)
+							}						}
 					} else {
 						// Default mode: print suggestion, save original
 						fmt.Printf("[SUGGEST] did you mean: %s in %s?\n",

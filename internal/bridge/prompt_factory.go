@@ -190,12 +190,20 @@ func (f *Factory) loadContextByStrategy(taskID string, strategy ContextStrategy)
 
 	limit := strategy.NodeLimit
 	var orderClause string
-	if strategy.HighCoupling {
+	switch {
+	case strategy.HighCoupling && strategy.RecentChanges:
+		// Combine both signals: High fan-in first, then most recent
+		orderClause = `ORDER BY (
+			SELECT COUNT(*) FROM edges WHERE to_node_id = nodes.id
+		) DESC, last_indexed DESC`
+	case strategy.HighCoupling:
 		// Nodes with most incoming edges (highest fan-in)
 		orderClause = `ORDER BY (
 			SELECT COUNT(*) FROM edges WHERE to_node_id = nodes.id
 		) DESC`
-	} else {
+	case strategy.RecentChanges:
+		orderClause = "ORDER BY last_indexed DESC"
+	default:
 		orderClause = "ORDER BY last_indexed DESC"
 	}
 

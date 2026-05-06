@@ -73,7 +73,8 @@ func heuristicClassify(description string) (Intent, float64) {
 	for _, word := range words {
 		for intent, keywords := range intentKeywords {
 			for _, kw := range keywords {
-				if strings.Contains(word, kw) {
+				word = strings.Trim(word, ".,:;!?()[]{}\"'")
+				if word == kw {
 					hits[intent]++
 				}
 			}

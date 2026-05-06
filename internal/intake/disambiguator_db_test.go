@@ -70,8 +70,10 @@ func TestAnalyze_GraphSuggestions(t *testing.T) {
 		{"6", "PasswordHasher", "pkg/auth/hash.go"},
 	}
 	for _, n := range nodes {
-		_, _ = db.Conn.Exec("INSERT INTO nodes (id, name, type, file_path) VALUES (?, ?, ?, ?)",
-			n.id, n.name, "struct", n.path)
+		if _, err := db.Conn.Exec("INSERT INTO nodes (id, name, type, file_path) VALUES (?, ?, ?, ?)",
+			n.id, n.name, "struct", n.path); err != nil {
+			t.Fatalf("failed to insert node %s: %v", n.name, err)
+		}
 	}
 
 	d := intake.NewDisambiguator(db)

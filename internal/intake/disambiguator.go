@@ -79,9 +79,13 @@ func lengthSignal(description string) float64 {
 }
 
 func verbSignal(description string) float64 {
-	lower := strings.ToLower(description)
+	tokens := map[string]struct{}{}
+	for _, w := range strings.Fields(strings.ToLower(description)) {
+		w = strings.Trim(w, ".,!?")
+		tokens[w] = struct{}{}
+	}
 	for _, v := range genericVerbs {
-		if strings.Contains(lower, v) {
+		if _, ok := tokens[v]; ok {
 			return weightVerb // 0.20
 		}
 	}
@@ -90,8 +94,19 @@ func verbSignal(description string) float64 {
 
 func pronounSignal(description string) float64 {
 	lower := strings.ToLower(description)
+	tokens := map[string]struct{}{}
+	for _, w := range strings.Fields(lower) {
+		w = strings.Trim(w, ".,!?")
+		tokens[w] = struct{}{}
+	}
 	for _, p := range vaguePronouns {
-		if strings.Contains(lower, p) {
+		if strings.Contains(p, " ") {
+			if strings.Contains(lower, p) {
+				return weightPronoun // 0.15
+			}
+			continue
+		}
+		if _, ok := tokens[p]; ok {
 			return weightPronoun // 0.15
 		}
 	}
@@ -150,6 +165,7 @@ func (d *Disambiguator) queryGraph(description string) []Suggestion {
 	var suggestions []Suggestion
 	seen := map[string]bool{}
 
+loop:
 	for _, kw := range keywords {
 		rows, err := d.db.Conn.Query(
 			"SELECT name, file_path FROM nodes WHERE LOWER(name) LIKE ? LIMIT 3",
@@ -159,6 +175,10 @@ func (d *Disambiguator) queryGraph(description string) []Suggestion {
 			continue
 		}
 		for rows.Next() {
+			if len(suggestions) >= 5 {
+				rows.Close()
+				break loop
+			}
 			var s Suggestion
 			if err := rows.Scan(&s.NodeName, &s.FilePath); err == nil && !seen[s.NodeName] {
 				suggestions = append(suggestions, s)
@@ -166,9 +186,6 @@ func (d *Disambiguator) queryGraph(description string) []Suggestion {
 			}
 		}
 		rows.Close()
-		if len(suggestions) >= 5 {
-			break
-		}
 	}
 	return suggestions
 }

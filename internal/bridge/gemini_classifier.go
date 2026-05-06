@@ -20,6 +20,9 @@ func NewGeminiClassifier(client *genai.Client) *GeminiClassifier {
 }
 
 func (g *GeminiClassifier) Classify(ctx context.Context, description string) (Intent, error) {
+	if g == nil || g.client == nil {
+		return IntentUnknown, nil
+	}
 	model := g.client.GenerativeModel("gemini-1.5-flash")
 	model.SystemInstruction = &genai.Content{
 		Parts: []genai.Part{genai.Text("You are a task classifier. Respond with exactly one word.")},
