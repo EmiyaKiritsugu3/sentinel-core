@@ -1,6 +1,4 @@
-- [x] Task 1: Intent types, heuristic classifier, NilClassifier
-- [x] Task 2: GeminiClassifier
-- [x] Task 3: ContextStrategy and StrategyFor
-- [x] Task 4: Wire classifier into Factory and Engine
-- [x] Task 5: Disambiguator and VaguenessScore
-- [x] Task 6: CLI flags — sentinel plan --refine / --no-suggest
+- [x] Task 1: Mathematical Foundations - [ ] Task 1: Mathematical Foundations & Delta Formula Delta Formula
+- [ ] Task 2: Persistence Layer Hardening
+- [ ] Task 3: Engine Integration & Real-Time Collection
+- [ ] Task 4: Mathematical Reporting
