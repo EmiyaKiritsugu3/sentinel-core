@@ -12,7 +12,7 @@ type ContextStrategy struct {
 
 	// File-based fields (direct filesystem read)
 	IncludeADRs        bool // reads docs/architecture/adr/*.md
-	IncludeDebtMarkers bool // reads TECHNICAL-DEBT.md, filters by task keywords
+	IncludeDebtMarkers bool // reads docs/process/TECHNICAL-DEBT.md, filters by task keywords
 }
 
 var strategyByIntent = map[Intent]ContextStrategy{

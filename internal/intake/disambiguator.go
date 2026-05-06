@@ -132,11 +132,11 @@ func (d *Disambiguator) anchorSignal(description string) float64 {
 	matched := 0
 	for _, kw := range keywords {
 		var n int
-		_ = d.db.Conn.QueryRow(
+		err := d.db.Conn.QueryRow(
 			"SELECT COUNT(*) FROM nodes WHERE LOWER(name) LIKE ?",
-			fmt.Sprintf("%%%s%%", strings.ToLower(kw)),
+			fmt.Sprintf("%%%s%%", kw),
 		).Scan(&n)
-		if n > 0 {
+		if err == nil && n > 0 {
 			matched++
 		}
 	}
@@ -153,7 +153,7 @@ func (d *Disambiguator) queryGraph(description string) []Suggestion {
 	for _, kw := range keywords {
 		rows, err := d.db.Conn.Query(
 			"SELECT name, file_path FROM nodes WHERE LOWER(name) LIKE ? LIMIT 3",
-			fmt.Sprintf("%%%s%%", strings.ToLower(kw)),
+			fmt.Sprintf("%%%s%%", kw),
 		)
 		if err != nil {
 			continue

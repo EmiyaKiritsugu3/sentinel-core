@@ -18,10 +18,10 @@ func (m *mockAuthProvider) GetAPIKey() (string, error) {
 func TestNewEngine(t *testing.T) {
 	registry := NewRegistry()
 	auth := &mockAuthProvider{key: "fake-key"}
-	factory := bridge.NewFactory(nil)
+	_ = bridge.NewIntentClassifier(bridge.NewNilClassifier(), 0.60)
 	validator := reflect.NewValidator(nil)
 
-	engine, err := NewEngine(registry, auth, factory, validator, nil)
+	engine, err := NewEngine(registry, auth, validator, nil)
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}

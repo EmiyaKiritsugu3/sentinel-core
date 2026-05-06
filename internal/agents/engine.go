@@ -50,7 +50,7 @@ type Engine struct {
 }
 
 // NewEngine initializes a new agent engine.
-func NewEngine(r *Registry, auth AuthProvider, factory *bridge.Factory, v *reflect.Validator, db *sqlite.DB) (*Engine, error) {
+func NewEngine(r *Registry, auth AuthProvider, v *reflect.Validator, db *sqlite.DB) (*Engine, error) {
 	apiKey, err := auth.GetAPIKey()
 	if err != nil {
 		return nil, fmt.Errorf("engine: failed to get API key: %w", err)
@@ -60,6 +60,10 @@ func NewEngine(r *Registry, auth AuthProvider, factory *bridge.Factory, v *refle
 	if err != nil {
 		return nil, fmt.Errorf("engine: failed to create genai client: %w", err)
 	}
+
+	geminiClassifier := bridge.NewGeminiClassifier(client)
+	classifier := bridge.NewIntentClassifier(geminiClassifier, 0.60)
+	factory := bridge.NewFactory(db, classifier)
 
 	return &Engine{
 		Registry:      r,
@@ -96,7 +100,7 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 
 	log.Printf("[SENTINEL] Starting agent '%s' for task '%s'", ctx.Definition.Name, ctx.StateID)
 
-	payload, err := e.promptFactory.GeneratePayload(ctx.StateID, ctx.Definition.SystemPrompt)
+	payload, err := e.promptFactory.GeneratePayload(ctx.Context, ctx.StateID, ctx.Definition.SystemPrompt)
 	if err != nil {
 		return fmt.Errorf("engine: failed to generate prompt payload: %w", err)
 	}

@@ -4,6 +4,7 @@ package bridge
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/google/generative-ai-go/genai"
@@ -31,15 +32,25 @@ func (g *GeminiClassifier) Classify(ctx context.Context, description string) (In
 	if err != nil {
 		return IntentUnknown, fmt.Errorf("gemini classifier: %w", err)
 	}
-	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {
+	if len(resp.Candidates) == 0 {
 		return IntentUnknown, nil
 	}
-	raw := fmt.Sprintf("%v", resp.Candidates[0].Content.Parts[0])
+
+	cand := resp.Candidates[0]
+	if cand.Content == nil || len(cand.Content.Parts) == 0 {
+		return IntentUnknown, nil
+	}
+	part, ok := cand.Content.Parts[0].(genai.Text)
+	if !ok {
+		return IntentUnknown, nil
+	}
+	raw := string(part)
 	parsed := Intent(strings.ToLower(strings.TrimSpace(raw)))
 	switch parsed {
 	case IntentDiagnose, IntentImplement, IntentRefactor, IntentReview:
 		return parsed, nil
 	default:
+		fmt.Fprintf(os.Stderr, "warning: classifier: unrecognized ai intent: %q\n", parsed)
 		return IntentUnknown, nil
 	}
 }

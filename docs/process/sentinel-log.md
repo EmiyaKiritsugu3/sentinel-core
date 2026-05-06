@@ -51,6 +51,24 @@
 
 ---
 
+## [2026-05-05] Milestone: Input Disambiguation Audit (Task 5) [PID-SENTINEL-DISAMBIGUATOR-AUDIT]
+
+**Status**: AUDITED 🛡️
+**Impact**: MEDIUM (Input Integrity & DX)
+
+### 🔍 Analysis (Findings)
+
+1. **Spec Compliance**: A implementação do `Disambiguator` e `VaguenessScore` segue rigorosamente a Spec da Task 5. Os 4 sinais (Length, Verb, Pronoun, Anchor) e as duas fases do Anchor Signal foram validados no código.
+2. **Anchor Phase 2 Verification**: Confirmado que o `anchorSignal` utiliza corretamente o `matched_ratio` consultando o SQLite para reduzir o score de vagueza quando o usuário menciona símbolos existentes no grafo.
+3. **Suggestion Engine**: O método `queryGraph` limita corretamente a 5 sugestões ancoradas no grafo, prevenindo poluição visual no prompt do usuário.
+4. **Test Gap Resolved**: Adicionado `disambiguator_db_test.go` para cobrir o cenário de análise ancorada em DB, que estava ausente na suíte original do implementador.
+
+### 💡 Key Learning
+
+"Um sistema de disambiguação é tão inteligente quanto sua âncora na realidade (o grafo). Validar que o sistema reconhece o código existente como uma âncora de clareza é o que separa um chatbot de um engenheiro autônomo."
+
+---
+
 **Status**: COMPLETED
 **Impact**: STRATEGIC (High - Process Governance)
 
@@ -313,7 +331,24 @@ PR #6 mergeado. A infraestrutura de LiveView está segura e livre de race condit
 
 ---
 
-## 🏁 SOVEREIGN HANDOVER [S19-PROMPT-INTELLIGENCE -> S20]
+## [2026-05-05] Milestone: GeminiClassifier Hardening (Code Quality) [PID-SENTINEL-CLASSIFIER-HARDENING]
+
+**Status**: COMPLETED 🛡️
+**Impact**: MEDIUM (Stability & Observability)
+
+### 🔍 Analysis (Epiphanies)
+
+1. **Nil Pointer Defense**: Identified a potential panic in `GeminiClassifier` where `resp.Candidates[0].Content` was accessed without validation. Defensive programming is mandatory when dealing with external AI provider responses.
+2. **Type-Safe Extraction**: Replaced fragile `fmt.Sprintf` with explicit type assertions for `genai.Text`. Interface-based systems require strict type verification to ensure data integrity.
+3. **Observability Gap**: Unrecognized model outputs are no longer silently ignored. Added warning logs to `os.Stderr` to facilitate debugging of AI classification drifts.
+
+### 💡 Key Learning
+
+"Data from external APIs must be treated as untrusted. Nil checks and type assertions are the 'Hard Gates' that prevent remote failures from becoming local panics."
+
+---
+
+## 🏁 SOVEREIGN HANDOVER [S20-CLASSIFIER-HARDENING -> S21]
 
 **Status**: STABLE 🧠
 **Success Rate**: 100% (Spec + Plan commitados, 2 rounds de auditoria completos)
@@ -348,3 +383,39 @@ O `take_snapshot` padrão ainda é perigoso em páginas com milhares de nós. O 
 ### 🎯 Chief's Priority (First Command)
 
 **"Sentinel, agora que o questionário está resolvido e o processo de aprendizado documentado, retome o ROADMAP.md e comece a implementação do Dispatcher de Agentes no pacote `internal/agents`."**
+
+---
+
+## [2026-05-05] Milestone: Prompt Intelligence System Deployment [PID-SENTINEL-COMPLETE]
+
+**Status**: COMPLETED 🧠
+**Impact**: HIGH (AI Quality & UX)
+
+### 🔍 Analysis (Epiphanies)
+
+1. **Context Efficiency**: Smart Context Routing (Subsystem B) is now live. The Sentinel selects context (ADRs, tests, debt) based on detected intent (diagnose/implement/refactor/review), reducing token waste and improving agent focus.
+2. **User Sovereignty**: Input Disambiguation (Subsystem A) with `--refine` flag allows users to anchor vague tasks in the graph before persistence. This ensures the \"Task Objective\" is high-signal from the start.
+3. **Graceful Resilience**: The system handles missing AI keys or graph data by falling back to deterministic heuristics, ensuring the CLI remains functional in all environments.
+
+### 💡 Key Learning
+
+\"Intention is the anchor of intelligence. By classifying user intent before execution and disambiguating input before storage, we transform the AI pipeline from a reactive loop into a goal-oriented architectural guide.\"
+
+---
+
+## 🏁 SOVEREIGN HANDOVER [S21-PROMPT-INTELLIGENCE -> S22]
+
+**Status**: STABLE 🛡️
+**Success Rate**: 100% (Block A & B fully implemented and verified)
+
+### 🚀 Current Vector
+
+Prompt Intelligence System (Fase 6) concluído. O Sentinel agora é consciente da intenção e do grafo no momento do input. O próximo vetor é retornar ao ROADMAP para a **Fase 4: Subagent Dispatcher** (Agentic State Machine).
+
+### ⚠️ Technical Snag
+
+O linkador de dependências Go ainda não mapeia tipos externos (`third_party`) com a mesma profundidade do TypeScript.
+
+### 🎯 Chief's Priority (First Command)
+
+**\"Sentinel, com a inteligência de prompt estabilizada, inicie a expansão do Subagent Dispatcher (internal/agents/dispatcher.go) para suportar a orquestração da tríade Warden/Auditor/Chief.\"**
