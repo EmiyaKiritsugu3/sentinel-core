@@ -33,6 +33,10 @@ CREATE TABLE IF NOT EXISTS tasks (
 	tier TEXT, -- T1, T2, T3
 	verification_command TEXT, -- O comando que o Audit Runner deve executar
 	commit_hash TEXT,
+	latency_ms REAL DEFAULT 0,
+	tokens_used INTEGER DEFAULT 0,
+	api_cost REAL DEFAULT 0,
+	math_delta REAL DEFAULT 0,
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -106,6 +110,18 @@ func Migrate(db *sqlite.DB) error {
 	_, err := db.Conn.Exec(schema)
 	if err != nil {
 		return fmt.Errorf("could not run migration: %w", err)
+	}
+
+	// Migrations for SME Phase 1 metrics
+	migrations := []string{
+		"ALTER TABLE tasks ADD COLUMN latency_ms REAL DEFAULT 0;",
+		"ALTER TABLE tasks ADD COLUMN tokens_used INTEGER DEFAULT 0;",
+		"ALTER TABLE tasks ADD COLUMN api_cost REAL DEFAULT 0;",
+		"ALTER TABLE tasks ADD COLUMN math_delta REAL DEFAULT 0;",
+	}
+	for _, m := range migrations {
+		// Ignore errors since columns might already exist
+		_, _ = db.Conn.Exec(m)
 	}
 
 	// KISS Specialist Seeding
