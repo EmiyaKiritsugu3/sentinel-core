@@ -18,6 +18,9 @@ import (
 	"time"
 )
 
+// DefaultTokenPrice is the cost per token used for API cost calculation.
+const DefaultTokenPrice = 0.00001
+
 // Tool defines the interface for agent capabilities.
 type Tool interface {
 	Name() string
@@ -100,6 +103,8 @@ func (e *Engine) getGenaiTools() []*genai.Tool {
 func (e *Engine) Execute(ctx *AgentContext) error {
 	defer ctx.Cancel()
 
+	ctx.StartTime = time.Now()
+
 	log.Printf("[SENTINEL] Starting agent '%s' for task '%s'", ctx.Definition.Name, ctx.StateID)
 
 	payload, err := e.promptFactory.GeneratePayload(ctx.Context, ctx.StateID, ctx.Definition.SystemPrompt)
@@ -135,6 +140,47 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 		resp, err := session.SendMessage(ctx.Context, currentParts...)
 		if err != nil {
 			return fmt.Errorf("generation failed: %w", err)
+		}
+
+		if resp.UsageMetadata != nil {
+			count := int(resp.UsageMetadata.TotalTokenCount)
+			ctx.TokensUsed += count
+			ctx.APICost += float64(count) * DefaultTokenPrice
+			ctx.Budget.AddTokens(count)
+		}
+
+		if len(resp.Candidates) > 0 && resp.Candidates[0].Content != nil {
+			content := resp.Candidates[0].Content
+			
+			// Approximation logic
+			actionChars := 0
+			thoughtChars := 0
+			
+			for _, part := range content.Parts {
+				if text, ok := part.(genai.Text); ok {
+					// Fallback heuristic: If it looks like a thought block `<think>`
+					sText := string(text)
+					if strings.Contains(sText, "<think>") || strings.Contains(sText, "```thought") {
+						thoughtChars += len(sText)
+					} else {
+						actionChars += len(sText)
+					}
+				}
+			}
+			
+			// Convert to approx tokens (1 token ≈ 4 chars)
+			ctx.ActionTokens += actionChars / 4
+			ctx.ThoughtTokens += thoughtChars / 4
+
+			lambda := math.CalculateLambda(ctx.ActionTokens, ctx.ThoughtTokens)
+			// IMPORTANT: MaxLambda is now a *float64, so adjust this condition to check if it's nil
+			if ctx.Definition.MaxLambda != nil && lambda > *ctx.Definition.MaxLambda {
+				log.Printf("[GATE A] Entropy threshold exceeded (λ=%.2f > Max=%.2f). Interrupting execution.", lambda, *ctx.Definition.MaxLambda)
+				// Consume a budget step for hallucination interruption
+				ctx.Budget.IncSteps()
+				currentParts = []genai.Part{genai.Text(fmt.Sprintf("GATE A INTERVENTION: Your action-to-thought ratio is too high (%.2f). You are hallucinating excessive code without planning. Re-evaluate your strategy and output a detailed thought process before proceeding.", lambda))}
+				continue
+			}
 		}
 
 		if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
@@ -231,7 +277,7 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 
 	query := "UPDATE tasks SET latency_ms = ?, tokens_used = ?, api_cost = ?, math_delta = ? WHERE id = ?"
 	if _, err := e.DB.Conn.Exec(query, latency, ctx.TokensUsed, ctx.APICost, delta, ctx.StateID); err != nil {
-		log.Printf("engine: failed to persist math metrics: %v", err)
+		return fmt.Errorf("engine: failed to persist math metrics: %w", err)
 	}
 
 	return nil
