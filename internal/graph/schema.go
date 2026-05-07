@@ -2,8 +2,8 @@ package graph
 
 import (
 	"fmt"
-	"strings"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
+	"strings"
 )
 
 const schema = `
@@ -107,11 +107,11 @@ CREATE TABLE IF NOT EXISTS performance_logs (
 );
 
 CREATE TABLE IF NOT EXISTS agent_trust (
-    specialist_id TEXT PRIMARY KEY,
-    successes     INTEGER NOT NULL DEFAULT 0,
-    total         INTEGER NOT NULL DEFAULT 0,
-    trust_score   REAL NOT NULL DEFAULT 0.5,
-    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    agent_name  TEXT PRIMARY KEY,
+    successes   INTEGER NOT NULL DEFAULT 0,
+    total       INTEGER NOT NULL DEFAULT 0,
+    trust_score REAL NOT NULL DEFAULT 0.5,
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 `
 
@@ -138,21 +138,16 @@ func Migrate(db *sqlite.DB) error {
 		"ALTER TABLE tasks ADD COLUMN tokens_used INTEGER DEFAULT 0;",
 		"ALTER TABLE tasks ADD COLUMN api_cost REAL DEFAULT 0;",
 		"ALTER TABLE tasks ADD COLUMN math_delta REAL DEFAULT 0;",
-		`CREATE TABLE IF NOT EXISTS agent_trust (
-    specialist_id TEXT PRIMARY KEY,
-    successes     INTEGER NOT NULL DEFAULT 0,
-    total         INTEGER NOT NULL DEFAULT 0,
-    trust_score   REAL NOT NULL DEFAULT 0.5,
-    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);`,
+		"ALTER TABLE agent_trust RENAME COLUMN specialist_id TO agent_name;",
 	}
 	for _, m := range migrations {
 		_, err = tx.Exec(m)
 		if err != nil {
-			// STD-05: Specific error handling for SQLite "duplicate column name"
-			// sqlite error "duplicate column name: <name>"
-			if strings.Contains(err.Error(), "duplicate column name") {
-				err = nil // Reset error for duplicate column
+			// STD-05: Specific error handling for SQLite idempotent migrations
+			errMsg := err.Error()
+			if strings.Contains(errMsg, "duplicate column name") ||
+				strings.Contains(errMsg, "no such column") {
+				err = nil // Reset error for already-applied migrations
 				continue
 			}
 			return fmt.Errorf("migrate: failed execution of %s: %w", m, err)
