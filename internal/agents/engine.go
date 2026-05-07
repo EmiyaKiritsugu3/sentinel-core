@@ -100,7 +100,7 @@ func (e *Engine) getGenaiTools() []*genai.Tool {
 }
 
 // Execute starts the execution of a subagent for a given task.
-func (e *Engine) Execute(ctx *AgentContext) error {
+func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 	defer ctx.Cancel()
 
 	ctx.StartTime = time.Now()
@@ -129,6 +129,26 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 		ctx.Definition.Name,
 	).Scan(&priorSuccesses, &priorTotal)
 	priorTrust := math.CalculateTrustScore(priorSuccesses, priorTotal)
+
+	defer func() {
+		success := retErr == nil
+		newTotal := priorTotal + 1
+		newSuccesses := priorSuccesses
+		if success {
+			newSuccesses++
+		}
+		trustScore := math.CalculateTrustScore(newSuccesses, newTotal)
+		_, _ = e.DB.Conn.Exec(
+			`INSERT INTO agent_trust (specialist_id, successes, total, trust_score)
+			 VALUES (?, ?, ?, ?)
+			 ON CONFLICT(specialist_id) DO UPDATE SET
+			     successes = excluded.successes,
+			     total = excluded.total,
+			     trust_score = excluded.trust_score,
+			     updated_at = CURRENT_TIMESTAMP`,
+			ctx.Definition.Name, newSuccesses, newTotal, trustScore,
+		)
+	}()
 
 	for {
 		// 1. Pre-check (Budget & Context)
@@ -281,21 +301,7 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 	ctx.EndTime = time.Now()
 	latency := float64(ctx.EndTime.Sub(ctx.StartTime).Milliseconds())
 
-	newSuccesses := priorSuccesses + boolToInt(err == nil)
-	newTotal := priorTotal + 1
-	trustScore := math.CalculateTrustScore(newSuccesses, newTotal)
-
-	_, _ = e.DB.Conn.Exec(`
-		INSERT INTO agent_trust (specialist_id, successes, total, trust_score)
-		VALUES (?, ?, ?, ?)
-		ON CONFLICT(specialist_id) DO UPDATE SET
-			successes = excluded.successes,
-			total = excluded.total,
-			trust_score = excluded.trust_score,
-			updated_at = CURRENT_TIMESTAMP
-	`, ctx.Definition.Name, newSuccesses, newTotal, trustScore)
-
-	probHallucination := 1.0 - trustScore
+	probHallucination := 1.0 - priorTrust
 	delta := math.CalculateDelta(probHallucination, 5.0, latency, ctx.APICost)
 
 	query := "UPDATE tasks SET latency_ms = ?, tokens_used = ?, api_cost = ?, math_delta = ? WHERE id = ?"
@@ -304,13 +310,6 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 	}
 
 	return nil
-}
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }
 
 // processSubTasks handles the KISS sequential execution of pending sub-tasks.
