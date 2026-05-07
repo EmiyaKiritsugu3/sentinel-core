@@ -147,6 +147,11 @@ func (t *WriteFileTool) Execute(ctx context.Context, args map[string]interface{}
 	path, _ := args["path"].(string)
 	content, _ := args["content"].(string)
 
+	// Gate B: Structural Validation
+	if err := validateASTIsomorphism(path, content); err != nil {
+		return "", err // Sentinel Protocol: Block writing syntactically invalid code
+	}
+
 	// Garante que o diretório pai exista
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -230,6 +235,12 @@ func (t *ReplaceTool) Execute(ctx context.Context, args map[string]interface{}) 
 	}
 
 	newContent := strings.Replace(content, oldStr, newStr, 1)
+
+	// Gate B: Structural Validation
+	if err := validateASTIsomorphism(path, newContent); err != nil {
+		return "", err // Sentinel Protocol: Block writing syntactically invalid code
+	}
+
 	if err := os.WriteFile(path, []byte(newContent), 0644); err != nil {
 		return "", fmt.Errorf("replace: failed to write file %s: %w", path, err)
 	}
