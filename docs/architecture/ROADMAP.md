@@ -62,8 +62,8 @@ Tornar o sentinel consciente da intenção do usuário e do contexto semântico.
 
 Elevar o Sentinel ao estado de Oráculo Matemático via Prova de Estabilidade.
 
-- [ ] **Sovereign Math Engine (SME)**: Motor central de cálculo de métricas e estabilidade.
-- [ ] **Real-Time Entropy Monitor**: Interrupção de alucinações via Entropia de Shannon (H).
+- [x] **Sovereign Math Engine (SME)**: Motor central de cálculo de métricas e estabilidade.
+- [x] **Real-Time Entropy Monitor**: Interrupção de alucinações via Gates A (λ) e B (AST).
 - [ ] **Lyapunov Divergence Detection**: Detecção de "Logic Drift" antes da renderização.
 - [ ] **Bayesian Trust Calibration**: Ajuste dinâmico de rigor baseado em evidência histórica.
 *Critério de Sucesso: Interrupção autônoma de 90% das alucinações baseada em métricas de probabilidade.*

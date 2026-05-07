@@ -1,5 +1,41 @@
 # Sentinel Log — Compiled Brain [PID-SENTINEL]
 
+## [2026-05-07] Milestone: Entropy Monitor Gate B [PID-SENTINEL-ENTROPY-GATE-B]
+
+**Status**: COMPLETED ✅
+**Impact**: HIGH (Structural Security & Hallucination Hard-Stop)
+
+### 🔍 Analysis (Epiphanies)
+
+1. **In-Memory AST Validation**: Implemented Gate B (`internal/agents/ast_validator.go`) as a hard gate in `tools.go` that intercepts `write_file` / `replace` calls before they reach the filesystem. Uses `go/parser` for `.go` files and Tree-sitter for `.ts`/`.tsx`, injecting a structured error back into the LLM context on `ERROR` or `MISSING` AST nodes.
+2. **Feedback Loop Discipline**: The error message returned to the LLM is deterministic: `"Structural Audit Failed: Code generates invalid AST near line X."` This consumes a StepBudget unit, ensuring the circuit-breaker eventually escalates rather than looping forever.
+3. **Separation of Concerns**: Gate B lives in its own file (`ast_validator.go`) rather than inline in `tools.go`, enforcing the Rule of Single Responsibility across the interceptor surface.
+
+### 💡 Key Learning
+
+"A última barreira contra alucinações estruturais não é o raciocínio do modelo — é uma validação determinística em memória antes do commit no disco. O Gate B transforma o filesystem em território soberano."
+
+---
+
+## 🏁 SOVEREIGN HANDOVER [S25-ENTROPY-GATE-B -> S26-TRUST-CALIBRATION]
+
+**Status**: STABLE 🛡️
+**Success Rate**: 100% (Gates A + B both live, all tests green)
+
+### 🚀 Current Vector
+
+O Hybrid Funnel (Phase 7.2) está completo: Gate A filtra por entropia cognitiva (λ), Gate B filtra por integridade estrutural (AST). O próximo vetor é a **Bayesian Trust Calibration** (Phase 7, Pillar D): ajuste dinâmico de `MaxLambda` baseado no histórico de erros por agente.
+
+### ⚠️ Technical Snag
+
+Os parâmetros `probHallucination` e `bugWeight` em `CalculateDelta` ainda são estáticos (0.5 e 5.0). A Trust Calibration irá alimentar esses valores dinamicamente a partir do `TrustScore` histórico.
+
+### 🎯 Chief's Priority (First Command)
+
+**"Sentinel, implemente o Bayesian Trust Calibration (Pillar D). Adicione TrustScore tracking ao SQLite, implemente CalculateTrustScore em internal/math/formulas.go e wire no Engine para ajustar MaxLambda dinamicamente."**
+
+---
+
 ## [2026-04-29] Milestone: Sovereign Audit & Recovery Cycle
 
 **Status**: COMPLETED
