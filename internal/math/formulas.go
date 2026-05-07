@@ -14,6 +14,22 @@ func CalculateDelta(probHallucination, bugWeight, latencyMs, apiCost float64) fl
 	return gain - loss
 }
 
+// CalculateTrustScore computes the Bayesian-updated trust for an agent.
+// successes = number of tasks completed without hallucination/error
+// total = total tasks executed
+// Returns a value in (0, 1).
+func CalculateTrustScore(successes, total int) float64 {
+	const alpha, beta = 1.0, 1.0 // Laplace prior
+	return (float64(successes) + alpha) / (float64(total) + alpha + beta)
+}
+
+// TrustToDynamicLambda maps a TrustScore to a lambda multiplier.
+// Low trust = stricter gate (multiplier < 1.0); high trust = looser gate.
+// Range: 0.5 (trust=0) → 1.5 (trust=1)
+func TrustToDynamicLambda(trustScore float64) float64 {
+	return 0.5 + trustScore
+}
+
 // CalculateLambda computes the cognitive averaging metric (Action Tokens / Thought Tokens).
 func CalculateLambda(actionTokens, thoughtTokens int) float64 {
 	if thoughtTokens == 0 {

@@ -123,6 +123,13 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 
 	currentParts := []genai.Part{genai.Text(initialPrompt)}
 
+	var priorSuccesses, priorTotal int
+	_ = e.DB.Conn.QueryRow(
+		"SELECT successes, total FROM agent_trust WHERE specialist_id = ?",
+		ctx.Definition.Name,
+	).Scan(&priorSuccesses, &priorTotal)
+	priorTrust := math.CalculateTrustScore(priorSuccesses, priorTotal)
+
 	for {
 		// 1. Pre-check (Budget & Context)
 		if ctx.Budget.IncSteps() {
@@ -173,13 +180,15 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 			ctx.ThoughtTokens += thoughtChars / 4
 
 			lambda := math.CalculateLambda(ctx.ActionTokens, ctx.ThoughtTokens)
-			// IMPORTANT: MaxLambda is now a *float64, so adjust this condition to check if it's nil
-			if ctx.Definition.MaxLambda != nil && lambda > *ctx.Definition.MaxLambda {
-				log.Printf("[GATE A] Entropy threshold exceeded (λ=%.2f > Max=%.2f). Interrupting execution.", lambda, *ctx.Definition.MaxLambda)
+			if ctx.Definition.MaxLambda != nil {
+				effectiveMaxLambda := *ctx.Definition.MaxLambda * math.TrustToDynamicLambda(priorTrust)
+				if lambda > effectiveMaxLambda {
+				log.Printf("[GATE A] Entropy threshold exceeded (λ=%.2f > EffectiveMax=%.2f). Interrupting execution.", lambda, effectiveMaxLambda)
 				// Consume a budget step for hallucination interruption
 				ctx.Budget.IncSteps()
 				currentParts = []genai.Part{genai.Text(fmt.Sprintf("GATE A INTERVENTION: Your action-to-thought ratio is too high (%.2f). You are hallucinating excessive code without planning. Re-evaluate your strategy and output a detailed thought process before proceeding.", lambda))}
 				continue
+				}
 			}
 		}
 
@@ -272,8 +281,22 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 	ctx.EndTime = time.Now()
 	latency := float64(ctx.EndTime.Sub(ctx.StartTime).Milliseconds())
 
-	// Default probabilities until Phase 7.3 Bayesian inference
-	delta := math.CalculateDelta(0.5, 5.0, latency, ctx.APICost)
+	newSuccesses := priorSuccesses + boolToInt(err == nil)
+	newTotal := priorTotal + 1
+	trustScore := math.CalculateTrustScore(newSuccesses, newTotal)
+
+	_, _ = e.DB.Conn.Exec(`
+		INSERT INTO agent_trust (specialist_id, successes, total, trust_score)
+		VALUES (?, ?, ?, ?)
+		ON CONFLICT(specialist_id) DO UPDATE SET
+			successes = excluded.successes,
+			total = excluded.total,
+			trust_score = excluded.trust_score,
+			updated_at = CURRENT_TIMESTAMP
+	`, ctx.Definition.Name, newSuccesses, newTotal, trustScore)
+
+	probHallucination := 1.0 - trustScore
+	delta := math.CalculateDelta(probHallucination, 5.0, latency, ctx.APICost)
 
 	query := "UPDATE tasks SET latency_ms = ?, tokens_used = ?, api_cost = ?, math_delta = ? WHERE id = ?"
 	if _, err := e.DB.Conn.Exec(query, latency, ctx.TokensUsed, ctx.APICost, delta, ctx.StateID); err != nil {
@@ -281,6 +304,13 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 	}
 
 	return nil
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // processSubTasks handles the KISS sequential execution of pending sub-tasks.

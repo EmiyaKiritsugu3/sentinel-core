@@ -105,6 +105,14 @@ CREATE TABLE IF NOT EXISTS performance_logs (
     FOREIGN KEY (specialist_id) REFERENCES specialist_registry(id),
     FOREIGN KEY (sub_task_id) REFERENCES sub_tasks(id)
 );
+
+CREATE TABLE IF NOT EXISTS agent_trust (
+    specialist_id TEXT PRIMARY KEY,
+    successes     INTEGER NOT NULL DEFAULT 0,
+    total         INTEGER NOT NULL DEFAULT 0,
+    trust_score   REAL NOT NULL DEFAULT 0.5,
+    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 `
 
 func Migrate(db *sqlite.DB) error {
@@ -130,6 +138,13 @@ func Migrate(db *sqlite.DB) error {
 		"ALTER TABLE tasks ADD COLUMN tokens_used INTEGER DEFAULT 0;",
 		"ALTER TABLE tasks ADD COLUMN api_cost REAL DEFAULT 0;",
 		"ALTER TABLE tasks ADD COLUMN math_delta REAL DEFAULT 0;",
+		`CREATE TABLE IF NOT EXISTS agent_trust (
+    specialist_id TEXT PRIMARY KEY,
+    successes     INTEGER NOT NULL DEFAULT 0,
+    total         INTEGER NOT NULL DEFAULT 0,
+    trust_score   REAL NOT NULL DEFAULT 0.5,
+    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);`,
 	}
 	for _, m := range migrations {
 		_, err = tx.Exec(m)

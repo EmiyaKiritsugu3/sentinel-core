@@ -37,6 +37,7 @@ func TestMigrate(t *testing.T) {
 		"specialist_registry",
 		"sub_tasks",
 		"performance_logs",
+		"agent_trust",
 	}
 
 	for _, table := range tables {

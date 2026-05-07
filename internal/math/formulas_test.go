@@ -21,6 +21,27 @@ func TestCalculateDelta(t *testing.T) {
 	}
 }
 
+func TestCalculateTrustScore(t *testing.T) {
+	if got := math.CalculateTrustScore(0, 0); got != 0.5 {
+		t.Errorf("zero history: want 0.5, got %f", got)
+	}
+	if got := math.CalculateTrustScore(100, 100); got <= 0.9 {
+		t.Errorf("perfect record: want > 0.9, got %f", got)
+	}
+	if got := math.CalculateTrustScore(0, 100); got >= 0.05 {
+		t.Errorf("zero successes: want < 0.05, got %f", got)
+	}
+}
+
+func TestTrustToDynamicLambda(t *testing.T) {
+	if got := math.TrustToDynamicLambda(0.0); got != 0.5 {
+		t.Errorf("trust=0: want 0.5, got %f", got)
+	}
+	if got := math.TrustToDynamicLambda(1.0); got != 1.5 {
+		t.Errorf("trust=1: want 1.5, got %f", got)
+	}
+}
+
 func TestCalculateLambda(t *testing.T) {
 	tests := []struct {
 		name       string
