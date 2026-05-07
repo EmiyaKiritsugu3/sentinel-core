@@ -53,7 +53,7 @@ type AgentDefinition struct {
 	ModelID      string   `yaml:"model_id" validate:"required"`
 	Temperature  float64  `yaml:"temperature"`
 	MaxSteps     int      `yaml:"max_steps" validate:"required,min=1"`
-	MaxLambda    float64  `yaml:"max_lambda" validate:"omitempty,min=0.1"` // Added for Gate A
+	MaxLambda    *float64 `yaml:"max_lambda" validate:"omitempty,min=0.1"` // Deterministic execution budget multiplier (Gate A)
 	Capabilities []string `yaml:"capabilities"`
 	TierAccess   []string `yaml:"tier_access"`
 	SystemPrompt string   `yaml:"-"` // From Markdown body
@@ -82,8 +82,8 @@ type AgentContext struct {
 	EndTime         time.Time
 	TokensUsed      int
 	APICost         float64
-	ActionTokens    int // Added for Gate A
-	ThoughtTokens   int // Added for Gate A
+	ActionTokens    int // Execution phase tokens
+	ThoughtTokens   int // Reasoning phase tokens
 }
 
 // SubTask represents a unit of work assigned to a specialist (PID-SENTINEL-5.7).
