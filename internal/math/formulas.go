@@ -13,3 +13,11 @@ func CalculateDelta(probHallucination, bugWeight, latencyMs, apiCost float64) fl
 	loss := (latencyMs * WeightLatency) + (apiCost * WeightToken)
 	return gain - loss
 }
+
+// CalculateLambda computes the cognitive averaging metric (Action Tokens / Thought Tokens).
+func CalculateLambda(actionTokens, thoughtTokens int) float64 {
+	if thoughtTokens == 0 {
+		return float64(actionTokens) // Prevent division by zero
+	}
+	return float64(actionTokens) / float64(thoughtTokens)
+}

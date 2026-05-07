@@ -20,3 +20,26 @@ func TestCalculateDelta(t *testing.T) {
 		t.Errorf("expected negative delta for placebo processing, got %f", got)
 	}
 }
+
+func TestCalculateLambda(t *testing.T) {
+	tests := []struct {
+		name       string
+		action     int
+		thought    int
+		expected   float64
+	}{
+		{"normal", 100, 50, 2.0},
+		{"lazy_thought", 500, 10, 50.0},
+		{"zero_thought", 100, 0, 100.0}, // Fallback behavior
+		{"zero_action", 0, 50, 0.0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := math.CalculateLambda(tt.action, tt.thought)
+			if result != tt.expected {
+				t.Errorf("got %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
