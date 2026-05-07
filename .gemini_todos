@@ -1,4 +1,10 @@
-- [x] Task 1: Mathematical Foundations - [ ] Task 1: Mathematical Foundations & Delta Formula Delta Formula
-- [ ] Task 2: Persistence Layer Hardening
-- [ ] Task 3: Engine Integration & Real-Time Collection
-- [ ] Task 4: Mathematical Reporting
+{
+  "tasks": [
+    {
+      "id": "task-7-2-gate-b",
+      "description": "Retomar a execução do plano do Monitor de Entropia (docs/superpowers/plans/2026-05-07-real-time-entropy-monitor.md) a partir da Task 4. O foco é implementar o Gate B (Structural Validation) e os testes de interceptação no tools.go.",
+      "status": "pending",
+      "created_at": "2026-05-07T08:42:00Z"
+    }
+  ]
+}

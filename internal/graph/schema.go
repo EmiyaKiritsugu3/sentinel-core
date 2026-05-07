@@ -2,6 +2,7 @@ package graph
 
 import (
 	"fmt"
+	"strings"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 )
 
@@ -107,9 +108,20 @@ CREATE TABLE IF NOT EXISTS performance_logs (
 `
 
 func Migrate(db *sqlite.DB) error {
-	_, err := db.Conn.Exec(schema)
+	tx, err := db.Conn.Begin()
 	if err != nil {
-		return fmt.Errorf("could not run migration: %w", err)
+		return fmt.Errorf("migrate: could not begin transaction: %w", err)
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	_, err = tx.Exec(schema)
+	if err != nil {
+		return fmt.Errorf("could not run migration schema: %w", err)
 	}
 
 	// Migrations for SME Phase 1 metrics
@@ -120,8 +132,16 @@ func Migrate(db *sqlite.DB) error {
 		"ALTER TABLE tasks ADD COLUMN math_delta REAL DEFAULT 0;",
 	}
 	for _, m := range migrations {
-		// Ignore errors since columns might already exist
-		_, _ = db.Conn.Exec(m)
+		_, err = tx.Exec(m)
+		if err != nil {
+			// STD-05: Specific error handling for SQLite "duplicate column name"
+			// sqlite error "duplicate column name: <name>"
+			if strings.Contains(err.Error(), "duplicate column name") {
+				err = nil // Reset error for duplicate column
+				continue
+			}
+			return fmt.Errorf("migrate: failed execution of %s: %w", m, err)
+		}
 	}
 
 	// KISS Specialist Seeding
@@ -137,9 +157,13 @@ func Migrate(db *sqlite.DB) error {
 
 	for _, s := range seeds {
 		query := "INSERT OR IGNORE INTO specialist_registry (id, name, base_persona, current_persona_path, capabilities) VALUES (?, ?, ?, ?, ?)"
-		if _, err := db.Conn.Exec(query, s.id, s.name, "Base", "internal/agents/definitions/architect.md", s.caps); err != nil {
+		if _, err = tx.Exec(query, s.id, s.name, "Base", "internal/agents/definitions/architect.md", s.caps); err != nil {
 			return fmt.Errorf("migrate: failed to seed specialist %s: %w", s.id, err)
 		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("migrate: failed to commit transaction: %w", err)
 	}
 
 	return nil

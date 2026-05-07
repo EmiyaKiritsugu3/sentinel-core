@@ -452,6 +452,36 @@ A base matemática está sólida. O Sentinel agora coleta latência, tokens e cu
 
 Os parâmetros de "Probabilidade de Alucinação" e "Peso do Bug" na fórmula de $\Delta$ são atualmente valores estáticos. Precisam ser movidos para a `AgentDefinition` na próxima fase.
 
+## [2026-05-07] Milestone: Entropy Monitor Gate A [PID-SENTINEL-ENTROPY-GATE-A]
+
+**Status**: COMPLETED (Partial) 🛡️
+**Impact**: HIGH (Cognitive Security & Halucination Prevention)
+
+### 🔍 Analysis (Epiphanies)
+
+1. **Validation Vulnerability (Pointer Semantics)**: Identified that declaring `MaxLambda` as a primitive `float64` bypassed validation rules. Since `omitempty` treats an explicitly provided `0.0` as "empty", the `min=0.1` rule was silently skipped. Converted to `*float64` to seal this loophole, reinforcing the principle that validation parameters must support nullability to differentiate omitted values from explicit zeroes.
+2. **Cognitive Averaging**: Successfully implemented Gate A ($\lambda$) calculation inside `engine.go`. The system now inspects streams for thought patterns (`<think>`) and calculates the ratio of action vs. thought tokens.
+3. **Execution Interruption**: If the generated code volume massively exceeds the reasoning volume, the engine preemptively stops execution and forces the model to re-plan, consuming a step budget.
+
+### 💡 Key Learning
+
+"A type system is only as safe as its boundary validations. In Go, relying on primitive types for optional validation is a silent failure waiting to happen. The transition to pointer-based configuration for critical security metrics (MaxLambda) ensures that ignorance and malicious intent are distinct and handleable states."
+
+---
+
+## 🏁 SOVEREIGN HANDOVER [S24-ENTROPY-GATE-A -> S25-ENTROPY-GATE-B]
+
+**Status**: PAUSED 🛑
+**Success Rate**: 75% (Plan audited, Task 1-3 complete, Gate A live)
+
+### 🚀 Current Vector
+
+A matemática de Entropia (CalculateLambda) e o "Gate A" foram injetados no laço da Engine (`engine.go`). O sistema já intercepta alucinações (muito código, pouco pensamento). A execução foi pausada a pedido do Chief antes da inicialização do Gate B.
+
+### ⚠️ Technical Snag
+
+A implementação do Gate B requer manipulação rigorosa da árvore AST com `go-tree-sitter` (para TS/TSX) e `go/parser` (para Go). Foi identificada uma restrição prévia (ausência do módulo golang tree-sitter local) que foi devidamente abordada no plano atualizado (`docs/superpowers/plans/2026-05-07-real-time-entropy-monitor.md`), separando o validador em um arquivo dedicado (`ast_validator.go`).
+
 ### 🎯 Chief's Priority (First Command)
 
-**"Sentinel, agora que temos os dados de base, implemente o Monitor de Entropia em tempo real para disparar interrupções baseadas na incerteza da geração de tokens."**
+**"Sentinel, retome a execução do plano do Monitor de Entropia a partir da Task 4. O foco exclusivo é implementar o Gate B (Structural Validation) e os testes integrados de interceptação no `tools.go`."**
