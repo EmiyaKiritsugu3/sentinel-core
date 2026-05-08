@@ -116,7 +116,7 @@ CREATE TABLE IF NOT EXISTS agent_trust (
 );
 `
 
-func Migrate(db *sqlite.DB) error {
+func Migrate(db *sqlite.DB) (err error) {
 	if err := sqlite.ValidateDB(db, "migrate"); err != nil {
 		return err
 	}
@@ -148,10 +148,10 @@ func Migrate(db *sqlite.DB) error {
 		{"tasks", "api_cost", "ALTER TABLE tasks ADD COLUMN api_cost REAL DEFAULT 0;"},
 		{"tasks", "math_delta", "ALTER TABLE tasks ADD COLUMN math_delta REAL DEFAULT 0;"},
 	} {
-		exists, checkErr := columnExistsInTx(tx, m.table, m.column)
-		if checkErr != nil {
-			return fmt.Errorf("migrate: checking %s.%s: %w", m.table, m.column, checkErr)
-		}
+	exists, err := columnExistsInTx(tx, m.table, m.column)
+	if err != nil {
+		return fmt.Errorf("migrate: checking %s.%s: %w", m.table, m.column, err)
+	}
 		if !exists {
 			if _, err = tx.Exec(m.sql); err != nil {
 				return fmt.Errorf("migrate: %s: %w", m.sql, err)
@@ -160,10 +160,10 @@ func Migrate(db *sqlite.DB) error {
 	}
 
 	// Rename specialist_id → agent_name if the old column name still exists.
-	oldExists, checkErr := columnExistsInTx(tx, "agent_trust", "specialist_id")
-	if checkErr != nil {
-		return fmt.Errorf("migrate: checking agent_trust.specialist_id: %w", checkErr)
-	}
+oldExists, err := columnExistsInTx(tx, "agent_trust", "specialist_id")
+if err != nil {
+	return fmt.Errorf("migrate: checking agent_trust.specialist_id: %w", err)
+}
 	if oldExists {
 		if _, err = tx.Exec("ALTER TABLE agent_trust RENAME COLUMN specialist_id TO agent_name;"); err != nil {
 			return fmt.Errorf("migrate: rename specialist_id: %w", err)

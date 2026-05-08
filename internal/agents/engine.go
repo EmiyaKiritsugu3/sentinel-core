@@ -104,6 +104,18 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 		return err
 	}
 
+	// Check budget before any I/O — MaxSteps == 0 means zero budget.
+	if ctx.Definition.MaxSteps <= 0 {
+		return fmt.Errorf("agent budget exceeded (MaxSteps: %d)", ctx.Definition.MaxSteps)
+	}
+
+	if e.promptFactory == nil {
+		return fmt.Errorf("engine: prompt factory is nil")
+	}
+	if e.genaiClient == nil {
+		return fmt.Errorf("engine: genai client is nil")
+	}
+
 	defer ctx.Cancel()
 
 	ctx.StartTime = time.Now()

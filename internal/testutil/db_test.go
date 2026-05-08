@@ -8,11 +8,11 @@ import (
 
 func TestSetupTestDB(t *testing.T) {
 	db := SetupTestDB(t)
-	defer db.Close()
-
 	if db == nil {
 		t.Fatal("SetupTestDB returned nil db")
 	}
+	defer db.Close()
+
 	if db.Conn == nil {
 		t.Fatal("SetupTestDB returned db with nil Conn")
 	}

@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
+	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/typescript/tsx"
@@ -17,7 +18,7 @@ func validateASTIsomorphism(path string, content string) error {
 		return fmt.Errorf("Gate B: empty path")
 	}
 
-	ext := filepath.Ext(path)
+	ext := strings.ToLower(filepath.Ext(path))
 
 	// Go validation using standard library (as in ScannerGo)
 	if ext == ".go" {
