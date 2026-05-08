@@ -3,6 +3,7 @@ package agents
 import (
 	"context"
 	"sync"
+	"time"
 )
 
 // Validator defines the security interface for path and command validation (Standard #10).
@@ -52,6 +53,7 @@ type AgentDefinition struct {
 	ModelID      string   `yaml:"model_id" validate:"required"`
 	Temperature  float64  `yaml:"temperature"`
 	MaxSteps     int      `yaml:"max_steps" validate:"required,min=1"`
+	MaxLambda    *float64 `yaml:"max_lambda" validate:"omitempty,min=0.1"` // Deterministic execution budget multiplier (Gate A)
 	Capabilities []string `yaml:"capabilities"`
 	TierAccess   []string `yaml:"tier_access"`
 	SystemPrompt string   `yaml:"-"` // From Markdown body
@@ -74,6 +76,18 @@ type AgentContext struct {
 	FailureCount int    // Track consecutive failures
 	ActiveModel  string // Current model being used
 	Strategy     string // Current technical strategy (Sovereign Pivot)
+
+	// SME Metrics
+	StartTime     time.Time
+	EndTime       time.Time
+	TokensUsed    int
+	APICost       float64
+	ActionTokens  int // Execution phase tokens
+	ThoughtTokens int // Reasoning phase tokens
+
+	// Lyapunov Divergence Detection (Gate A.5)
+	PreviousLambda  float64 // Lambda from the previous step (for divergence calc)
+	DivergenceCount int     // Consecutive steps with high divergence
 }
 
 // SubTask represents a unit of work assigned to a specialist (PID-SENTINEL-5.7).

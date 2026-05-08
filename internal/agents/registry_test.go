@@ -3,41 +3,28 @@ package agents
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"testing"
 
-	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
-	_ "modernc.org/sqlite"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/testutil"
 )
 
 func TestRegistryManager_SelectBest(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "test_registry.db")
-	db, err := sqlite.InitAtPath(dbPath)
-	if err != nil {
-		t.Fatalf("failed to open database: %v", err)
-	}
+	db := testutil.SetupTestDB(t)
 	defer db.Close()
+	if err := graph.Migrate(db); err != nil {
+		t.Fatalf("failed to migrate test db: %v", err)
+	}
 
-	// Create tables
-	schema := `
-	CREATE TABLE IF NOT EXISTS specialist_registry (
-		id TEXT PRIMARY KEY,
-		name TEXT NOT NULL,
-		base_persona TEXT NOT NULL,
-		current_persona_path TEXT NOT NULL,
-		reliability_score REAL DEFAULT 1.0,
-		capabilities TEXT
-	);`
-	if _, err := db.Conn.Exec(schema); err != nil {
-		t.Fatalf("failed to create table: %v", err)
+	// Clear seeded specialists so test data is the only source of matches.
+	if _, err := db.Conn.Exec("DELETE FROM specialist_registry"); err != nil {
+		t.Fatalf("failed to clear seeded specialists: %v", err)
 	}
 
 	caps1, _ := json.Marshal([]string{"go", "sqlite"})
 	caps2, _ := json.Marshal([]string{"go", "react", "typescript"})
 	caps3, _ := json.Marshal([]string{"rust", "wasm"})
 
-	// Insert test data
 	inserts := []struct {
 		id   string
 		name string
@@ -71,7 +58,6 @@ func TestRegistryManager_SelectBest(t *testing.T) {
 	})
 
 	t.Run("Match Go (Highest reliability)", func(t *testing.T) {
-		// Both s1 and s2 have "go", but s2 has higher reliability (0.98 vs 0.95)
 		s, err := mgr.SelectBest(ctx, []string{"go"})
 		if err != nil {
 			t.Fatalf("expected specialist, got error: %v", err)

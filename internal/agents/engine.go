@@ -2,19 +2,23 @@ package agents
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/bridge"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/math"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/reflect"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/google/generative-ai-go/genai"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/option"
 )
+
+// DefaultTokenPrice is the cost per token used for API cost calculation.
+const DefaultTokenPrice = 0.00001
 
 // Tool defines the interface for agent capabilities.
 type Tool interface {
@@ -95,8 +99,26 @@ func (e *Engine) getGenaiTools() []*genai.Tool {
 }
 
 // Execute starts the execution of a subagent for a given task.
-func (e *Engine) Execute(ctx *AgentContext) error {
+func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
+	if err := sqlite.ValidateDB(e.DB, "engine"); err != nil {
+		return err
+	}
+
+	// Check budget before any I/O — MaxSteps == 0 means zero budget.
+	if ctx.Definition.MaxSteps <= 0 {
+		return fmt.Errorf("agent budget exceeded (MaxSteps: %d)", ctx.Definition.MaxSteps)
+	}
+
+	if e.promptFactory == nil {
+		return fmt.Errorf("engine: prompt factory is nil")
+	}
+	if e.genaiClient == nil {
+		return fmt.Errorf("engine: genai client is nil")
+	}
+
 	defer ctx.Cancel()
+
+	ctx.StartTime = time.Now()
 
 	log.Printf("[SENTINEL] Starting agent '%s' for task '%s'", ctx.Definition.Name, ctx.StateID)
 
@@ -116,6 +138,12 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 
 	currentParts := []genai.Part{genai.Text(initialPrompt)}
 
+	priorSuccesses, priorTotal, priorTrust, _ := readPriorTrust(e.DB, ctx.Definition.Name)
+
+	defer func() {
+		_ = persistTrust(e.DB, ctx.Definition.Name, priorSuccesses, priorTotal, retErr == nil)
+	}()
+
 	for {
 		// 1. Pre-check (Budget & Context)
 		if ctx.Budget.IncSteps() {
@@ -134,6 +162,44 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 		if err != nil {
 			return fmt.Errorf("generation failed: %w", err)
 		}
+
+		if resp.UsageMetadata != nil {
+			count := int(resp.UsageMetadata.TotalTokenCount)
+			ctx.TokensUsed += count
+			ctx.APICost += float64(count) * DefaultTokenPrice
+			ctx.Budget.AddTokens(count)
+		}
+
+	if len(resp.Candidates) > 0 && resp.Candidates[0].Content != nil {
+		content := resp.Candidates[0].Content
+
+		stepActionTokens, stepThoughtTokens := countThoughtActionTokens(content.Parts)
+		ctx.ActionTokens += stepActionTokens
+		ctx.ThoughtTokens += stepThoughtTokens
+
+		stepLambda := math.CalculateLambda(stepActionTokens, stepThoughtTokens)
+		lambda := math.CalculateLambda(ctx.ActionTokens, ctx.ThoughtTokens)
+
+		if ctx.Definition.MaxLambda != nil {
+			effectiveMaxLambda := *ctx.Definition.MaxLambda * math.TrustToDynamicLambda(priorTrust)
+			if intervene, msg := checkGateA(lambda, effectiveMaxLambda); intervene {
+				ctx.Budget.IncSteps()
+				currentParts = []genai.Part{genai.Text(msg)}
+				ctx.PreviousLambda = stepLambda
+				continue
+			}
+		}
+
+		newDivCount, intervene, msg := checkGateA5(stepLambda, ctx.PreviousLambda, ctx.DivergenceCount)
+		ctx.DivergenceCount = newDivCount
+		if intervene {
+			ctx.Budget.IncSteps()
+			currentParts = []genai.Part{genai.Text(msg)}
+			ctx.PreviousLambda = stepLambda
+			continue
+		}
+		ctx.PreviousLambda = stepLambda
+	}
 
 		if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
 			return fmt.Errorf("gemini: empty response from model")
@@ -159,8 +225,8 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 			log.Printf("[SENTINEL] Agent Response: %s", strings.Join(textResponses, "\n"))
 		}
 
-		// 3. Check for Termination (Final Sovereign Audit)
-		if len(toolCalls) == 0 && strings.Contains(strings.Join(textResponses, ""), "Sovereign Audit Report") {
+	// 3. Check for Termination (Final Sovereign Audit)
+	if len(toolCalls) == 0 && containsSovereignAudit(textResponses) {
 			log.Printf("[SENTINEL] Termination detected via Audit Report.")
 			break
 		}
@@ -220,6 +286,12 @@ func (e *Engine) Execute(ctx *AgentContext) error {
 	}
 
 	log.Printf("[SENTINEL] Agent '%s' completed successfully.", ctx.Definition.Name)
+
+	ctx.EndTime = time.Now()
+	latency := float64(ctx.EndTime.Sub(ctx.StartTime).Milliseconds())
+
+	_ = persistMetrics(e.DB, ctx.StateID, ctx.TokensUsed, ctx.APICost, latency, priorTrust)
+
 	return nil
 }
 
@@ -239,9 +311,11 @@ func (e *Engine) processSubTasks(ctx *AgentContext) error {
 		if err := rows.Scan(&st.ID, &st.ParentTaskID, &st.Description, &st.Status, &st.BranchName, &capsJSON); err != nil {
 			return fmt.Errorf("engine: failed to scan sub-task: %w", err)
 		}
-		if err := json.Unmarshal([]byte(capsJSON), &st.RequiredCapabilities); err != nil {
+		subCaps, err := unmarshalCapabilities(capsJSON)
+		if err != nil {
 			return fmt.Errorf("engine: failed to unmarshal capabilities for sub-task %s: %w", st.ID, err)
 		}
+		st.RequiredCapabilities = subCaps
 		pending = append(pending, st)
 	}
 
@@ -313,6 +387,11 @@ func (e *Engine) executeToolsWithResults(ctx *AgentContext, toolCalls []map[stri
 		return nil, fmt.Errorf("engine: parallel execution failed: %w", err)
 	}
 	return results, nil
+}
+
+func isExplicitThoughtBlock(text string) bool {
+	trimmed := strings.TrimSpace(text)
+	return strings.HasPrefix(trimmed, "<think>") || strings.HasPrefix(trimmed, "```thought")
 }
 
 // runPACDeliberation executes the tripartite deliberation (Minimalist, Structuralist, Auditor).

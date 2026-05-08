@@ -1,6 +1,10 @@
-- [x] Task 1: Intent types, heuristic classifier, NilClassifier
-- [x] Task 2: GeminiClassifier
-- [x] Task 3: ContextStrategy and StrategyFor
-- [x] Task 4: Wire classifier into Factory and Engine
-- [x] Task 5: Disambiguator and VaguenessScore
-- [x] Task 6: CLI flags — sentinel plan --refine / --no-suggest
+{
+  "tasks": [
+    {
+      "id": "task-7-2-gate-b",
+      "description": "Retomar a execução do plano do Monitor de Entropia (docs/superpowers/plans/2026-05-07-real-time-entropy-monitor.md) a partir da Task 4. O foco é implementar o Gate B (Structural Validation) e os testes de interceptação no tools.go.",
+      "status": "pending",
+      "created_at": "2026-05-07T08:42:00Z"
+    }
+  ]
+}

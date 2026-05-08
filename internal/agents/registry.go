@@ -2,7 +2,6 @@ package agents
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -35,10 +34,11 @@ func (m *RegistryManager) SelectBest(ctx context.Context, caps []string) (*Speci
 			return nil, fmt.Errorf("registry: failed to scan specialist: %w", err)
 		}
 
-		if err := json.Unmarshal([]byte(capsJSON), &s.Capabilities); err != nil {
-			// If invalid JSON, skip or log? Standard #05 says consistent error handling.
+		specialistCaps, err := unmarshalCapabilities(capsJSON)
+		if err != nil {
 			continue
 		}
+		s.Capabilities = specialistCaps
 
 		if m.matchesAll(s.Capabilities, caps) {
 			return &s, nil

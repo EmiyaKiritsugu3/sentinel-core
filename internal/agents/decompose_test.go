@@ -6,19 +6,14 @@ import (
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/state"
-	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/testutil"
 )
 
 func TestDecomposeTool(t *testing.T) {
-	db, err := sqlite.Init()
-	if err != nil {
-		t.Fatalf("Failed to init DB: %v", err)
-	}
+	db := testutil.SetupTestDB(t)
 	defer db.Close()
-
-	// Ensure tables exist for the test
 	if err := graph.Migrate(db); err != nil {
-		t.Fatalf("Failed to migrate: %v", err)
+		t.Fatalf("failed to migrate test db: %v", err)
 	}
 
 	mgr := state.NewManager(db)
@@ -54,7 +49,6 @@ func TestDecomposeTool(t *testing.T) {
 
 	t.Logf("Result: %s", result)
 
-	// Verify DB
 	var count int
 	err = db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM sub_tasks WHERE parent_task_id = ?", taskID).Scan(&count)
 	if err != nil {

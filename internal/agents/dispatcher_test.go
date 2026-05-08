@@ -8,25 +8,19 @@ import (
 	"testing"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
-	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/testutil"
 )
 
 func TestDispatcher_ReconcileEvents(t *testing.T) {
 	ctx := context.Background()
-	db, err := sqlite.Init()
-	if err != nil {
-		t.Fatalf("failed to init db: %v", err)
-	}
+	db := testutil.SetupTestDB(t)
 	defer db.Close()
-	defer os.Remove(".sentinel/graph.db")
-
-	// Use graph.Migrate to ensure schema is correct (Issue fix for robust testing)
 	if err := graph.Migrate(db); err != nil {
-		t.Fatalf("failed to migrate db: %v", err)
+		t.Fatalf("failed to migrate test db: %v", err)
 	}
+	defer os.RemoveAll(".sentinel")
 
-	// Insert needed data for the test
-	_, err = db.Conn.ExecContext(ctx, "INSERT INTO tasks (id, description, status) VALUES ('parent-1', 'Parent Task', 'IN_PROGRESS')")
+	_, err := db.Conn.ExecContext(ctx, "INSERT INTO tasks (id, description, status) VALUES ('parent-1', 'Parent Task', 'IN_PROGRESS')")
 	if err != nil {
 		t.Fatalf("failed to insert parent task: %v", err)
 	}
@@ -37,7 +31,6 @@ func TestDispatcher_ReconcileEvents(t *testing.T) {
 
 	eventDir := ".sentinel/events"
 	os.MkdirAll(eventDir, 0755)
-	defer os.RemoveAll(".sentinel")
 
 	eventFile := filepath.Join(eventDir, "task-1.json")
 	eventData := map[string]string{

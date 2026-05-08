@@ -1,6 +1,7 @@
 package report
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,6 +24,7 @@ type ProjectStats struct {
 	CompletedTasks int
 	FailedTasks    int
 	SuccessRate    float64
+	AvgMathDelta   float64
 	Tasks          []TaskInfo
 }
 
@@ -36,22 +38,48 @@ func NewAggregator(db *sqlite.DB) *Aggregator {
 
 // FetchStats consolida todos os dados do SQLite
 func (a *Aggregator) FetchStats() (*ProjectStats, error) {
+	if a.db == nil || a.db.Conn == nil {
+		return nil, fmt.Errorf("aggregator: %w", sqlite.ErrNilDB)
+	}
+
 	stats := &ProjectStats{}
 
 	// 1. Contagem de Nós
-	a.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes").Scan(&stats.TotalNodes)
-	a.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes WHERE type = 'file'").Scan(&stats.TotalFiles)
-	a.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes WHERE type = 'function'").Scan(&stats.TotalFunctions)
-	a.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes WHERE type = 'struct'").Scan(&stats.TotalStructs)
+	if err := a.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes").Scan(&stats.TotalNodes); err != nil {
+		return nil, fmt.Errorf("aggregator: failed to count nodes: %w", err)
+	}
+	if err := a.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes WHERE type = 'file'").Scan(&stats.TotalFiles); err != nil {
+		return nil, fmt.Errorf("aggregator: failed to count files: %w", err)
+	}
+	if err := a.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes WHERE type = 'function'").Scan(&stats.TotalFunctions); err != nil {
+		return nil, fmt.Errorf("aggregator: failed to count functions: %w", err)
+	}
+	if err := a.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes WHERE type = 'struct'").Scan(&stats.TotalStructs); err != nil {
+		return nil, fmt.Errorf("aggregator: failed to count structs: %w", err)
+	}
 
 	// 2. Contagem de Tasks
-	a.db.Conn.QueryRow("SELECT COUNT(*) FROM tasks").Scan(&stats.TotalTasks)
-	a.db.Conn.QueryRow("SELECT COUNT(*) FROM tasks WHERE status = 'DONE'").Scan(&stats.CompletedTasks)
-	a.db.Conn.QueryRow("SELECT COUNT(*) FROM tasks WHERE status = 'FAILED'").Scan(&stats.FailedTasks)
+	if err := a.db.Conn.QueryRow("SELECT COUNT(*) FROM tasks").Scan(&stats.TotalTasks); err != nil {
+		return nil, fmt.Errorf("aggregator: failed to count tasks: %w", err)
+	}
+	if err := a.db.Conn.QueryRow("SELECT COUNT(*) FROM tasks WHERE status = 'DONE'").Scan(&stats.CompletedTasks); err != nil {
+		return nil, fmt.Errorf("aggregator: failed to count completed tasks: %w", err)
+	}
+	if err := a.db.Conn.QueryRow("SELECT COUNT(*) FROM tasks WHERE status = 'FAILED'").Scan(&stats.FailedTasks); err != nil {
+		return nil, fmt.Errorf("aggregator: failed to count failed tasks: %w", err)
+	}
 
-	// 3. Cálculo de Success Rate
+	// 3. Cálculo de Success Rate e SME
 	if stats.TotalTasks > 0 {
 		stats.SuccessRate = float64(stats.CompletedTasks) / float64(stats.TotalTasks) * 100
+
+		var avgDelta sql.NullFloat64
+		if err := a.db.Conn.QueryRow("SELECT AVG(math_delta) FROM tasks WHERE status = 'DONE'").Scan(&avgDelta); err != nil {
+			return nil, fmt.Errorf("aggregator: failed to calculate avg math delta: %w", err)
+		}
+		if avgDelta.Valid {
+			stats.AvgMathDelta = avgDelta.Float64
+		}
 	}
 
 	// 4. Listagem Detalhada de Tasks (Sovereign Link Discovery)
@@ -84,6 +112,7 @@ func (a *Aggregator) GenerateMarkdown(stats *ProjectStats) error {
 	content += "| Métrica | Valor |\n"
 	content += "| :--- | :--- |\n"
 	content += fmt.Sprintf("| **Engineering Success Rate** | %.2f%% |\n", stats.SuccessRate)
+	content += fmt.Sprintf("| **Sovereign Math Engine (Δ)** | %+.2f |\n", stats.AvgMathDelta)
 	content += fmt.Sprintf("| **Total Architecture Nodes** | %d |\n", stats.TotalNodes)
 	content += fmt.Sprintf("| **Files Tracked** | %d |\n", stats.TotalFiles)
 	content += fmt.Sprintf("| **Functions & Structs** | %d |\n", stats.TotalFunctions+stats.TotalStructs)

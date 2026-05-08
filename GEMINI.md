@@ -13,9 +13,18 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
 1. **Compiled Brain Priority**: Antes de começar QUALQUER tarefa, o agente DEVE ler `docs/process/wiki-index.md` e o `sentinel-log.md`. Esta é a fonte de verdade.
 2. **Startup Ritual (Auto-Bootstrap)**: No primeiro turno de cada sessão, o agente deve AUTOMATICAMENTE:
     - Ler o `sentinel-log.md` para recuperar o Handover.
+    - Ler o `docs/process/COGNITIVE-DNA.md` para carregar os Patches de Modus Operandi (PMOs).
     - Ler o `ROADMAP.md` para identificar o vetor atual.
     - Executar `sentinel scan` para sincronizar o grafo.
-    - Apresentar um resumo: "Sentinel Acordado: [Status], [Task Atual], [Próximo Passo]".
+    - Apresentar um resumo: "Sentinel Acordado: [Status], [Task Atual], [PMOs Aplicados]".
+
+## 🧬 Sentinel Evolution Cycle (SEC)
+
+1. **Protocolo de Auto-Aprimoramento**: Após qualquer correção externa (Review/Audit) ou erro de implementação, o agente DEVE identificar a "Linha de Ação Falha" (Anti-Padrão) e registrar no `docs/process/COGNITIVE-DNA.md`.
+2. **Cognitive Guardrails (Hardened)**:
+    - **CG-01 (Precision Over Velocity)**: Proibido o uso de `strings.Contains` para classificação sem teste de falso positivo.
+    - **CG-02 (Sovereign Isolation)**: Todo componente deve validar `nil` em dependências, independente do wiring global.
+    - **CG-03 (Additive Logic)**: Decisões multi-fatoriais DEVEM usar o padrão Acumulador, nunca switches binários.
 3. **Arqueologia Obrigatória (ADF)**: Antes de qualquer depuração de infraestrutura, deve-se realizar a análise histórica conforme `docs/process/ADF-PROTOCOL.md`.
 4. **Traceability Mandate**: Cada nova funcionalidade ou correção deve ser explicitamente linkada à sua Spec de origem e Plano de Execução no `wiki-index.md`.
 5. **Synthesis Requirement**: Após completar uma mudança arquitetural, o agente DEVE atualizar o `sentinel-log.md`.

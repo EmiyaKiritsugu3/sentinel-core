@@ -54,9 +54,21 @@ A visualização de arquitetura deve ser interativa.
 
 Tornar o sentinel consciente da intenção do usuário e do contexto semântico.
 
-- [ ] **Subsystem B — Smart Context Routing**: `IntentClassifier` (heurístico + Gemini fallback) + `ContextRouter` que seleciona nodes por intent (diagnose/implement/refactor/review). Spec: `docs/superpowers/specs/2026-05-04-prompt-intelligence-design.md`.
-- [ ] **Subsystem A — Input Disambiguation**: `Disambiguator` com `VaguenessScore` que detecta descrições vagas e sugere alternativas ancoradas no grafo. Flags `--refine` / `--no-suggest` no `sentinel plan`.
+- [x] **Subsystem B — Smart Context Routing**: `IntentClassifier` (heurístico + Gemini fallback) + `ContextRouter` que seleciona nodes por intent (diagnose/implement/refactor/review). Spec: `docs/superpowers/specs/2026-05-04-prompt-intelligence-design.md`.
+- [x] **Subsystem A — Input Disambiguation**: `Disambiguator` com `VaguenessScore` que detecta descrições vagas e sugere alternativas ancoradas no grafo. Flags `--refine` / `--no-suggest` no `sentinel plan`.
 *Critério de Sucesso: `sentinel plan "fix bug"` exibe sugestão ancorada no grafo; `GeneratePayload` injeta contexto diferenciado por intent.*
+
+---
+
+### Fase 7: The Mathematical Sovereignty (The Final Frontier)
+
+Elevar o Sentinel ao estado de Oráculo Matemático via Prova de Estabilidade.
+
+- [x] **Sovereign Math Engine (SME)**: Motor central de cálculo de métricas e estabilidade.
+- [x] **Real-Time Entropy Monitor**: Interrupção de alucinações via Gates A (λ) e B (AST).
+- [ ] **Lyapunov Divergence Detection**: Detecção de "Logic Drift" antes da renderização. *Foundation: `CalculateLambda` in `internal/math/formulas.go`.*
+- [ ] **Bayesian Trust Calibration**: Ajuste dinâmico de rigor baseado em evidência histórica. *Foundation: `readPriorTrust`/`persistTrust` in `internal/agents/engine.go`.*
+*Critério de Sucesso: Interrupção autônoma de 90% das alucinações baseada em métricas de probabilidade.*
 
 ---
 
