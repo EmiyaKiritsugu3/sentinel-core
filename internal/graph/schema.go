@@ -195,8 +195,21 @@ func Migrate(db *sqlite.DB) error {
 	return nil
 }
 
-// columnExistsInTx checks whether a column exists in a table using PRAGMA table_info.
 func columnExistsInTx(tx *sql.Tx, table, column string) (bool, error) {
+	var allowedTables = map[string]bool{
+		"tasks":          true,
+		"agent_trust":    true,
+		"specialist_registry": true,
+		"sub_tasks":      true,
+		"nodes":          true,
+		"edges":          true,
+		"audit_logs":     true,
+		"standards":      true,
+		"performance_logs": true,
+	}
+	if !allowedTables[table] {
+		return false, fmt.Errorf("migrate: unknown table %q", table)
+	}
 	rows, err := tx.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
 	if err != nil {
 		return false, err
