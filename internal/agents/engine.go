@@ -2,8 +2,6 @@ package agents
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -128,35 +126,10 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 
 	currentParts := []genai.Part{genai.Text(initialPrompt)}
 
-	var priorSuccesses, priorTotal int
-	if err := e.DB.Conn.QueryRow(
-		"SELECT successes, total FROM agent_trust WHERE agent_name = ?",
-		ctx.Definition.Name,
-	).Scan(&priorSuccesses, &priorTotal); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		log.Printf("[SENTINEL] Warning: failed to read prior trust for '%s': %v", ctx.Definition.Name, err)
-	}
-	priorTrust := math.CalculateTrustScore(priorSuccesses, priorTotal)
+	priorSuccesses, priorTotal, priorTrust, _ := readPriorTrust(e.DB, ctx.Definition.Name)
 
 	defer func() {
-		success := retErr == nil
-		newTotal := priorTotal + 1
-		newSuccesses := priorSuccesses
-		if success {
-			newSuccesses++
-		}
-		trustScore := math.CalculateTrustScore(newSuccesses, newTotal)
-		if _, err := e.DB.Conn.Exec(
-			`INSERT INTO agent_trust (agent_name, successes, total, trust_score)
-			 VALUES (?, ?, ?, ?)
-			 ON CONFLICT(agent_name) DO UPDATE SET
-			     successes = excluded.successes,
-			     total = excluded.total,
-			     trust_score = excluded.trust_score,
-			     updated_at = CURRENT_TIMESTAMP`,
-			ctx.Definition.Name, newSuccesses, newTotal, trustScore,
-		); err != nil {
-			log.Printf("[SENTINEL] Warning: failed to persist trust for '%s' (successes=%d total=%d trust=%.4f): %v", ctx.Definition.Name, newSuccesses, newTotal, trustScore, err)
-		}
+		_ = persistTrust(e.DB, ctx.Definition.Name, priorSuccesses, priorTotal, retErr == nil)
 	}()
 
 	for {
@@ -185,71 +158,36 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 			ctx.Budget.AddTokens(count)
 		}
 
-		if len(resp.Candidates) > 0 && resp.Candidates[0].Content != nil {
-			content := resp.Candidates[0].Content
+	if len(resp.Candidates) > 0 && resp.Candidates[0].Content != nil {
+		content := resp.Candidates[0].Content
 
-			// Approximation logic
-			actionChars := 0
-			thoughtChars := 0
+		stepActionTokens, stepThoughtTokens := countThoughtActionTokens(content.Parts)
+		ctx.ActionTokens += stepActionTokens
+		ctx.ThoughtTokens += stepThoughtTokens
 
-			for _, part := range content.Parts {
-				if text, ok := part.(genai.Text); ok {
-					// Fallback heuristic: only explicit thought blocks count as reasoning.
-					sText := string(text)
-					if isExplicitThoughtBlock(sText) {
-						thoughtChars += len(sText)
-					} else {
-						actionChars += len(sText)
-					}
-				}
+		stepLambda := math.CalculateLambda(stepActionTokens, stepThoughtTokens)
+		lambda := math.CalculateLambda(ctx.ActionTokens, ctx.ThoughtTokens)
+
+		if ctx.Definition.MaxLambda != nil {
+			effectiveMaxLambda := *ctx.Definition.MaxLambda * math.TrustToDynamicLambda(priorTrust)
+			if intervene, msg := checkGateA(lambda, effectiveMaxLambda); intervene {
+				ctx.Budget.IncSteps()
+				currentParts = []genai.Part{genai.Text(msg)}
+				ctx.PreviousLambda = stepLambda
+				continue
 			}
-
-			// Convert to approx tokens (1 token ≈ 4 chars)
-			stepActionTokens := actionChars / 4
-			stepThoughtTokens := thoughtChars / 4
-			ctx.ActionTokens += stepActionTokens
-			ctx.ThoughtTokens += stepThoughtTokens
-
-			// stepLambda: per-step ratio for divergence tracking (Gate A.5).
-			// lambda: cumulative ratio for overall quality gate (Gate A).
-			stepLambda := math.CalculateLambda(stepActionTokens, stepThoughtTokens)
-			lambda := math.CalculateLambda(ctx.ActionTokens, ctx.ThoughtTokens)
-
-			// Gate A uses cumulative lambda to judge overall session quality.
-			if ctx.Definition.MaxLambda != nil {
-				effectiveMaxLambda := *ctx.Definition.MaxLambda * math.TrustToDynamicLambda(priorTrust)
-				if lambda > effectiveMaxLambda {
-					log.Printf("[GATE A] Entropy threshold exceeded (λ=%.2f > EffectiveMax=%.2f). Interrupting execution.", lambda, effectiveMaxLambda)
-					ctx.Budget.IncSteps()
-					currentParts = []genai.Part{genai.Text(fmt.Sprintf("GATE A INTERVENTION: Your action-to-thought ratio is too high (%.2f). You are hallucinating excessive code without planning. Re-evaluate your strategy and output a detailed thought process before proceeding.", lambda))}
-					ctx.PreviousLambda = stepLambda
-					continue
-				}
-			}
-
-			// Gate A.5: Lyapunov divergence detection uses per-step lambda to catch
-			// sharp trajectory shifts that cumulative averaging would smooth away.
-			if ctx.PreviousLambda > 0 {
-				divergence := math.CalculateDivergence(stepLambda, ctx.PreviousLambda)
-				const divergenceThreshold = 1.0
-				if divergence > divergenceThreshold {
-					ctx.DivergenceCount++
-					if ctx.DivergenceCount >= 2 {
-						log.Printf("[GATE A.5] Logic Drift detected (divergence=%.2f, consecutive=%d). Interrupting.", divergence, ctx.DivergenceCount)
-						ctx.Budget.IncSteps()
-						currentParts = []genai.Part{genai.Text(fmt.Sprintf(
-							"GATE A.5 INTERVENTION: Logic Drift detected. Your reasoning trajectory is diverging (Δλ=%.2f). Stop and re-plan from scratch before generating more code.",
-							divergence,
-						))}
-						ctx.PreviousLambda = stepLambda
-						continue
-					}
-				} else {
-					ctx.DivergenceCount = 0 // reset on stable step
-				}
-			}
-			ctx.PreviousLambda = stepLambda
 		}
+
+		newDivCount, intervene, msg := checkGateA5(stepLambda, ctx.PreviousLambda, ctx.DivergenceCount)
+		ctx.DivergenceCount = newDivCount
+		if intervene {
+			ctx.Budget.IncSteps()
+			currentParts = []genai.Part{genai.Text(msg)}
+			ctx.PreviousLambda = stepLambda
+			continue
+		}
+		ctx.PreviousLambda = stepLambda
+	}
 
 		if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
 			return fmt.Errorf("gemini: empty response from model")
@@ -275,8 +213,8 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 			log.Printf("[SENTINEL] Agent Response: %s", strings.Join(textResponses, "\n"))
 		}
 
-		// 3. Check for Termination (Final Sovereign Audit)
-		if len(toolCalls) == 0 && strings.Contains(strings.Join(textResponses, ""), "Sovereign Audit Report") {
+	// 3. Check for Termination (Final Sovereign Audit)
+	if len(toolCalls) == 0 && containsSovereignAudit(textResponses) {
 			log.Printf("[SENTINEL] Termination detected via Audit Report.")
 			break
 		}
@@ -340,13 +278,7 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 	ctx.EndTime = time.Now()
 	latency := float64(ctx.EndTime.Sub(ctx.StartTime).Milliseconds())
 
-	probHallucination := 1.0 - priorTrust
-	delta := math.CalculateDelta(probHallucination, 5.0, latency, ctx.APICost)
-
-	query := "UPDATE tasks SET latency_ms = ?, tokens_used = ?, api_cost = ?, math_delta = ? WHERE id = ?"
-	if _, err := e.DB.Conn.Exec(query, latency, ctx.TokensUsed, ctx.APICost, delta, ctx.StateID); err != nil {
-		log.Printf("[SENTINEL] Warning: failed to persist math metrics for task %s: %v", ctx.StateID, err)
-	}
+	_ = persistMetrics(e.DB, ctx.StateID, ctx.TokensUsed, ctx.APICost, latency, priorTrust)
 
 	return nil
 }
