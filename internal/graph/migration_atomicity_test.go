@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
-	_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite" // registers the "sqlite" driver for database/sql
 )
 
 func TestMigrateAtomicity(t *testing.T) {
@@ -35,21 +35,24 @@ func TestMigrateAtomicity(t *testing.T) {
 	// We'll create a conflict that causes the COMMIT or an intermediate step to fail.
 	// Let's create a table that 'schema' wants to create, but with incompatible structure or something
 	// or easier: just drop the db and start fresh, then make it fail halfway.
-	
+
 	dbPath2 := filepath.Join(tmpDir, "test_rollback.db")
-	sqlDB2, _ := sql.Open("sqlite", dbPath2)
+	sqlDB2, err := sql.Open("sqlite", dbPath2)
+	if err != nil {
+		t.Fatalf("failed to open rollback test db: %v", err)
+	}
 	defer sqlDB2.Close()
 	db2 := &sqlite.DB{Conn: sqlDB2}
 
-	// Pre-insert a specialist with an ID that Migrate will try to insert, 
-	// but make it fail by adding a NOT NULL constraint on a field Migrate doesn't provide? 
+	// Pre-insert a specialist with an ID that Migrate will try to insert,
+	// but make it fail by adding a NOT NULL constraint on a field Migrate doesn't provide?
 	// No, Migrate provides all.
 	// Let's force a failure by dropping the table just before Commit if we could.
 	// Alternatively, we can use a "bad" migration string if we could inject it.
-	
+
 	// Let's use the property that we can't ALTER a table that doesn't exist.
 	// If we pre-insert something into specialist_registry but the schema creation fails?
-	
+
 	// Actually, let's just verify that if Migrate fails, no tables exist.
 	// To make it fail: we can lock the database or use a read-only connection?
 	// SQLite specific: "PRAGMA query_only = ON;"

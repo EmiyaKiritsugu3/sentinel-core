@@ -103,6 +103,10 @@ func (e *Engine) getGenaiTools() []*genai.Tool {
 
 // Execute starts the execution of a subagent for a given task.
 func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
+	if e.DB == nil || e.DB.Conn == nil {
+		return fmt.Errorf("engine: DB not initialized")
+	}
+
 	defer ctx.Cancel()
 
 	ctx.StartTime = time.Now()
@@ -200,25 +204,32 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 			}
 
 			// Convert to approx tokens (1 token ≈ 4 chars)
-			ctx.ActionTokens += actionChars / 4
-			ctx.ThoughtTokens += thoughtChars / 4
+			stepActionTokens := actionChars / 4
+			stepThoughtTokens := thoughtChars / 4
+			ctx.ActionTokens += stepActionTokens
+			ctx.ThoughtTokens += stepThoughtTokens
 
+			// stepLambda: per-step ratio for divergence tracking (Gate A.5).
+			// lambda: cumulative ratio for overall quality gate (Gate A).
+			stepLambda := math.CalculateLambda(stepActionTokens, stepThoughtTokens)
 			lambda := math.CalculateLambda(ctx.ActionTokens, ctx.ThoughtTokens)
+
+			// Gate A uses cumulative lambda to judge overall session quality.
 			if ctx.Definition.MaxLambda != nil {
 				effectiveMaxLambda := *ctx.Definition.MaxLambda * math.TrustToDynamicLambda(priorTrust)
 				if lambda > effectiveMaxLambda {
 					log.Printf("[GATE A] Entropy threshold exceeded (λ=%.2f > EffectiveMax=%.2f). Interrupting execution.", lambda, effectiveMaxLambda)
-					// Consume a budget step for hallucination interruption
 					ctx.Budget.IncSteps()
 					currentParts = []genai.Part{genai.Text(fmt.Sprintf("GATE A INTERVENTION: Your action-to-thought ratio is too high (%.2f). You are hallucinating excessive code without planning. Re-evaluate your strategy and output a detailed thought process before proceeding.", lambda))}
-					ctx.PreviousLambda = lambda
+					ctx.PreviousLambda = stepLambda
 					continue
 				}
 			}
 
-			// Gate A.5: Lyapunov divergence detection
+			// Gate A.5: Lyapunov divergence detection uses per-step lambda to catch
+			// sharp trajectory shifts that cumulative averaging would smooth away.
 			if ctx.PreviousLambda > 0 {
-				divergence := math.CalculateDivergence(lambda, ctx.PreviousLambda)
+				divergence := math.CalculateDivergence(stepLambda, ctx.PreviousLambda)
 				const divergenceThreshold = 1.0
 				if divergence > divergenceThreshold {
 					ctx.DivergenceCount++
@@ -229,14 +240,14 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 							"GATE A.5 INTERVENTION: Logic Drift detected. Your reasoning trajectory is diverging (Δλ=%.2f). Stop and re-plan from scratch before generating more code.",
 							divergence,
 						))}
-						ctx.PreviousLambda = lambda
+						ctx.PreviousLambda = stepLambda
 						continue
 					}
 				} else {
 					ctx.DivergenceCount = 0 // reset on stable step
 				}
 			}
-			ctx.PreviousLambda = lambda
+			ctx.PreviousLambda = stepLambda
 		}
 
 		if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {

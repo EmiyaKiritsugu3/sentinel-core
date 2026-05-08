@@ -1,9 +1,10 @@
 package graph
 
 import (
+	"database/sql"
 	"fmt"
+
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
-	"strings"
 )
 
 const schema = `
@@ -116,6 +117,10 @@ CREATE TABLE IF NOT EXISTS agent_trust (
 `
 
 func Migrate(db *sqlite.DB) error {
+	if db == nil || db.Conn == nil {
+		return fmt.Errorf("migrate: nil db")
+	}
+
 	tx, err := db.Conn.Begin()
 	if err != nil {
 		return fmt.Errorf("migrate: could not begin transaction: %w", err)
@@ -132,25 +137,32 @@ func Migrate(db *sqlite.DB) error {
 		return fmt.Errorf("could not run migration schema: %w", err)
 	}
 
-	// Migrations for SME Phase 1 metrics
-	migrations := []string{
-		"ALTER TABLE tasks ADD COLUMN latency_ms REAL DEFAULT 0;",
-		"ALTER TABLE tasks ADD COLUMN tokens_used INTEGER DEFAULT 0;",
-		"ALTER TABLE tasks ADD COLUMN api_cost REAL DEFAULT 0;",
-		"ALTER TABLE tasks ADD COLUMN math_delta REAL DEFAULT 0;",
-		"ALTER TABLE agent_trust RENAME COLUMN specialist_id TO agent_name;",
+	// Migrations for SME Phase 1 metrics — guarded by column-existence checks
+	// to avoid swallowing unrelated SQLite errors via substring matching.
+	type colMig struct {
+		table, column, sql string
 	}
-	for _, m := range migrations {
-		_, err = tx.Exec(m)
-		if err != nil {
-			// STD-05: Specific error handling for SQLite idempotent migrations
-			errMsg := err.Error()
-			if strings.Contains(errMsg, "duplicate column name") ||
-				strings.Contains(errMsg, "no such column") {
-				err = nil // Reset error for already-applied migrations
-				continue
+	for _, m := range []colMig{
+		{"tasks", "latency_ms", "ALTER TABLE tasks ADD COLUMN latency_ms REAL DEFAULT 0;"},
+		{"tasks", "tokens_used", "ALTER TABLE tasks ADD COLUMN tokens_used INTEGER DEFAULT 0;"},
+		{"tasks", "api_cost", "ALTER TABLE tasks ADD COLUMN api_cost REAL DEFAULT 0;"},
+		{"tasks", "math_delta", "ALTER TABLE tasks ADD COLUMN math_delta REAL DEFAULT 0;"},
+	} {
+		exists, checkErr := columnExistsInTx(tx, m.table, m.column)
+		if checkErr != nil {
+			return fmt.Errorf("migrate: checking %s.%s: %w", m.table, m.column, checkErr)
+		}
+		if !exists {
+			if _, err = tx.Exec(m.sql); err != nil {
+				return fmt.Errorf("migrate: %s: %w", m.sql, err)
 			}
-			return fmt.Errorf("migrate: failed execution of %s: %w", m, err)
+		}
+	}
+
+	// Rename specialist_id → agent_name if the old column name still exists.
+	if oldExists, _ := columnExistsInTx(tx, "agent_trust", "specialist_id"); oldExists {
+		if _, err = tx.Exec("ALTER TABLE agent_trust RENAME COLUMN specialist_id TO agent_name;"); err != nil {
+			return fmt.Errorf("migrate: rename specialist_id: %w", err)
 		}
 	}
 
@@ -177,4 +189,27 @@ func Migrate(db *sqlite.DB) error {
 	}
 
 	return nil
+}
+
+// columnExistsInTx checks whether a column exists in a table using PRAGMA table_info.
+func columnExistsInTx(tx *sql.Tx, table, column string) (bool, error) {
+	rows, err := tx.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var name, colType string
+		var notNull int
+		var dfltValue interface{}
+		var pk int
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
+			return false, err
+		}
+		if name == column {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
 }

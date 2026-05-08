@@ -488,6 +488,12 @@ A base matemática está sólida. O Sentinel agora coleta latência, tokens e cu
 
 Os parâmetros de "Probabilidade de Alucinação" e "Peso do Bug" na fórmula de $\Delta$ são atualmente valores estáticos. Precisam ser movidos para a `AgentDefinition` na próxima fase.
 
+### 🎯 Chief's Priority (First Command)
+
+**"Sentinel, inicie a Fase 7.2: Real-Time Entropy Monitor. O foco é implementar o Gate A (λ threshold) e o Gate B (AST validation) no loop da Engine para interromper alucinações em tempo real."**
+
+---
+
 ## [2026-05-07] Milestone: Entropy Monitor Gate A [PID-SENTINEL-ENTROPY-GATE-A]
 
 **Status**: COMPLETED (Partial) 🛡️

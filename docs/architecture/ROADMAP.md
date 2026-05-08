@@ -58,6 +58,8 @@ Tornar o sentinel consciente da intenção do usuário e do contexto semântico.
 - [x] **Subsystem A — Input Disambiguation**: `Disambiguator` com `VaguenessScore` que detecta descrições vagas e sugere alternativas ancoradas no grafo. Flags `--refine` / `--no-suggest` no `sentinel plan`.
 *Critério de Sucesso: `sentinel plan "fix bug"` exibe sugestão ancorada no grafo; `GeneratePayload` injeta contexto diferenciado por intent.*
 
+---
+
 ### Fase 7: The Mathematical Sovereignty (The Final Frontier)
 
 Elevar o Sentinel ao estado de Oráculo Matemático via Prova de Estabilidade.
