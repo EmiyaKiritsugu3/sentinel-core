@@ -1,5 +1,7 @@
 package math
 
+import gomath "math"
+
 // SME Constants for weighting
 const (
 	WeightLatency = 0.001 // Penalty per ms
@@ -28,6 +30,16 @@ func CalculateTrustScore(successes, total int) float64 {
 // Range: 0.5 (trust=0) → 1.5 (trust=1)
 func TrustToDynamicLambda(trustScore float64) float64 {
 	return 0.5 + trustScore
+}
+
+// CalculateDivergence computes the relative rate of change between two lambda values.
+// Returns 0 if both are zero. Used as a Lyapunov proxy for reasoning stability.
+func CalculateDivergence(lambdaCurrent, lambdaPrevious float64) float64 {
+	denominator := lambdaPrevious
+	if denominator < 1e-9 {
+		denominator = 1e-9
+	}
+	return gomath.Abs(lambdaCurrent-lambdaPrevious) / denominator
 }
 
 // CalculateLambda computes the cognitive averaging metric (Action Tokens / Thought Tokens).

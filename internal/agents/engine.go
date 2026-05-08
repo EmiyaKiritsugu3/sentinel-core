@@ -214,6 +214,28 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 					continue
 				}
 			}
+
+			// Gate A.5: Lyapunov divergence detection
+			if ctx.PreviousLambda > 0 {
+				divergence := math.CalculateDivergence(lambda, ctx.PreviousLambda)
+				const divergenceThreshold = 1.0
+				if divergence > divergenceThreshold {
+					ctx.DivergenceCount++
+					if ctx.DivergenceCount >= 2 {
+						log.Printf("[GATE A.5] Logic Drift detected (divergence=%.2f, consecutive=%d). Interrupting.", divergence, ctx.DivergenceCount)
+						ctx.Budget.IncSteps()
+						currentParts = []genai.Part{genai.Text(fmt.Sprintf(
+							"GATE A.5 INTERVENTION: Logic Drift detected. Your reasoning trajectory is diverging (Δλ=%.2f). Stop and re-plan from scratch before generating more code.",
+							divergence,
+						))}
+						ctx.PreviousLambda = lambda
+						continue
+					}
+				} else {
+					ctx.DivergenceCount = 0 // reset on stable step
+				}
+			}
+			ctx.PreviousLambda = lambda
 		}
 
 		if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {

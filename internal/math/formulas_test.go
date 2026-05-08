@@ -42,6 +42,31 @@ func TestTrustToDynamicLambda(t *testing.T) {
 	}
 }
 
+func TestCalculateDivergence(t *testing.T) {
+	tests := []struct {
+		name     string
+		current  float64
+		previous float64
+		wantHigh bool // true = expect divergence > 1.0
+	}{
+		{"stable", 2.1, 2.0, false},          // 5% change = stable
+		{"high_divergence", 4.0, 1.0, true},  // 300% change = diverging
+		{"zero_previous", 1.0, 0.0, true},    // uses 1e-9 denominator
+		{"both_zero", 0.0, 0.0, false},       // 0/1e-9 = 0
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := math.CalculateDivergence(tt.current, tt.previous)
+			if tt.wantHigh && got <= 1.0 {
+				t.Errorf("%s: expected divergence > 1.0, got %.4f", tt.name, got)
+			}
+			if !tt.wantHigh && got > 1.0 {
+				t.Errorf("%s: expected divergence <= 1.0, got %.4f", tt.name, got)
+			}
+		})
+	}
+}
+
 func TestCalculateLambda(t *testing.T) {
 	tests := []struct {
 		name       string

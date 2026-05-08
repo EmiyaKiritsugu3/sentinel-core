@@ -84,6 +84,10 @@ type AgentContext struct {
 	APICost         float64
 	ActionTokens    int // Execution phase tokens
 	ThoughtTokens   int // Reasoning phase tokens
+
+	// Lyapunov Divergence Detection (Gate A.5)
+	PreviousLambda  float64 // Lambda from the previous step (for divergence calc)
+	DivergenceCount int     // Consecutive steps with high divergence
 }
 
 // SubTask represents a unit of work assigned to a specialist (PID-SENTINEL-5.7).
