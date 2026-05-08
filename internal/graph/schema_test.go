@@ -120,3 +120,23 @@ func TestMigrate_ClosedDB(t *testing.T) {
 		t.Fatal("expected error for closed db connection")
 	}
 }
+
+func TestColumnExistsInTx_UnknownTable(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	defer db.Close()
+
+	if err := Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	tx, err := db.Conn.Begin()
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	defer tx.Rollback()
+
+	_, err = columnExistsInTx(tx, "nonexistent_table", "col")
+	if err == nil {
+		t.Fatal("expected error for unknown table")
+	}
+}

@@ -340,3 +340,36 @@ func TestADRTool_ValidateArguments_MissingField(t *testing.T) {
 		t.Fatal("expected error for missing ADR fields")
 	}
 }
+
+func TestWriteFileTool_Execute_InvalidGoCode(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "bad.go")
+
+	tool := &WriteFileTool{}
+	_, err := tool.Execute(context.Background(), map[string]interface{}{
+		"path":    tmpFile,
+		"content": "package main\nfunc broken({",
+	})
+	if err == nil {
+		t.Fatal("expected Gate B rejection for invalid Go syntax")
+	}
+}
+
+func TestReplaceTool_Execute_InvalidGoCode(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "replace.go")
+	initialContent := "package main\n\nfunc hello() {}\n"
+	if err := os.WriteFile(tmpFile, []byte(initialContent), 0644); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	tool := &ReplaceTool{}
+	_, err := tool.Execute(context.Background(), map[string]interface{}{
+		"path":       tmpFile,
+		"old_string": "func hello() {}",
+		"new_string": "func broken({",
+	})
+	if err == nil {
+		t.Fatal("expected Gate B rejection for invalid Go syntax after replace")
+	}
+}
