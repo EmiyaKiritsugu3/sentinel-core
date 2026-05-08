@@ -78,12 +78,12 @@ type AgentContext struct {
 	Strategy     string // Current technical strategy (Sovereign Pivot)
 
 	// SME Metrics
-	StartTime       time.Time
-	EndTime         time.Time
-	TokensUsed      int
-	APICost         float64
-	ActionTokens    int // Execution phase tokens
-	ThoughtTokens   int // Reasoning phase tokens
+	StartTime     time.Time
+	EndTime       time.Time
+	TokensUsed    int
+	APICost       float64
+	ActionTokens  int // Execution phase tokens
+	ThoughtTokens int // Reasoning phase tokens
 
 	// Lyapunov Divergence Detection (Gate A.5)
 	PreviousLambda  float64 // Lambda from the previous step (for divergence calc)

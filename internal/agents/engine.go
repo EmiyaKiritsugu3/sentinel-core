@@ -146,7 +146,7 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 			newSuccesses++
 		}
 		trustScore := math.CalculateTrustScore(newSuccesses, newTotal)
-		_, _ = e.DB.Conn.Exec(
+		if _, err := e.DB.Conn.Exec(
 			`INSERT INTO agent_trust (agent_name, successes, total, trust_score)
 			 VALUES (?, ?, ?, ?)
 			 ON CONFLICT(agent_name) DO UPDATE SET
@@ -155,7 +155,9 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 			     trust_score = excluded.trust_score,
 			     updated_at = CURRENT_TIMESTAMP`,
 			ctx.Definition.Name, newSuccesses, newTotal, trustScore,
-		)
+		); err != nil {
+			log.Printf("[SENTINEL] Warning: failed to persist trust for '%s' (successes=%d total=%d trust=%.4f): %v", ctx.Definition.Name, newSuccesses, newTotal, trustScore, err)
+		}
 	}()
 
 	for {
@@ -193,9 +195,9 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 
 			for _, part := range content.Parts {
 				if text, ok := part.(genai.Text); ok {
-					// Fallback heuristic: If it looks like a thought block `<think>`
+					// Fallback heuristic: only explicit thought blocks count as reasoning.
 					sText := string(text)
-					if strings.Contains(sText, "<think>") || strings.Contains(sText, "```thought") {
+					if isExplicitThoughtBlock(sText) {
 						thoughtChars += len(sText)
 					} else {
 						actionChars += len(sText)
@@ -440,6 +442,11 @@ func (e *Engine) executeToolsWithResults(ctx *AgentContext, toolCalls []map[stri
 		return nil, fmt.Errorf("engine: parallel execution failed: %w", err)
 	}
 	return results, nil
+}
+
+func isExplicitThoughtBlock(text string) bool {
+	trimmed := strings.TrimSpace(text)
+	return strings.HasPrefix(trimmed, "<think>") || strings.HasPrefix(trimmed, "```thought")
 }
 
 // runPACDeliberation executes the tripartite deliberation (Minimalist, Structuralist, Auditor).
