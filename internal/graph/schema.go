@@ -195,22 +195,26 @@ func Migrate(db *sqlite.DB) error {
 	return nil
 }
 
+// pragmaTableInfo maps known schema tables to their PRAGMA queries,
+// avoiding dynamic SQL construction (SonarCloud rule S2077).
+var pragmaTableInfo = map[string]string{
+	"tasks":               "PRAGMA table_info(tasks)",
+	"agent_trust":         "PRAGMA table_info(agent_trust)",
+	"specialist_registry": "PRAGMA table_info(specialist_registry)",
+	"sub_tasks":           "PRAGMA table_info(sub_tasks)",
+	"nodes":               "PRAGMA table_info(nodes)",
+	"edges":               "PRAGMA table_info(edges)",
+	"audit_logs":          "PRAGMA table_info(audit_logs)",
+	"standards":           "PRAGMA table_info(standards)",
+	"performance_logs":    "PRAGMA table_info(performance_logs)",
+}
+
 func columnExistsInTx(tx *sql.Tx, table, column string) (bool, error) {
-	var allowedTables = map[string]bool{
-		"tasks":          true,
-		"agent_trust":    true,
-		"specialist_registry": true,
-		"sub_tasks":      true,
-		"nodes":          true,
-		"edges":          true,
-		"audit_logs":     true,
-		"standards":      true,
-		"performance_logs": true,
-	}
-	if !allowedTables[table] {
+	query, ok := pragmaTableInfo[table]
+	if !ok {
 		return false, fmt.Errorf("migrate: unknown table %q", table)
 	}
-	rows, err := tx.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
+	rows, err := tx.Query(query)
 	if err != nil {
 		return false, err
 	}
