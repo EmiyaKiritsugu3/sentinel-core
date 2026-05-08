@@ -209,3 +209,48 @@ func TestDecomposeTool_ValidateArguments_Valid(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestDecomposeTool_ValidateArguments_InvalidSubtaskType(t *testing.T) {
+	tool := &DecomposeTool{}
+	args := map[string]interface{}{
+		"subtasks": []interface{}{
+			"not-a-map",
+		},
+	}
+	err := tool.ValidateArguments(nil, args)
+	if err == nil {
+		t.Fatal("expected error for invalid subtask object type")
+	}
+}
+
+func TestDecomposeTool_ValidateArguments_NonStringCapability(t *testing.T) {
+	tool := &DecomposeTool{}
+	args := map[string]interface{}{
+		"subtasks": []interface{}{
+			map[string]interface{}{"description": "do stuff", "capabilities": []interface{}{42}, "branch_name": "b1"},
+		},
+	}
+	err := tool.ValidateArguments(nil, args)
+	if err == nil {
+		t.Fatal("expected error for non-string capability")
+	}
+}
+
+func TestDecomposeTool_ValidateArguments_MissingSubtasksKey(t *testing.T) {
+	tool := &DecomposeTool{}
+	err := tool.ValidateArguments(nil, map[string]interface{}{})
+	if err == nil {
+		t.Fatal("expected error for missing subtasks key")
+	}
+}
+
+func TestDecomposeTool_ValidateArguments_SubtasksNotArray(t *testing.T) {
+	tool := &DecomposeTool{}
+	args := map[string]interface{}{
+		"subtasks": "not-an-array",
+	}
+	err := tool.ValidateArguments(nil, args)
+	if err == nil {
+		t.Fatal("expected error for subtasks not being an array")
+	}
+}
