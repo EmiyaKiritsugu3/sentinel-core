@@ -7,7 +7,7 @@
 
 ## [2026-04-28] Dashboard & Discovery (Filtro A)
 
-- **Scalability of Glob**: O uso de `filepath.Glob` para descobrir ADRs no Aggregator é $O(N)$ sobre o sistema de arquivos. Para projetos massivos, isso se tornará um gargalo de I/O.
+- **Scalability of Glob**: O uso de `filepath.Glob` para descobrir ADRs no Aggregator é `O(N)` sobre o sistema de arquivos. Para projetos massivos, isso se tornará um gargalo de I/O.
 - **Dashboard Growth**: `COMPLIANCE-DASHBOARD.md` crescerá linearmente. Falta suporte para arquivamento ou paginação.
 - **Missing CLI Metadata**: O relatório CLI não exibe o `created_at`, dificultando a análise cronológica.
 
@@ -18,7 +18,7 @@
 
 ## [2026-05-06] Sovereign Math Engine (Filtro A)
 
-- **Static SME Parameters**: A fórmula de $\Delta$ no `engine.go` utiliza valores estáticos para $P_h$ (0.5) e $W_b$ (5.0). Isso impede o ajuste fino por especialista (ex: Auditor deve ter $P_h$ maior). Fix: mover parâmetros para `AgentDefinition` ou implementar o nó Bayesiano (Fase 7.3).
+- **Static SME Parameters**: A fórmula de `Δ` no `engine.go` utiliza valores estáticos para `P_h` (0.5) e `W_b` (5.0). Isso impede o ajuste fino por especialista (ex: Auditor deve ter `P_h` maior). Fix: mover parâmetros para `AgentDefinition` ou implementar o nó Bayesiano (Fase 7.3).
 
 ---
 *Assinado: Security Auditor & Senior Architect*

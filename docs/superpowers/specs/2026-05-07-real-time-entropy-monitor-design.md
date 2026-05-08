@@ -14,13 +14,13 @@ The Circuit Breaker operates in two sequential phases within `internal/agents/en
 
 This gate exploits Gemini 3.1's `ThinkingConfig` to measure the density of the reasoning process before accepting the execution.
 
-* **The Metric ($\lambda$):** $\lambda = \frac{\text{Tokens de Ação (Código Gerado)}}{\text{Tokens de Raciocínio (Thought)}}$
+* **The Metric (`λ`):** `λ = action_tokens / thought_tokens`
 * **Zero-Thought Handling:** `CalculateLambda(action_tokens, thought_tokens)` must return a defined value when `thought_tokens == 0`; the current implementation uses `action_tokens` as the finite high-risk lambda proxy. If that value exceeds the threshold, clients surface it as a Gate A interruption rather than a division-by-zero failure.
-* **Mechanism:** If $\lambda$ exceeds a defined threshold, it mathematically indicates "high predictive uncertainty" (lazy thought vs. massive output). The engine interrupts the execution.
+* **Mechanism:** If `λ` exceeds a defined threshold, it mathematically indicates "high predictive uncertainty" (lazy thought vs. massive output). The engine interrupts the execution.
 * **StepBudget Accounting:** Gate A consumes 1 `StepBudget` unit when it halts execution due to high lambda. Gate B consumes 1 `StepBudget` unit when it blocks filesystem tool execution after isomorphism = 0. If both gates trigger in separate phases of the same task, each consumes its own unit.
-* **Dynamic Sovereignty:** The maximum allowed lambda ($\lambda_{max}$) is not static. It is defined per specialist profile in `AgentDefinition`.
-  * *Implementer*: High tolerance ($\lambda_{max} = 5.0$)
-  * *Security Auditor*: Low tolerance ($\lambda_{max} = 0.5$)
+* **Dynamic Sovereignty:** The maximum allowed lambda (`λ_max`) is not static. It is defined per specialist profile in `AgentDefinition`.
+* *Implementer*: High tolerance (`λ_max = 5.0`)
+* *Security Auditor*: Low tolerance (`λ_max = 0.5`)
 * **Implementation:** The `CalculateLambda` function will be added to `internal/math/formulas.go`.
 
 ### 2.2. Gate B: Isomorphism Proxy (Structural Validation)
@@ -37,6 +37,6 @@ This is the ultimate "Hard Gate." It ensures that syntactically broken code neve
 
 1. **Metric Integration:** Add `CalculateLambda` to `internal/math`.
 2. **Configuration:** Extend `AgentDefinition` to include `MaxLambda`.
-3. **Engine Interception:** Update `Engine.Execute` to intercept `part.Thought` and calculate $\lambda$ during streaming responses.
+3. **Engine Interception:** Update `Engine.Execute` to intercept `part.Thought` and calculate `λ` during streaming responses.
 4. **Tool Wrapping:** Create a secure wrapper around filesystem tools that injects the in-memory Tree-sitter validation (Gate B) before allowing disk writes.
 5. **Testing:** Implement unit tests for both Gate A calculations and Gate B AST interceptions.

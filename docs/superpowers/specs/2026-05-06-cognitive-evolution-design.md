@@ -37,7 +37,7 @@ We must avoid loading the entire history into the AI's prompt.
 ### Pillar 3: The Compaction (Garbage Collection)
 Negative constraints ("Don't do X") confuse LLMs.
 - **Mechanism:** During `sentinel evolve`, the system reviews the current `COGNITIVE-DNA.md`.
-- **Logic:** If multiple similar reasoning flaws exist, the agent refatora (compacts) them into a single, positive **Elite Cognitive Checklist**. This ensures the DNA shrinks in volume but grows in conceptual density.
+- **Logic:** If multiple similar reasoning flaws exist, the agent refactors (compacts) them into a single, positive **Elite Cognitive Checklist**. This ensures the DNA shrinks in volume but grows in conceptual density.
 
 ---
 
