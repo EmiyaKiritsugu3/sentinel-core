@@ -290,7 +290,7 @@ func TestRunPACDeliberation(t *testing.T) {
 
 // --- Execute with valid DB but no genai client (error path) ---
 
-func TestExecute_ValidDBNoClient(t *testing.T) {
+func TestExecute_NilPromptFactory(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	defer db.Close()
 	if err := graph.Migrate(db); err != nil {
@@ -310,7 +310,38 @@ func TestExecute_ValidDBNoClient(t *testing.T) {
 
 	err := e.Execute(ctx)
 	if err == nil {
+		t.Fatal("expected error when promptFactory is nil, got nil")
+	}
+	if !strings.Contains(err.Error(), "prompt factory is nil") {
+		t.Errorf("expected 'prompt factory is nil' error, got: %v", err)
+	}
+}
+
+func TestExecute_NilGenaiClient(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	defer db.Close()
+	if err := graph.Migrate(db); err != nil {
+		t.Fatalf("failed to migrate: %v", err)
+	}
+
+	e := &Engine{
+		DB:            db,
+		Registry:      NewRegistry(),
+		promptFactory: bridge.NewFactory(db, nil),
+	}
+
+	ctx := NewAgentContext(context.Background(), "test-task", &AgentDefinition{
+		Name:    "test-agent",
+		ModelID: "gemini-1.5-flash",
+		MaxSteps: 5,
+	})
+
+	err := e.Execute(ctx)
+	if err == nil {
 		t.Fatal("expected error when genaiClient is nil, got nil")
+	}
+	if !strings.Contains(err.Error(), "genai client is nil") {
+		t.Errorf("expected 'genai client is nil' error, got: %v", err)
 	}
 }
 
