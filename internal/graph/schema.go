@@ -160,7 +160,11 @@ func Migrate(db *sqlite.DB) error {
 	}
 
 	// Rename specialist_id → agent_name if the old column name still exists.
-	if oldExists, _ := columnExistsInTx(tx, "agent_trust", "specialist_id"); oldExists {
+	oldExists, checkErr := columnExistsInTx(tx, "agent_trust", "specialist_id")
+	if checkErr != nil {
+		return fmt.Errorf("migrate: checking agent_trust.specialist_id: %w", checkErr)
+	}
+	if oldExists {
 		if _, err = tx.Exec("ALTER TABLE agent_trust RENAME COLUMN specialist_id TO agent_name;"); err != nil {
 			return fmt.Errorf("migrate: rename specialist_id: %w", err)
 		}

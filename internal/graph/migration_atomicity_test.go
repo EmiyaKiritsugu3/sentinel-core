@@ -22,9 +22,13 @@ func TestMigrateAtomicity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open sqlite db: %v", err)
 	}
+	if sqlDB == nil {
+		t.Fatal("sqlDB is nil")
+	}
 	defer sqlDB.Close()
 
 	db := &sqlite.DB{Conn: sqlDB}
+	assertSQLiteDB(t, db, "db")
 
 	// 1. First migration should pass
 	if err := Migrate(db); err != nil {
@@ -41,8 +45,14 @@ func TestMigrateAtomicity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open rollback test db: %v", err)
 	}
+	if sqlDB2 == nil {
+		t.Fatal("sqlDB2 is nil")
+	}
+	sqlDB2.SetMaxOpenConns(1)
+	sqlDB2.SetMaxIdleConns(1)
 	defer sqlDB2.Close()
 	db2 := &sqlite.DB{Conn: sqlDB2}
+	assertSQLiteDB(t, db2, "db2")
 
 	// Pre-insert a specialist with an ID that Migrate will try to insert,
 	// but make it fail by adding a NOT NULL constraint on a field Migrate doesn't provide?
@@ -53,10 +63,12 @@ func TestMigrateAtomicity(t *testing.T) {
 	// Let's use the property that we can't ALTER a table that doesn't exist.
 	// If we pre-insert something into specialist_registry but the schema creation fails?
 
-	// Actually, let's just verify that if Migrate fails, no tables exist.
-	// To make it fail: we can lock the database or use a read-only connection?
-	// SQLite specific: "PRAGMA query_only = ON;"
-	_, _ = sqlDB2.Exec("PRAGMA query_only = ON;")
+	// Verify rollback on failure by forcing the single pooled connection into
+	// SQLite query-only mode. The pool is pinned to one connection because this
+	// PRAGMA is connection-local.
+	if _, err = sqlDB2.Exec("PRAGMA query_only = ON;"); err != nil {
+		t.Fatalf("failed to enable query_only pragma: %v", err)
+	}
 	err = Migrate(db2)
 	if err == nil {
 		t.Errorf("expected Migrate to fail on read-only DB")
@@ -82,9 +94,13 @@ func TestMigrateDuplicateColumnHandling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open sqlite db: %v", err)
 	}
+	if sqlDB == nil {
+		t.Fatal("sqlDB is nil")
+	}
 	defer sqlDB.Close()
 
 	db := &sqlite.DB{Conn: sqlDB}
+	assertSQLiteDB(t, db, "db")
 
 	// Pre-create table and ONE of the columns
 	_, err = sqlDB.Exec("CREATE TABLE tasks (id TEXT PRIMARY KEY);")
@@ -107,5 +123,12 @@ func TestMigrateDuplicateColumnHandling(t *testing.T) {
 	// We expect no rows, but the query should not fail if column exists
 	if err != nil && err != sql.ErrNoRows {
 		t.Errorf("expected tokens_used column to exist: %v", err)
+	}
+}
+
+func assertSQLiteDB(t *testing.T, db *sqlite.DB, name string) {
+	t.Helper()
+	if db == nil || db.Conn == nil {
+		t.Fatalf("%s or %s.Conn is nil", name, name)
 	}
 }
