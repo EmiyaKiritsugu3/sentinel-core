@@ -30,8 +30,8 @@ Not every typo is a lesson. To prevent noise and bloat, evolution is triggered o
 - **Action:** At the end of the sprint, the `sentinel evolve` command is invoked.
 
 ### Pillar 2: The Injection (Contextual RAG)
-We must avoid loading the entire history into the AI's prompt. 
-- **Mechanism:** The system leverages the `ContextRouter` (built in Phase 6). 
+We must avoid loading the entire history into the AI's prompt.
+- **Mechanism:** The system leverages the `ContextRouter` (built in Phase 6).
 - **Logic:** `COGNITIVE-DNA.md` is no longer a flat file loaded 100% of the time. It is a structured taxonomy. When the agent starts a task (e.g., `Intent: Diagnose` on `auth.go`), the router extracts *only* the Elite Cognitive Strategies related to debugging and security.
 
 ### Pillar 3: The Compaction (Garbage Collection)

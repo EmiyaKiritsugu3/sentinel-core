@@ -22,8 +22,8 @@ Every feature and agent execution must prove its existence.
 ### Pillar B: Predictive Stability (Lyapunov Exponents $\lambda$)
 Detection of the "Moment of Hallucination."
 - **Concept:** Chaos Theory. Measuring the divergence of the reasoning trajectory.
-- **Implementation:** An interceptor in the token stream calculates the rate of change in token logprobs. 
-- **Action:** If $\lambda$ becomes positive (divergent chaos), the `Engine` immediately cancels the context.
+- **Implementation:** The engine approximates reasoning stability from the action/thought token ratio while raw Gemini logprobs remain unavailable.
+- **Action:** If $\lambda$ exceeds the configured threshold, or consecutive per-step divergence exceeds the drift threshold, the `Engine` injects a re-planning intervention before continuing.
 
 ### Pillar C: Structural Integrity (Persistent Homology)
 Finding "holes" in the architecture.
@@ -46,11 +46,23 @@ Adaptive trust management.
 - Implement the `Observer` pattern for token latency tracking.
 
 ### Phase 7.2: The Hallucination Circuit Breaker
-- Implement Shannon Entropy calculation.
-- Wire the `Interrupt` signal to the `Engine` based on entropy spikes.
+- Implement cognitive-averaging lambda calculation as the Gate A entropy proxy.
+- Wire Gate A and Gate B interventions to the `Engine` and filesystem tools without relying on unavailable logprob streams.
+
+### Phase 7.3: Topological Analysis Engine
+- Implement persistent-homology-inspired graph analysis over `graph.db`.
+- Detect orphan islands and bottleneck nodes as structural-risk candidates.
+
+### Phase 7.4: Bayesian Trust System
+- Track `TrustScore` for each agent execution context.
+- Feed CodeRabbit findings and test failures back into Bayesian priors.
+
+### Execution Plan Reference
+- Execution should remain linked from `wiki-index.md` to this spec and the concrete Phase 7 plan/PR.
+- Rollout notes must append Good/Bad/Ugly/Lesson/Next entries to `docs/process/sentinel-log.md` under Standard #08.
 
 ---
 
 ## 4. Resource Minimalism (The Constant)
-The SME must not consume more than 2% of total execution overhead. 
+The SME must not consume more than 2% of total execution overhead.
 - **Constraint:** Use native Go math packages. Avoid heavy external linear algebra libraries unless strictly necessary for topology analysis.
