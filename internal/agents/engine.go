@@ -211,6 +211,7 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 					// Consume a budget step for hallucination interruption
 					ctx.Budget.IncSteps()
 					currentParts = []genai.Part{genai.Text(fmt.Sprintf("GATE A INTERVENTION: Your action-to-thought ratio is too high (%.2f). You are hallucinating excessive code without planning. Re-evaluate your strategy and output a detailed thought process before proceeding.", lambda))}
+					ctx.PreviousLambda = lambda
 					continue
 				}
 			}
