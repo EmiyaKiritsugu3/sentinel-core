@@ -1,14 +1,18 @@
 package sqlite
 
-import "testing"
+import (
+	"errors"
+	"path/filepath"
+	"testing"
+)
 
 func TestValidateDB_NilDB(t *testing.T) {
 	err := ValidateDB(nil, "caller")
 	if err == nil {
 		t.Fatal("expected error for nil db")
 	}
-	if err.Error() != "caller: nil db" {
-		t.Errorf("unexpected error message: %q", err.Error())
+	if !errors.Is(err, ErrNilDB) {
+		t.Errorf("expected ErrNilDB, got: %v", err)
 	}
 }
 
@@ -18,8 +22,8 @@ func TestValidateDB_NilConn(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for nil Conn")
 	}
-	if err.Error() != "engine: nil db" {
-		t.Errorf("unexpected error message: %q", err.Error())
+	if !errors.Is(err, ErrNilDB) {
+		t.Errorf("expected ErrNilDB, got: %v", err)
 	}
 }
 
@@ -36,7 +40,7 @@ func TestValidateDB_ValidDB(t *testing.T) {
 func SetupTestDB(t *testing.T) *DB {
 	t.Helper()
 	tmpDir := t.TempDir()
-	db, err := InitAtPath(tmpDir + "/test.db")
+	db, err := InitAtPath(filepath.Join(tmpDir, "test.db"))
 	if err != nil {
 		t.Fatalf("failed to init test db: %v", err)
 	}

@@ -1,6 +1,7 @@
 package report
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -147,6 +148,20 @@ func TestNewAggregator(t *testing.T) {
 	}
 	if agg.db != db {
 		t.Error("NewAggregator did not store db reference")
+	}
+}
+
+func TestNewAggregator_NilDB(t *testing.T) {
+	agg := NewAggregator(nil)
+	if agg == nil {
+		t.Fatal("NewAggregator(nil) should return non-nil Aggregator")
+	}
+	_, err := agg.FetchStats()
+	if err == nil {
+		t.Fatal("expected error for nil db, got nil")
+	}
+	if !errors.Is(err, sqlite.ErrNilDB) {
+		t.Errorf("expected ErrNilDB, got: %v", err)
 	}
 }
 

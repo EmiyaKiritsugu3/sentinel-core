@@ -2,6 +2,7 @@ package agents
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/reflect"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/testutil"
+	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 )
 
 type mockAuthProvider struct {
@@ -161,7 +163,7 @@ func TestGetGenaiTools(t *testing.T) {
 func TestExecute_NilDB(t *testing.T) {
 	e := &Engine{DB: nil}
 	ctx := NewAgentContext(context.Background(), "test-task", &AgentDefinition{
-		Name:    "test",
+		Name: "test",
 		ModelID: "gemini-1.5-flash",
 		MaxSteps: 5,
 	})
@@ -170,8 +172,8 @@ func TestExecute_NilDB(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for nil DB, got nil")
 	}
-	if !strings.Contains(err.Error(), "nil db") {
-		t.Errorf("expected 'nil db' error, got: %v", err)
+	if !errors.Is(err, sqlite.ErrNilDB) {
+		t.Errorf("expected ErrNilDB, got: %v", err)
 	}
 }
 
@@ -306,12 +308,10 @@ func TestExecute_ValidDBNoClient(t *testing.T) {
 		MaxSteps: 5,
 	})
 
-	defer func() {
-		if r := recover(); r != nil {
-			t.Logf("Execute panicked with nil client/factory (expected): %v", r)
-		}
-	}()
-	_ = e.Execute(ctx)
+	err := e.Execute(ctx)
+	if err == nil {
+		t.Fatal("expected error when genaiClient is nil, got nil")
+	}
 }
 
 // --- NewEngine with empty API key ---
@@ -330,16 +330,25 @@ func TestNewEngine_EmptyAPIKey(t *testing.T) {
 // --- Execute: budget exceeded on first step ---
 
 func TestExecute_BudgetExceeded(t *testing.T) {
-	e := &Engine{DB: nil} // nil DB fails fast
+	db := testutil.SetupTestDB(t)
+	defer db.Close()
+	if err := graph.Migrate(db); err != nil {
+		t.Fatalf("failed to migrate: %v", err)
+	}
+
+	e := &Engine{DB: db, Registry: NewRegistry(), promptFactory: bridge.NewFactory(db, nil)}
 	ctx := NewAgentContext(context.Background(), "task-1", &AgentDefinition{
-		Name:     "test",
-		ModelID:  "gemini-1.5-flash",
-		MaxSteps: 0, // zero max steps
+		Name:    "test",
+		ModelID: "gemini-1.5-flash",
+		MaxSteps: 0,
 	})
 
 	err := e.Execute(ctx)
 	if err == nil {
-		t.Fatal("expected error, got nil")
+		t.Fatal("expected error for zero MaxSteps, got nil")
+	}
+	if !strings.Contains(err.Error(), "budget exceeded") {
+		t.Errorf("expected 'budget exceeded' error, got: %v", err)
 	}
 }
 
@@ -670,12 +679,17 @@ func TestExecute_MetricsPersistence(t *testing.T) {
 func TestExecute_ValidateDBError(t *testing.T) {
 	e := &Engine{DB: nil}
 	ctx := NewAgentContext(context.Background(), "test", &AgentDefinition{
-		Name: "test", ModelID: "gemini-1.5-flash", MaxSteps: 5,
+		Name:    "test",
+		ModelID: "gemini-1.5-flash",
+		MaxSteps: 5,
 	})
 
 	err := e.Execute(ctx)
 	if err == nil {
 		t.Fatal("expected error for nil DB")
+	}
+	if !errors.Is(err, sqlite.ErrNilDB) {
+		t.Errorf("expected ErrNilDB, got: %v", err)
 	}
 }
 

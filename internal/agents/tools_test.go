@@ -70,6 +70,18 @@ func TestReplaceTool_Metadata(t *testing.T) {
 	if def.Name != "replace" {
 		t.Errorf("ReplaceTool.Definition().Name = %q, want %q", def.Name, "replace")
 	}
+	if _, ok := def.Parameters.Properties["path"]; !ok {
+		t.Error("ReplaceTool.Definition() missing 'path' property")
+	}
+	if _, ok := def.Parameters.Properties["old_string"]; !ok {
+		t.Error("ReplaceTool.Definition() missing 'old_string' property")
+	}
+	if _, ok := def.Parameters.Properties["new_string"]; !ok {
+		t.Error("ReplaceTool.Definition() missing 'new_string' property")
+	}
+	if len(def.Parameters.Required) != 3 {
+		t.Errorf("ReplaceTool.Definition().Required has %d fields, want 3", len(def.Parameters.Required))
+	}
 }
 
 func TestGrepSearchTool_Metadata(t *testing.T) {
