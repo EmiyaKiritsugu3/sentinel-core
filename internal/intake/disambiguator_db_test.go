@@ -1,30 +1,21 @@
-// internal/intake/disambiguator_db_test.go
 package intake_test
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/intake"
-	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/testutil"
 )
 
 func TestVaguenessScore_AnchorPhase2(t *testing.T) {
-	tempDir := t.TempDir()
-	dbPath := filepath.Join(tempDir, "test.db")
-	db, err := sqlite.InitAtPath(dbPath)
-	if err != nil {
-		t.Fatalf("failed to init db: %v", err)
-	}
+	db := testutil.SetupTestDB(t)
 	defer db.Close()
-
 	if err := graph.Migrate(db); err != nil {
-		t.Fatalf("failed to migrate db: %v", err)
+		t.Fatalf("failed to migrate test db: %v", err)
 	}
 
-	// Insert some nodes to anchor to
-	_, err = db.Conn.Exec("INSERT INTO nodes (id, name, type, file_path) VALUES (?, ?, ?, ?)",
+	_, err := db.Conn.Exec("INSERT INTO nodes (id, name, type, file_path) VALUES (?, ?, ?, ?)",
 		"node1", "AuthService", "struct", "internal/auth/service.go")
 	if err != nil {
 		t.Fatalf("failed to insert node: %v", err)
@@ -32,10 +23,7 @@ func TestVaguenessScore_AnchorPhase2(t *testing.T) {
 
 	d := intake.NewDisambiguator(db)
 
-	// Case 1: Vague description with no matches in graph
 	scoreVague := d.VaguenessScore("improve performance")
-	
-	// Case 2: Description with keywords that match graph
 	scoreAnchored := d.VaguenessScore("improve AuthService performance")
 
 	if scoreAnchored >= scoreVague {
@@ -44,19 +32,12 @@ func TestVaguenessScore_AnchorPhase2(t *testing.T) {
 }
 
 func TestAnalyze_GraphSuggestions(t *testing.T) {
-	tempDir := t.TempDir()
-	dbPath := filepath.Join(tempDir, "test.db")
-	db, err := sqlite.InitAtPath(dbPath)
-	if err != nil {
-		t.Fatalf("failed to init db: %v", err)
-	}
+	db := testutil.SetupTestDB(t)
 	defer db.Close()
-
 	if err := graph.Migrate(db); err != nil {
-		t.Fatalf("failed to migrate db: %v", err)
+		t.Fatalf("failed to migrate test db: %v", err)
 	}
 
-	// Insert nodes for suggestion
 	nodes := []struct {
 		id   string
 		name string
@@ -89,7 +70,6 @@ func TestAnalyze_GraphSuggestions(t *testing.T) {
 		t.Errorf("want max 5 suggestions, got %d", len(suggestions))
 	}
 
-	// Check if suggestions are relevant
 	found := false
 	for _, s := range suggestions {
 		if s.NodeName == "AuthMiddleware" {
