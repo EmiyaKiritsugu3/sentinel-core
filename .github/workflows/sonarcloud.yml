@@ -23,6 +23,11 @@ jobs:
         with:
           go-version: "1.26"
 
+      - name: Configure git identity for tests
+        run: |
+          git config --global user.email "ci@sentinel.dev"
+          git config --global user.name "Sentinel CI"
+
       - name: Run tests with coverage
         run: go test -coverprofile=coverage.out -covermode=atomic ./...
 
