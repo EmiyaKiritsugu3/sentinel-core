@@ -117,8 +117,8 @@ CREATE TABLE IF NOT EXISTS agent_trust (
 `
 
 func Migrate(db *sqlite.DB) error {
-	if db == nil || db.Conn == nil {
-		return fmt.Errorf("migrate: nil db")
+	if err := sqlite.ValidateDB(db, "migrate"); err != nil {
+		return err
 	}
 
 	tx, err := db.Conn.Begin()

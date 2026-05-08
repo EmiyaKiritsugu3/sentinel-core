@@ -3,7 +3,6 @@ package agents
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -103,8 +102,8 @@ func (e *Engine) getGenaiTools() []*genai.Tool {
 
 // Execute starts the execution of a subagent for a given task.
 func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
-	if e.DB == nil || e.DB.Conn == nil {
-		return fmt.Errorf("engine: DB not initialized")
+	if err := sqlite.ValidateDB(e.DB, "engine"); err != nil {
+		return err
 	}
 
 	defer ctx.Cancel()
@@ -368,9 +367,11 @@ func (e *Engine) processSubTasks(ctx *AgentContext) error {
 		if err := rows.Scan(&st.ID, &st.ParentTaskID, &st.Description, &st.Status, &st.BranchName, &capsJSON); err != nil {
 			return fmt.Errorf("engine: failed to scan sub-task: %w", err)
 		}
-		if err := json.Unmarshal([]byte(capsJSON), &st.RequiredCapabilities); err != nil {
+		subCaps, err := unmarshalCapabilities(capsJSON)
+		if err != nil {
 			return fmt.Errorf("engine: failed to unmarshal capabilities for sub-task %s: %w", st.ID, err)
 		}
+		st.RequiredCapabilities = subCaps
 		pending = append(pending, st)
 	}
 
