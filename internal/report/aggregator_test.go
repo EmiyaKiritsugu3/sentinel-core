@@ -1,7 +1,9 @@
 package report
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
@@ -145,5 +147,105 @@ func TestNewAggregator(t *testing.T) {
 	}
 	if agg.db != db {
 		t.Error("NewAggregator did not store db reference")
+	}
+}
+
+func TestGenerateMarkdown(t *testing.T) {
+	db := setupAggregatorDB(t)
+	defer db.Close()
+
+	// Insert nodes and tasks so FetchStats returns non-zero stats.
+	_, err := db.Conn.Exec("INSERT INTO nodes (id, name, type, file_path) VALUES (?, ?, ?, ?)",
+		"n1", "main.go", "file", "cmd/main.go")
+	if err != nil {
+		t.Fatalf("insert node: %v", err)
+	}
+	_, err = db.Conn.Exec("INSERT INTO tasks (id, description, status, tier, math_delta) VALUES (?, ?, ?, ?, ?)",
+		"t1", "Add auth", "DONE", "T1", 3.14)
+	if err != nil {
+		t.Fatalf("insert task: %v", err)
+	}
+
+	agg := NewAggregator(db)
+	stats, err := agg.FetchStats()
+	if err != nil {
+		t.Fatalf("FetchStats() error: %v", err)
+	}
+
+	// GenerateMarkdown writes to a relative path, so chdir to a temp dir.
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir to tmpDir: %v", err)
+	}
+	defer os.Chdir(originalDir)
+
+	if err := agg.GenerateMarkdown(stats); err != nil {
+		t.Fatalf("GenerateMarkdown() error: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join("docs", "process", "COMPLIANCE-DASHBOARD.md"))
+	if err != nil {
+		t.Fatalf("failed to read generated dashboard: %v", err)
+	}
+
+	content := string(data)
+
+	if !strings.Contains(content, "Sovereign Math Engine") {
+		t.Error("dashboard missing 'Sovereign Math Engine' section")
+	}
+	if !strings.Contains(content, "+3.14") {
+		t.Errorf("dashboard missing Δ value, got: %s", content)
+	}
+	if !strings.Contains(content, "Engineering Success Rate") {
+		t.Error("dashboard missing 'Engineering Success Rate' section")
+	}
+	if !strings.Contains(content, "`t1`") {
+		t.Error("dashboard missing task ID in detailed inventory")
+	}
+}
+
+func TestFetchStats_WithADRMatch(t *testing.T) {
+	db := setupAggregatorDB(t)
+	defer db.Close()
+
+	taskID := "test-adr-task"
+	_, err := db.Conn.Exec("INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
+		taskID, "ADR test task", "DONE", "T1")
+	if err != nil {
+		t.Fatalf("insert task: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	adrDir := filepath.Join(tmpDir, "docs", "architecture", "adr")
+	if err := os.MkdirAll(adrDir, 0755); err != nil {
+		t.Fatalf("mkdir adr: %v", err)
+	}
+	adrFile := filepath.Join(adrDir, "ADR-"+taskID+"-auth-decision.md")
+	if err := os.WriteFile(adrFile, []byte("# ADR"), 0644); err != nil {
+		t.Fatalf("write adr file: %v", err)
+	}
+
+	originalDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer os.Chdir(originalDir)
+
+	agg := NewAggregator(db)
+	stats, err := agg.FetchStats()
+	if err != nil {
+		t.Fatalf("FetchStats() error: %v", err)
+	}
+
+	if len(stats.Tasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(stats.Tasks))
+	}
+	if stats.Tasks[0].ADRPath == "" {
+		t.Error("expected ADRPath to be set when matching ADR file exists")
+	}
+	expectedADR := filepath.Join("docs", "architecture", "adr", "ADR-"+taskID+"-auth-decision.md")
+	if stats.Tasks[0].ADRPath != expectedADR {
+		t.Errorf("ADRPath = %q, want %q", stats.Tasks[0].ADRPath, expectedADR)
 	}
 }

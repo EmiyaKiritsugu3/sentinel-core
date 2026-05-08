@@ -1,6 +1,9 @@
 package agents
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/generative-ai-go/genai"
@@ -252,5 +255,88 @@ func TestDecomposeTool_ValidateArguments_SubtasksNotArray(t *testing.T) {
 	err := tool.ValidateArguments(nil, args)
 	if err == nil {
 		t.Fatal("expected error for subtasks not being an array")
+	}
+}
+
+func TestReadFileTool_Execute_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "hello.txt")
+	content := "line1\nline2\nline3\n"
+	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
+		t.Fatalf("write temp file: %v", err)
+	}
+
+	tool := &ReadFileTool{}
+	result, err := tool.Execute(context.Background(), map[string]interface{}{
+		"path": tmpFile,
+	})
+	if err != nil {
+		t.Fatalf("Execute() error: %v", err)
+	}
+	if result != "line1\nline2\nline3" {
+		t.Errorf("Execute() = %q, want %q", result, "line1\nline2\nline3")
+	}
+}
+
+func TestReadFileTool_Execute_LineRange(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "ranged.txt")
+	if err := os.WriteFile(tmpFile, []byte("a\nb\nc\nd\ne\n"), 0644); err != nil {
+		t.Fatalf("write temp file: %v", err)
+	}
+
+	tool := &ReadFileTool{}
+	result, err := tool.Execute(context.Background(), map[string]interface{}{
+		"path":       tmpFile,
+		"start_line": float64(2),
+		"end_line":   float64(4),
+	})
+	if err != nil {
+		t.Fatalf("Execute() error: %v", err)
+	}
+	if result != "b\nc\nd" {
+		t.Errorf("Execute() = %q, want %q", result, "b\nc\nd")
+	}
+}
+
+func TestRunTool_Execute(t *testing.T) {
+	tool := &RunTool{}
+	result, err := tool.Execute(context.Background(), map[string]interface{}{
+		"command": "echo hello",
+	})
+	if err != nil {
+		t.Fatalf("Execute() error: %v", err)
+	}
+	if result != "hello\n" {
+		t.Errorf("Execute() = %q, want %q", result, "hello\n")
+	}
+}
+
+func TestRunTool_Execute_EmptyCommand(t *testing.T) {
+	tool := &RunTool{}
+	_, err := tool.Execute(context.Background(), map[string]interface{}{
+		"command": "",
+	})
+	if err == nil {
+		t.Fatal("expected error for empty command")
+	}
+}
+
+func TestGrepSearchTool_ValidateArguments_DefaultDir(t *testing.T) {
+	tool := &GrepSearchTool{}
+	err := tool.ValidateArguments(nil, map[string]interface{}{})
+	if err != nil {
+		t.Errorf("ValidateArguments with no dir_path should succeed, got: %v", err)
+	}
+}
+
+func TestADRTool_ValidateArguments_MissingField(t *testing.T) {
+	tool := &ADRTool{}
+	err := tool.ValidateArguments(nil, map[string]interface{}{
+		"title":   "test",
+		"context": "ctx",
+	})
+	if err == nil {
+		t.Fatal("expected error for missing ADR fields")
 	}
 }

@@ -103,3 +103,20 @@ func TestMigrate_Idempotent(t *testing.T) {
 		}
 	}
 }
+
+func TestMigrate_NilDB(t *testing.T) {
+	err := Migrate(nil)
+	if err == nil {
+		t.Fatal("expected error for nil db")
+	}
+}
+
+func TestMigrate_ClosedDB(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	db.Conn.Close()
+
+	err := Migrate(db)
+	if err == nil {
+		t.Fatal("expected error for closed db connection")
+	}
+}
