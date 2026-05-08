@@ -167,3 +167,22 @@ func TestColumnExistsInTx_CommittedTx(t *testing.T) {
 		t.Fatal("expected error when querying with committed transaction")
 	}
 }
+
+// TestMigrate_AlterView covers the ALTER TABLE error path (lines 156-158)
+// by creating a view named "tasks" that shadows the table. CREATE TABLE IF
+// NOT EXISTS is silently skipped, then ALTER TABLE fails because the target
+// is a view, not a table.
+func TestMigrate_AlterView(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	defer db.Close()
+
+	_, err := db.Conn.Exec("CREATE VIEW tasks AS SELECT 1 AS id, 'x' AS description, 'PENDING' AS status")
+	if err != nil {
+		t.Fatalf("failed to create tasks view: %v", err)
+	}
+
+	err = Migrate(db)
+	if err == nil {
+		t.Fatal("expected error when Migrate tries to ALTER a view")
+	}
+}
