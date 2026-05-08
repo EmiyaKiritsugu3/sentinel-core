@@ -140,3 +140,30 @@ func TestColumnExistsInTx_UnknownTable(t *testing.T) {
 		t.Fatal("expected error for unknown table")
 	}
 }
+
+// TestColumnExistsInTx_CommittedTx covers the tx.Query error path in
+// columnExistsInTx (lines 218-220). After a transaction is committed,
+// any subsequent operation on it returns sql.ErrTxDone, which exercises
+// the error-return branch that is otherwise unreachable in normal flow.
+func TestColumnExistsInTx_CommittedTx(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	defer db.Close()
+
+	if err := Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	tx, err := db.Conn.Begin()
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	_, err = columnExistsInTx(tx, "tasks", "latency_ms")
+	if err == nil {
+		t.Fatal("expected error when querying with committed transaction")
+	}
+}
