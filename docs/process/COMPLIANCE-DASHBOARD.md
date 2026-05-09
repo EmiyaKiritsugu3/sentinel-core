@@ -7,10 +7,26 @@
 
 | Métrica | Valor |
 | :--- | :--- |
-| **Engineering Success Rate** | 0.00% |
-| **Total Architecture Nodes** | 229 |
-| **Files Tracked** | 42 |
-| **Functions & Structs** | 180 |
+| **Test Coverage (SonarCloud)** | 78.8% (QG threshold: 80%) |
+| **Test Coverage (go test)** | 32.3% (statements) |
+| **Go Source Files** | 136 |
+| **Internal Packages** | 17 (13 with tests) |
+| **SME Math Coverage** | 100.0% (`internal/math`) |
+| **Intake Coverage** | 90.4% (`internal/intake`) |
+| **Report Coverage** | 82.5% (`internal/report`) |
+| **Agents Coverage** | 59.2% (`internal/agents`) |
+| **SQLite Coverage** | 68.2% (`pkg/sqlite`) |
+| **SonarCloud QG Status** | ⚠️ FAILED (78.8% < 80% threshold) |
+| **CI/CD Checks** | CodeQL ✅ | CodeRabbit ✅ | golangci-lint ✅ |
+
+## 🛡️ Mathematical Sovereignty Status
+
+| Pillar | Status | Implementation |
+| :--- | :--- | :--- |
+| **Pillar A: Net Gain Equation (Δ)** | ✅ COMPLETED | `internal/math/formulas.go` |
+| **Pillar B: Lyapunov Stability (λ)** | ✅ COMPLETED | Gate A (`engine.go`) + Gate A.5 (`engine_helpers.go`) |
+| **Pillar C: Topological Analysis** | ⏳ DEFERRED | Not in current sprint |
+| **Pillar D: Bayesian Trust** | ✅ COMPLETED | `agent_trust` table + `CalculateTrustScore` + `TrustToDynamicLambda` |
 
 ## 🛡️ Task Lifecycle Status
 

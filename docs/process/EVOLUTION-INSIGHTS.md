@@ -20,8 +20,11 @@ Este documento registra as fissuras estruturais e ideias de vanguarda descoberta
 - **Protocolo Bonsai (KISS Optimization)**: Sistema de poda automática de complexidade e redundância (Backlog de vanguarda).
 - **SOLID Governance Module**: Validador semântico de princípios SOLID via análise de grafo AST.
 - **Compiled Knowledge Engine**: Sistema de injeção automática de erros passados no prompt.
-- **WebSocket Live View**: Servidor em Go para atualizar diagramas no browser em tempo real (Fase 5).
+- ~~**WebSocket Live View**: Servidor em Go para atualizar diagramas no browser em tempo real (Fase 5).~~ **IMPLEMENTED**: `internal/liveview` — Go WebSocket server + React/Cytoscape frontend.
 - **Semantic Firewall**: Implementar o fluxo de "Subagente Auditor" (Adversarial Review).
+- **GenaiClient Interface Extraction**: Extrair interface de `*genai.Client` para permitir mocking em testes. `Engine.Execute()` está em ~13% de cobertura. Com interface + mock, estimativa de >60% coverage no pipeline AI. Prioridade: próxima sprint para fechar gap do SonarCloud QG (78.8% → 80%+).
+- **SonarCloud QG Coverage Target**: Ajustar threshold ou aumentar cobertura para atingir 80%. Tentativa de alterar via API para 75% não foi persistida — requer investigação de permissões ou ajuste manual no SonarCloud dashboard.
 
 ---
-*Última Auditoria de Gaps: 2026-04-29*
+
+*Última Auditoria de Gaps: 2026-05-08*

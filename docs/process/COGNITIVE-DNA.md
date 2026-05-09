@@ -21,6 +21,7 @@ Estes patches alteram como o Sentinel "pensa" e "age" a partir de agora.
 ### PMO-02: A Regra do Componente Hostil (Anti-AP-02)
 - **Regra:** Todo método exportado/público deve validar `nil` em suas dependências injetadas.
 - **Modus Operandi:** Nenhum componente é considerado "amigo". A segurança deve ser intrínseca e isolada (Sovereignty).
+- **Implementation:** `sqlite.ErrNilDB` sentinel error + `ValidateDB` function (`pkg/sqlite/validation.go`). All exported methods now systematically validate DB dependency via `fmt.Errorf("%s: %w", caller, ErrNilDB)`.
 
 ### PMO-03: O Padrão Acumulador (Anti-AP-03)
 - **Regra:** Lógica com >2 fatores de decisão DEVE usar pipelines de pesos aditivos.
