@@ -52,10 +52,12 @@ Adaptive trust management.
 ### Phase 7.3: Topological Analysis Engine
 - Implement persistent-homology-inspired graph analysis over `graph.db`.
 - Detect orphan islands and bottleneck nodes as structural-risk candidates.
+- *Status: DEFERRED — not in current sprint scope. Gate A.5 (Lyapunov Divergence) addresses per-step stability as a proxy.*
 
-### Phase 7.4: Bayesian Trust System
+### Phase 7.4: Bayesian Trust System ✅ COMPLETED
 - Track `TrustScore` for each agent execution context.
 - Feed CodeRabbit findings and test failures back into Bayesian priors.
+- *Implementation: `CalculateTrustScore`/`TrustToDynamicLambda` in `internal/math/formulas.go`; `readPriorTrust`/`persistTrust` in `internal/agents/engine_helpers.go`; `agent_trust` table in `internal/graph/schema.go`; `checkGateA5` (Lyapunov Divergence) in `internal/agents/engine_helpers.go`.*
 
 ### Execution Plan Reference
 - Execution should remain linked from `wiki-index.md` to this spec and the concrete Phase 7 plan/PR.

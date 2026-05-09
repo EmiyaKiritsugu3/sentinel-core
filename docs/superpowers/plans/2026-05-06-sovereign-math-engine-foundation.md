@@ -163,8 +163,10 @@ ctx.StartTime = time.Now()
 ctx.EndTime = time.Now()
 latency := float64(ctx.EndTime.Sub(ctx.StartTime).Milliseconds())
 
-// Use a placeholder for now for prob and weight (to be refined in Phase 7.3)
-delta := math.CalculateDelta(0.5, 5, latency, ctx.APICost)
+// Use dynamic trust-based values from Bayesian Trust Calibration (Phase 7.4)
+trustScore := math.CalculateTrustScore(successes, total)
+dynamicLambda := math.TrustToDynamicLambda(trustScore)
+delta := math.CalculateDelta(trustScore, dynamicLambda, latency, ctx.APICost)
 
 // Save to DB:
 _, err := e.DB.Conn.Exec("UPDATE tasks SET latency_ms = ?, math_delta = ? WHERE id = ?", latency, delta, ctx.StateID)

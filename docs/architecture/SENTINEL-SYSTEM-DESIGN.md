@@ -14,29 +14,32 @@ O Sentinel é um **Governance Wrapper** e **Context Engine** de alta performance
 
 ```mermaid
 graph TD
-    User((Usuário / Dev))
-    AI_Agent[Gemini CLI / Agent]
-    
-    subgraph Sentinel_Binary [Sentinel Core Go]
-        CLI_Wrapper[CLI & Governance Wrapper]
-        State_Machine[State Machine: Task Manager]
-        Context_Engine[Context Engine: AST & Graph]
-        Audit_Runner[Audit Runner: CI Local]
-        SQLite_DB[(SQLite: graph.db)]
-    end
-    
-    Source_Code[(Source Code Files)]
-    
-    User -->|Comandos| CLI_Wrapper
-    CLI_Wrapper -->|Orquestra| State_Machine
-    State_Machine -->|Define Task| AI_Agent
-    AI_Agent -->|Solicita Contexto| Context_Engine
-    Context_Engine -->|Query| SQLite_DB
-    Context_Engine -->|Lê AST| Source_Code
-    AI_Agent -->|Escreve Código| Source_Code
-    Source_Code -->|Watch Events| Context_Engine
-    Audit_Runner -->|Valida Gates| Source_Code
-    Audit_Runner -->|Reporta Sucesso/Falha| State_Machine
+User((Usuário / Dev))
+AI_Agent[Gemini CLI / Agent]
+
+subgraph Sentinel_Binary [Sentinel Core Go]
+CLI_Wrapper[CLI & Governance Wrapper]
+State_Machine[State Machine: Task Manager]
+Context_Engine[Context Engine: AST & Graph]
+Audit_Runner[Audit Runner: CI Local]
+Bayesian_Trust[Bayesian Trust Engine: TrustScore + agent_trust]
+SQLite_DB[(SQLite: graph.db + agent_trust)]
+end
+
+Source_Code[(Source Code Files)]
+
+User -->|Comandos| CLI_Wrapper
+CLI_Wrapper -->|Orquestra| State_Machine
+State_Machine -->|Define Task| AI_Agent
+AI_Agent -->|Solicita Contexto| Context_Engine
+Context_Engine -->|Query| SQLite_DB
+Context_Engine -->|Lê AST| Source_Code
+AI_Agent -->|Escreve Código| Source_Code
+Source_Code -->|Watch Events| Context_Engine
+Audit_Runner -->|Valida Gates| Source_Code
+Audit_Runner -->|Reporta Sucesso/Falha| State_Machine
+Bayesian_Trust -->|readPriorTrust/persistTrust| SQLite_DB
+State_Machine -->|TrustScore → MaxLambda| Bayesian_Trust
 ```
 
 ## 5. Estratégia de Estado Híbrido (MD + SQLite)
@@ -54,6 +57,31 @@ Nenhuma transição para o estado `DONE` é permitida sem:
 1. **Exit Code 0**: O comando de verificação definido na Task deve passar.
 2. **AST Integrity**: O grafo de dependências deve ser atualizado e validado após a mudança.
 3. **Traceability**: O log de auditoria deve ser persistido no SQLite antes do commit.
+
+### 6.1 The Entropy Gate Hierarchy
+
+O Sentinel implementa um sistema de 3 gates sequenciais no loop da Engine:
+
+| Gate | Função | Arquivo | Trigger |
+|---|---|---|---|
+| **Gate A** | Entropia Cognitiva (λ) | `internal/agents/engine.go` | Action/thought token ratio excede `MaxLambda` |
+| **Gate A.5** | Lyapunov Divergence | `internal/agents/engine_helpers.go` | Consecutive per-step λ divergence >5x |
+| **Gate B** | Integridade Estrutural (AST) | `internal/agents/ast_validator.go` | `go/parser` ou Tree-sitter detecta `ERROR`/`MISSING` nodes |
+
+### 6.2 Bayesian Trust Engine
+
+O `TrustScore` de cada agente é persistido na tabela `agent_trust` no SQLite:
+
+```sql
+CREATE TABLE agent_trust (
+    agent_name TEXT PRIMARY KEY,
+    successes  INTEGER DEFAULT 0,
+    total      INTEGER DEFAULT 0,
+    trust_score REAL DEFAULT 0.5
+);
+```
+
+O Engine consulta `readPriorTrust(agentName)` → `CalculateTrustScore(successes, total)` → `TrustToDynamicLambda(trustScore)` para ajustar `MaxLambda` dinamicamente. Agentes com mais falhas históricas operam sob thresholds mais rigorosos.
 
 ## 7. The Subagent Triad Architecture
 

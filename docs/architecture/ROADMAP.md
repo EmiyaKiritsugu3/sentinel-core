@@ -66,8 +66,8 @@ Elevar o Sentinel ao estado de Oráculo Matemático via Prova de Estabilidade.
 
 - [x] **Sovereign Math Engine (SME)**: Motor central de cálculo de métricas e estabilidade.
 - [x] **Real-Time Entropy Monitor**: Interrupção de alucinações via Gates A (λ) e B (AST).
-- [ ] **Lyapunov Divergence Detection**: Detecção de "Logic Drift" antes da renderização. *Foundation: `CalculateLambda` in `internal/math/formulas.go`.*
-- [ ] **Bayesian Trust Calibration**: Ajuste dinâmico de rigor baseado em evidência histórica. *Foundation: `readPriorTrust`/`persistTrust` in `internal/agents/engine.go`.*
+- [x] **Lyapunov Divergence Detection**: Detecção de "Logic Drift" antes da renderização. *Implemented: `checkGateA5` in `internal/agents/engine_helpers.go`; wired in `engine.go` line 193.*
+- [x] **Bayesian Trust Calibration**: Ajuste dinâmico de rigor baseado em evidência histórica. *Implemented: `CalculateTrustScore`/`TrustToDynamicLambda` in `internal/math/formulas.go`; `readPriorTrust`/`persistTrust` in `internal/agents/engine_helpers.go`; `agent_trust` table in `internal/graph/schema.go`.*
 *Critério de Sucesso: Interrupção autônoma de 90% das alucinações baseada em métricas de probabilidade.*
 
 ---
@@ -112,5 +112,5 @@ Ideias com mérito técnico validado, sem data definida. Cada uma tem uma **pré
 
 ---
 
-*Atualizado em: 2026-05-05*
+*Atualizado em: 2026-05-08*
 *Assinado: Sovereign Council*
