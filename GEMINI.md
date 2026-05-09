@@ -23,7 +23,7 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
 1. **Protocolo de Auto-Aprimoramento**: Após qualquer correção externa (Review/Audit) ou erro de implementação, o agente DEVE identificar a "Linha de Ação Falha" (Anti-Padrão) e registrar no `docs/process/COGNITIVE-DNA.md`.
 2. **Cognitive Guardrails (Hardened)**:
     - **CG-01 (Precision Over Velocity)**: Proibido o uso de `strings.Contains` para classificação sem teste de falso positivo.
-    - **CG-02 (Sovereign Isolation)**: Todo componente deve validar `nil` em dependências, independente do wiring global.
+    - **CG-02 (Sovereign Isolation)**: Todo componente deve validar `nil` em dependências, independente do wiring global. **IMPLEMENTED**: `sqlite.ErrNilDB` sentinel error + `ValidateDB` function (`pkg/sqlite/validation.go`) — all exported methods now systematically validate DB dependency.
     - **CG-03 (Additive Logic)**: Decisões multi-fatoriais DEVEM usar o padrão Acumulador, nunca switches binários.
 3. **Arqueologia Obrigatória (ADF)**: Antes de qualquer depuração de infraestrutura, deve-se realizar a análise histórica conforme `docs/process/ADF-PROTOCOL.md`.
 4. **Traceability Mandate**: Cada nova funcionalidade ou correção deve ser explicitamente linkada à sua Spec de origem e Plano de Execução no `wiki-index.md`.

@@ -23,7 +23,10 @@ Sentinel introduces the **Subagent Triad Architecture**, separating concerns to 
 * **Deterministic Context (AST + SQLite)**: Sentinel scans your code and builds a granular dependency graph. It feeds the AI only the "Surgical Context" (the exact functions/structs needed), saving 90% of token waste.
 * **The Scout (Data-Driven Diagnostics)**: Before creating tasks, Sentinel analyzes your `graph.db` to identify God Objects and architectural hotspots, transforming vague intents into precise plans.
 * **Executable ADRs**: Every decision is linked to a shell command (test/benchmark). No task is marked as `DONE` until the Warden verifies this protocol.
-
+* **Bayesian Trust Calibration**: Per-agent trust scores (`agent_trust` table) dynamically adjust entropy thresholds. Agents with more past errors face stricter governance — the system becomes more "suspicious" after failures.
+* **Lyapunov Divergence Detection (Gate A.5)**: Tracks per-step reasoning divergence. If consecutive steps show >5x lambda increase, the system intervenes before the model drifts further into hallucination.
+* **Entropy Circuit Breaker (Gates A + B)**: Gate A filters by cognitive entropy (action vs. thought token ratio). Gate B validates structural integrity via in-memory AST parsing before filesystem writes.
+* **Nil Guard Hardening**: All exported methods validate dependencies via typed `ErrNilDB` sentinel error, enabling systematic `errors.Is()` matching across the codebase.
 * **Zero Dependencies**: Compiled in Go, it's a single static binary. No `node_modules`, no runtime friction.
 
 ## 🛠️ How it Works (The Sovereign Workflow)
