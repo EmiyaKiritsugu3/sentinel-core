@@ -32,9 +32,9 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
 
 ## 🔒 Protocolo de Bloqueio (Hardened)
 
-1. **Mandatory Verification**: Antes de qualquer código (FP > 5), o comando `./sentinel verify-plan` DEVE passar.
-2. **Mandatory Deliberation**: Para tarefas complexas (FP > 5) ou erros de build, é OBRIGATÓRIO o uso inicial de `sequential-thinking` e `tool_audit`.
-3. **Mandato de Encerramento (Epiphany Protocol)**: Ao reportar a conclusão de uma Sprint ou de uma depuração crítica, o agente DEVE categorizar os aprendizados nos Filtros de Epifania (A, B ou C) e executar as ferramentas apropriadas (`write_file` para logs locais ou `invoke_agent: save_memory` para regras globais) ANTES de solicitar a aprovação final do usuário.
+1. **Mandatory Verification**: Antes de qualquer implementação não-trivial, o comando `./sentinel verify-plan` DEVE passar.
+2. **Mandatory Deliberation**: Para tarefas complexas ou erros de build, é OBRIGATÓRIO o uso inicial de `sequential-thinking` e `tool_audit`.
+3. **Mandato de Encerramento (Epiphany Protocol)**: Ao reportar a conclusão de uma Sprint ou de uma depuração crítica, o agente DEVE categorizar os aprendizados nos Filtros de Epifania (A, B, C ou D) e executar as ferramentas apropriadas (`write_file` para logs locais ou `invoke_agent: save_memory` para regras globais) ANTES de solicitar a aprovação final do usuário.
 4. **Deterministic Trigger**: Instruções com `/sentinel` precedem qualquer outra lógica.
 5. **Reject non-Elite Plans**: Planos complexos sem o código `[PID-SENTINEL]` serão rejeitados.
 
@@ -58,6 +58,8 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
 
 ## 🏗️ Engineering Workflow
 
+- **SonarCloud Quality Gate**: Cobertura mínima 50%, zero critical issues, duplicação < 5%
+
 - **MANDATORY PR WORKFLOW**:
   1. Always create a Pull Request (PR) for any non-trivial change or feature.
   2. NEVER merge a PR immediately.
@@ -68,8 +70,9 @@ You are Antigravity, the project's lead cognitive assistant. The following strin
 - **🛡️ PROTOCOLO DE EPIFANIA (Sessão de Reflexão)**:
   1. **RIGOR PROPORCIONAL**: A atualização de documentação deve seguir os Tiers do Standard #14. Tarefas Trivial (T1) não exigem logs. Mudanças de arquitetura (T3) exigem auditoria completa.
   2. **DELTA CHECK**: O agente deve registrar insights significativos em `docs/process/EVOLUTION-INSIGHTS.md` sempre que uma nova "lição universal" for aprendida.
-  3. O `sentinel-log.md` deve ser atualizado com a síntese das decisões tomadas.
-  4. **OBRIGATÓRIO**: Toda entrega final deve conter o **Sovereign Audit Framework (Standard #08)**.
+3. O `sentinel-log.md` deve ser atualizado com a síntese das decisões tomadas.
+4. **FILTRO D — Decision Routing**: Quando uma epifania revela um princípio sobre COMO rotear decisões (não apenas o que aconteceu), o agente DEVE capturá-lo via `sentinel pattern add --source epiphany --category routing-principle`. Exemplo: "Auditoria troca modo cognitivo de construtivo para destrutivo" → Filtro D → routing-principle.
+5. **OBRIGATÓRIO**: Toda entrega final deve conter o **Sovereign Audit Framework (Standard #08)**.
 
 - **🏁 PROTOCOLO DE ENCERRAMENTO (Sovereign Handover)**:
   1. **MANDATÓRIO**: Antes de gerar o Handover Packet, o agente deve validar se todos os novos Gaps encontrados foram persistidos.
