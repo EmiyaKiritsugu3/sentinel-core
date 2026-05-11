@@ -1,6 +1,8 @@
 package registry
 
 import (
+	"sync"
+
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/spf13/cobra"
 )
@@ -8,14 +10,23 @@ import (
 // CommandFactory is a function that creates a cobra.Command with a DB dependency.
 type CommandFactory func(*sqlite.DB) *cobra.Command
 
-var factories []CommandFactory
+var (
+	factories []CommandFactory
+	mu        sync.Mutex
+)
 
-// Register adds a new command factory to the global registry.
+// Register adiciona uma factory ao registry global de forma thread-safe.
 func Register(factory CommandFactory) {
+	mu.Lock()
+	defer mu.Unlock()
 	factories = append(factories, factory)
 }
 
-// GetCommands returns all registered command factories.
+// GetCommands retorna uma cópia defensiva das factories registradas.
 func GetCommands() []CommandFactory {
-	return factories
+	mu.Lock()
+	defer mu.Unlock()
+	result := make([]CommandFactory, len(factories))
+	copy(result, factories)
+	return result
 }
