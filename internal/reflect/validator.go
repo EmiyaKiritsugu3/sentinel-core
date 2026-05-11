@@ -132,7 +132,7 @@ func isIgnored(path string) bool {
 	if ext != ".go" {
 		return true
 	}
-	ignored := []string{"vendor", "node_modules", ".git", "legacy", "pkg/utils"}
+	ignored := []string{"vendor", "node_modules", ".git", "legacy"}
 	for _, i := range ignored {
 		if strings.Contains(path, i) {
 			return true

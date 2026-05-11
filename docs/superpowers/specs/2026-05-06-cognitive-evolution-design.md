@@ -26,7 +26,7 @@ When an error or friction occurs, Sentinel must process the resolution on two fr
 
 ### Pillar 1: The Trigger (Triage)
 Not every typo is a lesson. To prevent noise and bloat, evolution is triggered only if a "Friction Threshold" is crossed.
-- **Condition:** A Sprint/Task is marked `FP > 5` (High Complexity) OR external audits (like CodeRabbit or test suites) flag > 2 conceptual issues.
+- **Condition:** A Sprint/Task é marcado como alta complexidade OR external audits (like CodeRabbit or test suites) flag > 2 conceptual issues.
 - **Action:** At the end of the sprint, the `sentinel evolve` command is invoked.
 
 ### Pillar 2: The Injection (Contextual RAG)
