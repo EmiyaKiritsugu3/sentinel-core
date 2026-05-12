@@ -21,6 +21,7 @@ func TestMigrate(t *testing.T) {
 		"sub_tasks",
 		"performance_logs",
 		"agent_trust",
+		"patterns",
 	}
 
 	for _, table := range tables {
@@ -31,9 +32,15 @@ func TestMigrate(t *testing.T) {
 				t.Errorf("table %s was not created", table)
 			} else {
 				t.Errorf("failed to query sqlite_master for table %s: %v", table, err)
-			}
 		}
 	}
+
+	var ftsName string
+	err = sqlDB.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='patterns_fts'").Scan(&ftsName)
+	if err != nil {
+		t.Errorf("patterns_fts virtual table was not created: %v", err)
+	}
+}
 }
 
 // TestMigrate_ColumnMigration covers the ALTER TABLE migration path.

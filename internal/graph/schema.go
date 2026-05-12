@@ -108,12 +108,61 @@ CREATE TABLE IF NOT EXISTS performance_logs (
 );
 
 CREATE TABLE IF NOT EXISTS agent_trust (
-    agent_name  TEXT PRIMARY KEY,
-    successes   INTEGER NOT NULL DEFAULT 0,
-    total       INTEGER NOT NULL DEFAULT 0,
-    trust_score REAL NOT NULL DEFAULT 0.5,
-    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	agent_name TEXT PRIMARY KEY,
+	successes INTEGER NOT NULL DEFAULT 0,
+	total INTEGER NOT NULL DEFAULT 0,
+	trust_score REAL NOT NULL DEFAULT 0.5,
+	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS patterns (
+	id TEXT PRIMARY KEY,
+	title TEXT NOT NULL,
+	description TEXT NOT NULL,
+	category TEXT NOT NULL CHECK(category IN (
+		'anti-pattern',
+		'cognitive-pattern',
+		'structural-principle',
+		'routing-principle'
+	)),
+	source TEXT NOT NULL CHECK(source IN (
+		'cognitive-dna',
+		'evolution-insights',
+		'sentinel-log',
+		'manual',
+		'epiphany'
+	)),
+	source_ref TEXT,
+	tags TEXT NOT NULL DEFAULT '',
+	impact TEXT NOT NULL DEFAULT 'medium' CHECK(impact IN ('high', 'medium', 'low')),
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS patterns_fts USING fts5(
+	title,
+	description,
+	tags,
+	content=patterns,
+	content_rowid=rowid
+);
+
+CREATE TRIGGER IF NOT EXISTS patterns_ai AFTER INSERT ON patterns BEGIN
+	INSERT INTO patterns_fts(rowid, title, description, tags)
+	VALUES (new.rowid, new.title, new.description, new.tags);
+END;
+
+CREATE TRIGGER IF NOT EXISTS patterns_ad AFTER DELETE ON patterns BEGIN
+	INSERT INTO patterns_fts(patterns_fts, rowid, title, description, tags)
+	VALUES ('delete', old.rowid, old.title, old.description, old.tags);
+END;
+
+CREATE TRIGGER IF NOT EXISTS patterns_au AFTER UPDATE ON patterns BEGIN
+	INSERT INTO patterns_fts(patterns_fts, rowid, title, description, tags)
+	VALUES ('delete', old.rowid, old.title, old.description, old.tags);
+	INSERT INTO patterns_fts(rowid, title, description, tags)
+	VALUES (new.rowid, new.title, new.description, new.tags);
+END;
 `
 
 func Migrate(db *sqlite.DB) (err error) {
@@ -206,7 +255,8 @@ var pragmaTableInfo = map[string]string{
 	"edges":               "PRAGMA table_info(edges)",
 	"audit_logs":          "PRAGMA table_info(audit_logs)",
 	"standards":           "PRAGMA table_info(standards)",
-	"performance_logs":    "PRAGMA table_info(performance_logs)",
+	"performance_logs": "PRAGMA table_info(performance_logs)",
+	"patterns":          "PRAGMA table_info(patterns)",
 }
 
 func columnExistsInTx(tx *sql.Tx, table, column string) (bool, error) {
