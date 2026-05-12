@@ -29,9 +29,15 @@ func TestNewEngine(t *testing.T) {
 	registry := NewRegistry()
 	auth := &mockAuthProvider{key: "fake-key"}
 	_ = bridge.NewIntentClassifier(bridge.NewNilClassifier(), 0.60)
-	validator := reflect.NewValidator(nil)
+	db := testutil.SetupTestDB(t)
+	defer db.Close()
 
-	engine, err := NewEngine(registry, auth, validator, nil)
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	engine, err := NewEngine(registry, auth, validator, db)
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}
@@ -226,7 +232,10 @@ func TestExecuteToolsWithResults(t *testing.T) {
 	defer db.Close()
 
 	registry := NewRegistry()
-	validator := reflect.NewValidator(nil)
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
 	e := &Engine{Registry: registry, validator: validator, DB: db}
 
 	t.Run("unknown tool returns error", func(t *testing.T) {
@@ -324,10 +333,11 @@ func TestExecute_NilGenaiClient(t *testing.T) {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
+	pf, _ := bridge.NewFactory(db, nil)
 	e := &Engine{
 		DB:            db,
 		Registry:      NewRegistry(),
-		promptFactory: bridge.NewFactory(db, nil),
+		promptFactory: pf,
 	}
 
 	ctx := NewAgentContext(context.Background(), "test-task", &AgentDefinition{
@@ -350,9 +360,15 @@ func TestExecute_NilGenaiClient(t *testing.T) {
 func TestNewEngine_EmptyAPIKey(t *testing.T) {
 	registry := NewRegistry()
 	auth := &mockAuthProvider{key: ""}
-	validator := reflect.NewValidator(nil)
+	db := testutil.SetupTestDB(t)
+	defer db.Close()
 
-	_, err := NewEngine(registry, auth, validator, nil)
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	_, err = NewEngine(registry, auth, validator, db)
 	// genai.NewClient with empty key may or may not error depending on SDK version.
 	// The important thing is it doesn't panic.
 	_ = err
@@ -367,7 +383,8 @@ func TestExecute_BudgetExceeded(t *testing.T) {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
-	e := &Engine{DB: db, Registry: NewRegistry(), promptFactory: bridge.NewFactory(db, nil)}
+	pf, _ := bridge.NewFactory(db, nil)
+	e := &Engine{DB: db, Registry: NewRegistry(), promptFactory: pf}
 	ctx := NewAgentContext(context.Background(), "task-1", &AgentDefinition{
 		Name:    "test",
 		ModelID: "gemini-1.5-flash",
@@ -403,7 +420,10 @@ func TestExecute_WithDBAndClient(t *testing.T) {
 	}
 
 	auth := &mockAuthProvider{key: "fake-key"}
-	validator := reflect.NewValidator(nil)
+	validator, vErr := reflect.NewValidator(db)
+	if vErr != nil {
+		t.Fatalf("failed to create validator: %v", vErr)
+	}
 
 	engine, err := NewEngine(NewRegistry(), auth, validator, db)
 	if err != nil {
@@ -465,7 +485,10 @@ func TestExecute_TrustPersistence(t *testing.T) {
 	}
 
 	auth := &mockAuthProvider{key: "fake-key"}
-	validator := reflect.NewValidator(nil)
+	validator, vErr := reflect.NewValidator(db)
+	if vErr != nil {
+		t.Fatalf("failed to create validator: %v", vErr)
+	}
 
 	engine, err := NewEngine(NewRegistry(), auth, validator, db)
 	if err != nil {
@@ -527,7 +550,10 @@ func TestExecute_ContextCancelled(t *testing.T) {
 	}
 
 	auth := &mockAuthProvider{key: "fake-key"}
-	validator := reflect.NewValidator(nil)
+	validator, vErr := reflect.NewValidator(db)
+	if vErr != nil {
+		t.Fatalf("failed to create validator: %v", vErr)
+	}
 
 	engine, err := NewEngine(NewRegistry(), auth, validator, db)
 	if err != nil {
@@ -677,7 +703,11 @@ func TestExecute_MetricsPersistence(t *testing.T) {
 	}
 
 	auth := &mockAuthProvider{key: "fake-key"}
-	validator := reflect.NewValidator(nil)
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
 	engine, err := NewEngine(NewRegistry(), auth, validator, db)
 	if err != nil {
 		t.Fatalf("failed to create engine: %v", err)

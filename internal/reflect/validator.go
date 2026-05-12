@@ -21,8 +21,11 @@ type Validator struct {
 	db *sqlite.DB
 }
 
-func NewValidator(db *sqlite.DB) *Validator {
-	return &Validator{db: db}
+func NewValidator(db *sqlite.DB) (*Validator, error) {
+	if err := sqlite.ValidateDB(db, "reflect-validator"); err != nil {
+		return nil, err
+	}
+	return &Validator{db: db}, nil
 }
 
 // ValidateProject varre o projeto em busca de violações de Standards

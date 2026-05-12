@@ -17,11 +17,21 @@ func init() {
 }
 
 func NewAuditCmd(db *sqlite.DB) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "audit",
 		Short: "Run the verification gate for the active task",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr := state.NewManager(db)
+	}
+
+	if err := sqlite.ValidateDB(db, "audit-cmd"); err != nil {
+		cmd.RunE = func(cmd *cobra.Command, args []string) error { return err }
+		return cmd
+	}
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+			mgr, err := state.NewManager(db)
+			if err != nil {
+				return fmt.Errorf("audit: failed to create manager: %w", err)
+			}
 			task, err := mgr.GetActiveTask()
 			if err != nil {
 				return fmt.Errorf("audit: no active task found. Run 'sentinel start <id>' first: %w", err)
@@ -29,7 +39,10 @@ func NewAuditCmd(db *sqlite.DB) *cobra.Command {
 
 			// 1. Sovereign Gate: Validação de Padrões
 			fmt.Println("🛡️  Sentinel: Running Sovereign Validator...")
-			validator := reflect.NewValidator(db)
+			validator, err := reflect.NewValidator(db)
+			if err != nil {
+				return fmt.Errorf("audit: failed to create validator: %w", err)
+			}
 			violations, err := validator.ValidateProject(".")
 			if err != nil {
 				return fmt.Errorf("audit: validator internal error: %w", err)
@@ -50,7 +63,10 @@ func NewAuditCmd(db *sqlite.DB) *cobra.Command {
 				return fmt.Errorf("audit: task record corrupted: %w", err)
 			}
 
-			runner := audit.NewRunner(db)
+			runner, err := audit.NewRunner(db)
+			if err != nil {
+				return fmt.Errorf("audit: failed to create runner: %w", err)
+			}
 			success, err := runner.ExecuteAudit(task.ID, verifyCmd)
 			if err != nil {
 				return fmt.Errorf("audit: execution error: %w", err)
@@ -65,7 +81,8 @@ func NewAuditCmd(db *sqlite.DB) *cobra.Command {
 				_ = mgr.UpdateStatus(task.ID, "FAILED")
 				return errors.New("audit failed. Fix the code and try again")
 			}
-			return nil
-		},
+		return nil
 	}
+
+	return cmd
 }

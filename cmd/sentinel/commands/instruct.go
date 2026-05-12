@@ -25,7 +25,14 @@ func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "instruct",
 		Short: "Interview mode to capture user intent and generate tasks",
-		RunE: func(cmd *cobra.Command, args []string) error {
+	}
+
+	if err := sqlite.ValidateDB(db, "instruct-cmd"); err != nil {
+		cmd.RunE = func(cmd *cobra.Command, args []string) error { return err }
+		return cmd
+	}
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 			var intent string
 
 			// 1. Prioridade: Flag explícita ou Stdin
@@ -110,7 +117,10 @@ func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 				return fmt.Errorf("instruct: verification command is required for non-draft ADRs")
 			}
 
-			manager := state.NewManager(db)
+			manager, err := state.NewManager(db)
+			if err != nil {
+				return fmt.Errorf("instruct: failed to create manager: %w", err)
+			}
 			id, err := manager.CreateTask(intent, "T1", adrData.VerificationCommand)
 			if err != nil {
 				return fmt.Errorf("instruct: failed to create task: %w", err)
@@ -126,8 +136,7 @@ func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 				fmt.Printf("✅ Task [%s] criada com Protocolo de Verificação: %s\n", id, adrData.VerificationCommand)
 			}
 
-			return nil
-		},
+		return nil
 	}
 
 	cmd.Flags().StringVarP(&message, "message", "m", "", "User intent message")

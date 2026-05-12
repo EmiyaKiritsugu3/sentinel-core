@@ -14,14 +14,24 @@ func init() {
 }
 
 func NewVisualizeCmd(db *sqlite.DB) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "visualize",
 		Short: "Generate architecture diagrams from the graph database",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("🎨 Sentinel: Generating architectural maps...")
-			viz := graph.NewVisualizer(db)
+	}
 
-			err := viz.GenerateMasterDiagram()
+	if err := sqlite.ValidateDB(db, "visualize-cmd"); err != nil {
+		cmd.RunE = func(cmd *cobra.Command, args []string) error { return err }
+		return cmd
+	}
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+			fmt.Println("🎨 Sentinel: Generating architectural maps...")
+			viz, err := graph.NewVisualizer(db)
+			if err != nil {
+				return fmt.Errorf("visualize: failed to create visualizer: %w", err)
+			}
+
+			err = viz.GenerateMasterDiagram()
 			if err != nil {
 				return fmt.Errorf("visualize: master graph failed: %w", err)
 			}
@@ -32,7 +42,8 @@ func NewVisualizeCmd(db *sqlite.DB) *cobra.Command {
 			}
 
 			fmt.Println("✅ MASTER-GRAPH.md and C4-CONTAINER-GRAPH.md generated in docs/architecture/")
-			return nil
-		},
+		return nil
 	}
+
+	return cmd
 }

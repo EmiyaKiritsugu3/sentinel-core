@@ -44,7 +44,10 @@ func TestRegistryManager_SelectBest(t *testing.T) {
 		}
 	}
 
-	mgr := NewRegistryManager(db)
+	mgr, err := NewRegistryManager(db)
+	if err != nil {
+		t.Fatalf("NewRegistryManager() error: %v", err)
+	}
 	ctx := context.Background()
 
 	t.Run("Match Go and SQLite", func(t *testing.T) {

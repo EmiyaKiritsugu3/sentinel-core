@@ -16,8 +16,11 @@ type Runner struct {
 	db *sqlite.DB
 }
 
-func NewRunner(db *sqlite.DB) *Runner {
-	return &Runner{db: db}
+func NewRunner(db *sqlite.DB) (*Runner, error) {
+	if err := sqlite.ValidateDB(db, "audit-runner"); err != nil {
+		return nil, err
+	}
+	return &Runner{db: db}, nil
 }
 
 // ExecuteAudit roda o comando de verificação para uma tarefa específica com timeout e proteção de shell

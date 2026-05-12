@@ -20,8 +20,11 @@ type Manager struct {
 	db *sqlite.DB
 }
 
-func NewManager(db *sqlite.DB) *Manager {
-	return &Manager{db: db}
+func NewManager(db *sqlite.DB) (*Manager, error) {
+	if err := sqlite.ValidateDB(db, "state-manager"); err != nil {
+		return nil, err
+	}
+	return &Manager{db: db}, nil
 }
 
 // CreateTask cria uma nova tarefa no banco

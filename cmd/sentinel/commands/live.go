@@ -21,7 +21,14 @@ func NewLiveCmd(db *sqlite.DB) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "live",
 		Short: "Start the Sentinel Live View WebSocket server",
-		RunE: func(cmd *cobra.Command, args []string) error {
+	}
+
+	if err := sqlite.ValidateDB(db, "live-cmd"); err != nil {
+		cmd.RunE = func(cmd *cobra.Command, args []string) error { return err }
+		return cmd
+	}
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 			// 1. Instantiates LiveView Server
 			server := liveview.NewServer()
 
@@ -35,7 +42,10 @@ func NewLiveCmd(db *sqlite.DB) *cobra.Command {
 				return fmt.Errorf("live: migration failed: %w", err)
 			}
 
-			engine := graph.NewEngine(db)
+			engine, err := graph.NewEngine(db)
+			if err != nil {
+				return fmt.Errorf("live: failed to create engine: %w", err)
+			}
 			engine.RegisterObserver(server)
 
 			// Start a background scan (for demonstration/bootstrapping)
@@ -60,8 +70,7 @@ func NewLiveCmd(db *sqlite.DB) *cobra.Command {
 			case <-cmd.Context().Done():
 				return cmd.Context().Err()
 			}
-			return nil
-		},
+		return nil
 	}
 
 	cmd.Flags().IntVarP(&port, "port", "p", 8080, "Port for the Live View server")

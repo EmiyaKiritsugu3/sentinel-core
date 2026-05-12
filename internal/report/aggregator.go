@@ -32,16 +32,15 @@ type Aggregator struct {
 	db *sqlite.DB
 }
 
-func NewAggregator(db *sqlite.DB) *Aggregator {
-	return &Aggregator{db: db}
+func NewAggregator(db *sqlite.DB) (*Aggregator, error) {
+	if err := sqlite.ValidateDB(db, "report-aggregator"); err != nil {
+		return nil, err
+	}
+	return &Aggregator{db: db}, nil
 }
 
 // FetchStats consolida todos os dados do SQLite
 func (a *Aggregator) FetchStats() (*ProjectStats, error) {
-	if a.db == nil || a.db.Conn == nil {
-		return nil, fmt.Errorf("aggregator: %w", sqlite.ErrNilDB)
-	}
-
 	stats := &ProjectStats{}
 
 	// 1. Contagem de Nós
@@ -83,7 +82,10 @@ func (a *Aggregator) FetchStats() (*ProjectStats, error) {
 	}
 
 	// 4. Listagem Detalhada de Tasks (Sovereign Link Discovery)
-	mgr := state.NewManager(a.db)
+	mgr, err := state.NewManager(a.db)
+	if err != nil {
+		return nil, fmt.Errorf("aggregator: failed to create manager: %w", err)
+	}
 	tasks, err := mgr.ListTasks()
 	if err != nil {
 		return nil, fmt.Errorf("aggregator: failed to list tasks: %w", err)

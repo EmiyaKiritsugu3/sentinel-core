@@ -14,14 +14,24 @@ func init() {
 }
 
 func NewReportCmd(db *sqlite.DB) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "report",
 		Short: "Show a colorful compliance dashboard and export to Markdown",
-		RunE: func(cmd *cobra.Command, args []string) error {
+	}
+
+	if err := sqlite.ValidateDB(db, "report-cmd"); err != nil {
+		cmd.RunE = func(cmd *cobra.Command, args []string) error { return err }
+		return cmd
+	}
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 			fmt.Println("\n📊 SENTINEL COMPLIANCE REPORT")
 			fmt.Println("======================================")
 
-			agg := report.NewAggregator(db)
+			agg, err := report.NewAggregator(db)
+			if err != nil {
+				return fmt.Errorf("report: failed to create aggregator: %w", err)
+			}
 			stats, err := agg.FetchStats()
 			if err != nil {
 				return fmt.Errorf("report: failed to fetch report data: %w", err)
@@ -77,7 +87,8 @@ func NewReportCmd(db *sqlite.DB) *cobra.Command {
 				fmt.Printf("\n✅ Dashboard exported to: docs/process/COMPLIANCE-DASHBOARD.md\n")
 			}
 			fmt.Println("======================================")
-			return nil
-		},
+		return nil
 	}
+
+	return cmd
 }

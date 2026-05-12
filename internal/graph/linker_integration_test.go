@@ -18,7 +18,10 @@ func TestLinker_Integration(t *testing.T) {
 	os.Chdir(t.TempDir())
 	defer os.Chdir(oldCwd)
 
-	engine := NewEngine(db)
+	engine, err := NewEngine(db)
+	if err != nil {
+		t.Fatalf("NewEngine() error: %v", err)
+	}
 
 	os.MkdirAll("src/components", 0755)
 	os.WriteFile("src/app.tsx", []byte("import Button from './components/Button'"), 0644)
@@ -59,7 +62,7 @@ func TestLinker_Integration(t *testing.T) {
 		}
 	}
 
-	err := engine.LinkDependencies()
+	err = engine.LinkDependencies()
 	if err != nil {
 		t.Fatalf("LinkDependencies failed: %v", err)
 	}

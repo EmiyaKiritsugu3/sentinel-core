@@ -55,6 +55,19 @@ type Engine struct {
 
 // NewEngine initializes a new agent engine.
 func NewEngine(r *Registry, auth AuthProvider, v *reflect.Validator, db *sqlite.DB) (*Engine, error) {
+	if r == nil {
+		return nil, fmt.Errorf("engine: nil registry")
+	}
+	if auth == nil {
+		return nil, fmt.Errorf("engine: nil auth provider")
+	}
+	if v == nil {
+		return nil, fmt.Errorf("engine: nil validator")
+	}
+	if err := sqlite.ValidateDB(db, "engine"); err != nil {
+		return nil, err
+	}
+
 	apiKey, err := auth.GetAPIKey()
 	if err != nil {
 		return nil, fmt.Errorf("engine: failed to get API key: %w", err)
@@ -65,9 +78,15 @@ func NewEngine(r *Registry, auth AuthProvider, v *reflect.Validator, db *sqlite.
 		return nil, fmt.Errorf("engine: failed to create genai client: %w", err)
 	}
 
-	geminiClassifier := bridge.NewGeminiClassifier(client)
+	geminiClassifier, err := bridge.NewGeminiClassifier(client)
+	if err != nil {
+		return nil, fmt.Errorf("engine: failed to create gemini classifier: %w", err)
+	}
 	classifier := bridge.NewIntentClassifier(geminiClassifier, 0.60)
-	factory := bridge.NewFactory(db, classifier)
+	factory, err := bridge.NewFactory(db, classifier)
+	if err != nil {
+		return nil, fmt.Errorf("engine: failed to create prompt factory: %w", err)
+	}
 
 	return &Engine{
 		Registry:      r,
