@@ -64,7 +64,7 @@ func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 			fmt.Printf("\n🔍 Sentinel: Analisando '%s'...\n", intent)
 
 			// Busca por 'God Objects' ou pontos de impacto se a intenção for vaga
-			isVague := len(strings.Split(intent, " ")) < 3 || strings.Contains(strings.ToLower(intent), "performance")
+			isVague := isVagueIntent(intent)
 			var evidence string
 			if isVague && !quick {
 				evidence = performDiagnostic(cmd.Context(), db)
@@ -142,6 +142,10 @@ func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 	cmd.Flags().StringVarP(&message, "message", "m", "", "User intent message")
 	cmd.Flags().BoolVarP(&quick, "quick", "q", false, "Skip interview and use defaults")
 	return cmd
+}
+
+func isVagueIntent(intent string) bool {
+	return len(strings.Split(intent, " ")) < 3 || strings.Contains(strings.ToLower(intent), "performance")
 }
 
 func performDiagnostic(ctx context.Context, db *sqlite.DB) string {

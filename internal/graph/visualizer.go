@@ -138,6 +138,25 @@ func (v *Visualizer) GenerateC4ContainerDiagram() error {
 	return nil
 }
 
+func classifyContainer(path string) string {
+	if strings.Contains(path, "cmd/sentinel") {
+		return "cli"
+	} else if strings.Contains(path, "internal/agents") {
+		return "agents"
+	} else if strings.Contains(path, "internal/graph") {
+		return "graph"
+	} else if strings.Contains(path, "internal/audit") || strings.Contains(path, "internal/reflect") {
+		return "audit"
+	} else if strings.Contains(path, "internal/state") {
+		return "state"
+	} else if strings.Contains(path, "pkg/sqlite") {
+		return "db"
+	} else if strings.Contains(path, "legacy/ts") {
+		return "frontend"
+	}
+	return ""
+}
+
 func (v *Visualizer) formatC4Mermaid(nodes []Node, edges []Edge) string {
 	type container struct {
 		id   string
@@ -166,33 +185,12 @@ func (v *Visualizer) formatC4Mermaid(nodes []Node, edges []Edge) string {
 	}
 	sb.WriteString("\n")
 
-	// Mapeia node ID para container ID
 	nodeToContainer := make(map[string]string)
 
-	// Helper para extrair CID do caminho
-	getContainerID := func(path string) string {
-		if strings.Contains(path, "cmd/sentinel") {
-			return "cli"
-		} else if strings.Contains(path, "internal/agents") {
-			return "agents"
-		} else if strings.Contains(path, "internal/graph") {
-			return "graph"
-		} else if strings.Contains(path, "internal/audit") || strings.Contains(path, "internal/reflect") {
-			return "audit"
-		} else if strings.Contains(path, "internal/state") {
-			return "state"
-		} else if strings.Contains(path, "pkg/sqlite") {
-			return "db"
-		} else if strings.Contains(path, "legacy/ts") {
-			return "frontend"
-		}
-		return ""
-	}
-
 	for _, n := range nodes {
-		cid := getContainerID(n.FilePath)
+		cid := classifyContainer(n.FilePath)
 		if cid == "" && strings.HasPrefix(n.ID, "file:") {
-			cid = getContainerID(strings.TrimPrefix(n.ID, "file:"))
+			cid = classifyContainer(strings.TrimPrefix(n.ID, "file:"))
 		}
 
 		if cid != "" {
@@ -200,17 +198,16 @@ func (v *Visualizer) formatC4Mermaid(nodes []Node, edges []Edge) string {
 		}
 	}
 
-	// Adiciona mapeamento para alvos de imports que podem não ser nós de símbolos
 	for _, e := range edges {
 		if _, ok := nodeToContainer[e.To]; !ok && strings.HasPrefix(e.To, "file:") {
 			path := strings.TrimPrefix(e.To, "file:")
-			if cid := getContainerID(path); cid != "" {
+			if cid := classifyContainer(path); cid != "" {
 				nodeToContainer[e.To] = cid
 			}
 		}
 		if _, ok := nodeToContainer[e.From]; !ok && strings.HasPrefix(e.From, "file:") {
 			path := strings.TrimPrefix(e.From, "file:")
-			if cid := getContainerID(path); cid != "" {
+			if cid := classifyContainer(path); cid != "" {
 				nodeToContainer[e.From] = cid
 			}
 		}
