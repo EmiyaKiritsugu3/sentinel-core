@@ -22,6 +22,11 @@ func NewPatternCmd(db *sqlite.DB) *cobra.Command {
 		Short: "Capture and query architectural and cognitive patterns",
 	}
 
+	if err := sqlite.ValidateDB(db, "pattern-cmd"); err != nil {
+		cmd.RunE = func(cmd *cobra.Command, args []string) error { return err }
+		return cmd
+	}
+
 	cmd.AddCommand(patternAddCmd(db))
 	cmd.AddCommand(patternListCmd(db))
 	cmd.AddCommand(patternSearchCmd(db))

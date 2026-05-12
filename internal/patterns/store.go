@@ -64,6 +64,12 @@ func NewPatternStore(db *sqlite.DB) (*PatternStore, error) {
 }
 
 func (s *PatternStore) Create(p *Pattern) (string, error) {
+	if err := sqlite.ValidateDB(s.db, "pattern-store.Create"); err != nil {
+		return "", err
+	}
+	if p == nil {
+		return "", fmt.Errorf("pattern-store.Create: nil pattern")
+	}
 	id := uuid.New().String()
 	query := `INSERT INTO patterns (id, title, description, category, source, source_ref, tags, impact)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
@@ -75,6 +81,9 @@ func (s *PatternStore) Create(p *Pattern) (string, error) {
 }
 
 func (s *PatternStore) List(filters ListFilters) ([]Pattern, error) {
+	if err := sqlite.ValidateDB(s.db, "pattern-store.List"); err != nil {
+		return nil, err
+	}
 	query := "SELECT id, title, description, category, source, source_ref, tags, impact, created_at, updated_at FROM patterns WHERE 1=1"
 	var args []interface{}
 
@@ -107,6 +116,9 @@ func (s *PatternStore) List(filters ListFilters) ([]Pattern, error) {
 }
 
 func (s *PatternStore) Search(query string) ([]Pattern, error) {
+	if err := sqlite.ValidateDB(s.db, "pattern-store.Search"); err != nil {
+		return nil, err
+	}
 	q := `SELECT p.id, p.title, p.description, p.category, p.source, p.source_ref, p.tags, p.impact, p.created_at, p.updated_at
 	FROM patterns p
 	JOIN patterns_fts fts ON p.rowid = fts.rowid
@@ -123,6 +135,9 @@ func (s *PatternStore) Search(query string) ([]Pattern, error) {
 }
 
 func (s *PatternStore) Get(id string) (*Pattern, error) {
+	if err := sqlite.ValidateDB(s.db, "pattern-store.Get"); err != nil {
+		return nil, err
+	}
 	query := `SELECT id, title, description, category, source, source_ref, tags, impact, created_at, updated_at
 	FROM patterns WHERE id = ?`
 	var p Pattern

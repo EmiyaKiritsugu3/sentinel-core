@@ -1,10 +1,12 @@
 package patterns
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/testutil"
+	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 )
 
 func setupStore(t *testing.T) *PatternStore {
@@ -25,6 +27,49 @@ func TestNewPatternStore_NilDB(t *testing.T) {
 	_, err := NewPatternStore(nil)
 	if err == nil {
 		t.Fatal("expected error for nil db")
+	}
+}
+
+// CG-02: Validação nil-DB em métodos exportados — cada método deve
+// retornar ErrNilDB independente do wiring do construtor.
+
+func TestCreate_NilDB(t *testing.T) {
+	s := &PatternStore{}
+	_, err := s.Create(&Pattern{Title: "x", Description: "x", Category: "anti-pattern", Source: "manual", Tags: "x", Impact: "high"})
+	if !errors.Is(err, sqlite.ErrNilDB) {
+		t.Fatalf("expected ErrNilDB, got %v", err)
+	}
+}
+
+func TestCreate_NilPattern(t *testing.T) {
+	store := setupStore(t)
+	_, err := store.Create(nil)
+	if err == nil {
+		t.Fatal("expected error for nil pattern")
+	}
+}
+
+func TestList_NilDB(t *testing.T) {
+	s := &PatternStore{}
+	_, err := s.List(ListFilters{})
+	if !errors.Is(err, sqlite.ErrNilDB) {
+		t.Fatalf("expected ErrNilDB, got %v", err)
+	}
+}
+
+func TestSearch_NilDB(t *testing.T) {
+	s := &PatternStore{}
+	_, err := s.Search("test")
+	if !errors.Is(err, sqlite.ErrNilDB) {
+		t.Fatalf("expected ErrNilDB, got %v", err)
+	}
+}
+
+func TestGet_NilDB(t *testing.T) {
+	s := &PatternStore{}
+	_, err := s.Get("id")
+	if !errors.Is(err, sqlite.ErrNilDB) {
+		t.Fatalf("expected ErrNilDB, got %v", err)
 	}
 }
 

@@ -1,10 +1,12 @@
 package patterns
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/testutil"
+	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 )
 
 func TestLevenshteinDistance(t *testing.T) {
@@ -73,6 +75,16 @@ func TestFindSimilar(t *testing.T) {
 	}
 	if len(results) != 0 {
 		t.Fatalf("expected no similar patterns, got %d", len(results))
+	}
+}
+
+// CG-02: FindSimilar deve retornar ErrNilDB quando store não tem DB
+
+func TestFindSimilar_NilDB(t *testing.T) {
+	s := &PatternStore{}
+	_, err := s.FindSimilar("test", []string{"a"})
+	if !errors.Is(err, sqlite.ErrNilDB) {
+		t.Fatalf("expected ErrNilDB, got %v", err)
 	}
 }
 

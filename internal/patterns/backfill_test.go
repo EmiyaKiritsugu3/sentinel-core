@@ -1,12 +1,14 @@
 package patterns
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/testutil"
+	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -305,4 +307,30 @@ func TestInsertIfNew_CreateError(t *testing.T) {
 
 	assert.Equal(t, 0, result.Inserted, "insertIfNew não deve contar inserção em erro")
 	assert.True(t, len(result.Errors) > 0, "insertIfNew deve registrar erro quando Create falha")
+}
+
+// CG-02: Métodos BackfillFrom* devem retornar ErrNilDB quando store não tem DB
+
+func TestBackfillFromCognitiveDNA_NilDB(t *testing.T) {
+	s := &PatternStore{}
+	_, err := s.BackfillFromCognitiveDNA(".")
+	if !errors.Is(err, sqlite.ErrNilDB) {
+		t.Fatalf("expected ErrNilDB, got %v", err)
+	}
+}
+
+func TestBackfillFromEvolutionInsights_NilDB(t *testing.T) {
+	s := &PatternStore{}
+	_, err := s.BackfillFromEvolutionInsights(".")
+	if !errors.Is(err, sqlite.ErrNilDB) {
+		t.Fatalf("expected ErrNilDB, got %v", err)
+	}
+}
+
+func TestBackfillFromSentinelLog_NilDB(t *testing.T) {
+	s := &PatternStore{}
+	_, err := s.BackfillFromSentinelLog(".", false)
+	if !errors.Is(err, sqlite.ErrNilDB) {
+		t.Fatalf("expected ErrNilDB, got %v", err)
+	}
 }

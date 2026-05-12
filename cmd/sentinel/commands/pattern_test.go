@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -365,5 +366,15 @@ func findProjectRoot() string {
 			return "."
 		}
 		dir = parent
+	}
+}
+
+// CG-02: NewPatternCmd com nil DB deve retornar ErrNilDB na execução
+
+func TestNewPatternCmd_NilDB(t *testing.T) {
+	cmd := NewPatternCmd(nil)
+	err := cmd.Execute()
+	if !errors.Is(err, sqlite.ErrNilDB) {
+		t.Fatalf("expected ErrNilDB, got %v", err)
 	}
 }

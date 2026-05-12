@@ -3,6 +3,8 @@ package patterns
 import (
 	"fmt"
 	"strings"
+
+	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 )
 
 func levenshteinDistance(a, b string) int {
@@ -81,6 +83,9 @@ const (
 )
 
 func (s *PatternStore) FindSimilar(title string, tags []string) ([]Pattern, error) {
+	if err := sqlite.ValidateDB(s.db, "pattern-store.FindSimilar"); err != nil {
+		return nil, err
+	}
 	all, err := s.List(ListFilters{})
 	if err != nil {
 		return nil, fmt.Errorf("patterns: find similar: %w", err)

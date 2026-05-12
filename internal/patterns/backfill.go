@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 )
 
 type BackfillResult struct {
@@ -51,6 +53,9 @@ func (s *PatternStore) insertIfNew(c BackfillCandidate, source string, result *B
 }
 
 func (s *PatternStore) BackfillFromCognitiveDNA(baseDir string) (BackfillResult, error) {
+	if err := sqlite.ValidateDB(s.db, "pattern-store.BackfillFromCognitiveDNA"); err != nil {
+		return BackfillResult{}, err
+	}
 	var result BackfillResult
 	candidates, err := parseCognitiveDNA(filepath.Join(baseDir, "docs/process/COGNITIVE-DNA.md"))
 	if err != nil {
@@ -65,6 +70,9 @@ func (s *PatternStore) BackfillFromCognitiveDNA(baseDir string) (BackfillResult,
 }
 
 func (s *PatternStore) BackfillFromEvolutionInsights(baseDir string) (BackfillResult, error) {
+	if err := sqlite.ValidateDB(s.db, "pattern-store.BackfillFromEvolutionInsights"); err != nil {
+		return BackfillResult{}, err
+	}
 	var result BackfillResult
 	candidates, err := parseEvolutionInsights(filepath.Join(baseDir, "docs/process/EVOLUTION-INSIGHTS.md"))
 	if err != nil {
@@ -79,6 +87,9 @@ func (s *PatternStore) BackfillFromEvolutionInsights(baseDir string) (BackfillRe
 }
 
 func (s *PatternStore) BackfillFromSentinelLog(baseDir string, dryRun bool) ([]BackfillCandidate, error) {
+	if err := sqlite.ValidateDB(s.db, "pattern-store.BackfillFromSentinelLog"); err != nil {
+		return nil, err
+	}
 	candidates, err := parseSentinelLog(filepath.Join(baseDir, "docs/process/sentinel-log.md"))
 	if err != nil {
 		return nil, fmt.Errorf("patterns: backfill sentinel-log: %w", err)
