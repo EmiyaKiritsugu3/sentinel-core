@@ -62,8 +62,11 @@ func patternAddCmd(db *sqlite.DB) *cobra.Command {
 
 			if !addForce {
 				tagSlice := strings.Split(addTags, ",")
-				similar, _ := store.FindSimilar(addTitle, tagSlice)
-				if len(similar) > 0 {
+		similar, err := store.FindSimilar(addTitle, tagSlice)
+		if err != nil {
+			return fmt.Errorf("pattern add: dedup check failed: %w", err)
+		}
+		if len(similar) > 0 {
 					fmt.Printf("[SENTINEL] Similar pattern found: %q (ID: %s)\n", similar[0].Title, similar[0].ID)
 					fmt.Println("[SENTINEL] Use --force to create anyway.")
 					return nil
@@ -216,11 +219,10 @@ func patternGetCmd(db *sqlite.DB) *cobra.Command {
 				return err
 			}
 
-			p, err := store.Get(args[0])
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Pattern not found: %s\n", args[0])
-				os.Exit(1)
-			}
+		p, err := store.Get(args[0])
+		if err != nil {
+			return fmt.Errorf("pattern get: pattern not found: %s", args[0])
+		}
 
 			fmt.Printf("ID: %s\n", p.ID)
 			fmt.Printf("Title: %s\n", p.Title)
@@ -263,13 +265,13 @@ func runBackfillEvolutionInsights(store *patterns.PatternStore, baseDir string) 
 }
 
 func runBackfillSentinelLog(store *patterns.PatternStore, baseDir string) {
-	candidates, err := store.BackfillFromSentinelLog(baseDir, true)
+	result, err := store.BackfillFromSentinelLog(baseDir, true)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: sentinel-log backfill: %v\n", err)
 		return
 	}
-	fmt.Printf("[DRY-RUN] %d candidates extracted from sentinel-log:\n", len(candidates))
-	for i, c := range candidates {
+	fmt.Printf("[DRY-RUN] %d candidates extracted from sentinel-log:\n", result.Extracted)
+	for i, c := range result.Candidates {
 		fmt.Printf(" %d. %q (%s)\n", i+1, c.Title, c.SourceRef)
 	}
 	fmt.Println("Use 'sentinel pattern add' to capture selected patterns.")

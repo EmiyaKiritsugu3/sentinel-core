@@ -101,7 +101,17 @@ func TestBackfillFromSentinelLog_DryRun(t *testing.T) {
 	}
 	store, _ := NewPatternStore(db)
 
-	candidates, err := store.BackfillFromSentinelLog(projectRoot, true)
+	dir := t.TempDir()
+	docDir := filepath.Join(dir, "docs", "process")
+	if err := os.MkdirAll(docDir, 0755); err != nil {
+		t.Fatalf("mkdir failed: %v", err)
+	}
+	content := "# Log\n- Filtro A aplicado no roteamento de módulos críticos\n- Filtro B detectado em análise estrutural\n"
+	if err := os.WriteFile(filepath.Join(docDir, "sentinel-log.md"), []byte(content), 0644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	result, err := store.BackfillFromSentinelLog(dir, true)
 	if err != nil {
 		t.Fatalf("BackfillFromSentinelLog dry-run failed: %v", err)
 	}
@@ -109,7 +119,12 @@ func TestBackfillFromSentinelLog_DryRun(t *testing.T) {
 	if len(patterns) != 0 {
 		t.Fatalf("expected 0 patterns after dry-run, got %d", len(patterns))
 	}
-	_ = candidates
+	if result.Extracted == 0 {
+		t.Fatal("expected non-zero Extracted count from dry-run")
+	}
+	if len(result.Candidates) == 0 {
+		t.Fatal("expected Candidates populated in dry-run result")
+	}
 }
 
 // CG-01: Testes de Falso Positivo — strings.Contains para classificação
@@ -238,11 +253,11 @@ func TestBackfillFromSentinelLog_Insert(t *testing.T) {
 		t.Fatalf("write failed: %v", err)
 	}
 
-	candidates, err := store.BackfillFromSentinelLog(dir, false)
+	result, err := store.BackfillFromSentinelLog(dir, false)
 	if err != nil {
 		t.Fatalf("BackfillFromSentinelLog insert failed: %v", err)
 	}
-	if len(candidates) == 0 {
+	if result.Extracted == 0 {
 		t.Fatal("expected at least 1 candidate from sentinel-log")
 	}
 	patterns, _ := store.List(ListFilters{Source: "sentinel-log"})
@@ -329,7 +344,7 @@ func TestBackfillFromEvolutionInsights_NilDB(t *testing.T) {
 
 func TestBackfillFromSentinelLog_NilDB(t *testing.T) {
 	s := &PatternStore{}
-	_, err := s.BackfillFromSentinelLog(".", false)
+	_, err := s.BackfillFromSentinelLog(".", true)
 	if !errors.Is(err, sqlite.ErrNilDB) {
 		t.Fatalf("expected ErrNilDB, got %v", err)
 	}

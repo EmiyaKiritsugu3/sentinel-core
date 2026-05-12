@@ -11,10 +11,11 @@ import (
 )
 
 type BackfillResult struct {
-	Extracted int
-	Inserted  int
-	Skipped   int
-	Errors    []string
+	Extracted  int
+	Inserted   int
+	Skipped    int
+	Errors     []string
+	Candidates []BackfillCandidate
 }
 
 type BackfillCandidate struct {
@@ -86,29 +87,26 @@ func (s *PatternStore) BackfillFromEvolutionInsights(baseDir string) (BackfillRe
 	return result, nil
 }
 
-func (s *PatternStore) BackfillFromSentinelLog(baseDir string, dryRun bool) ([]BackfillCandidate, error) {
+func (s *PatternStore) BackfillFromSentinelLog(baseDir string, dryRun bool) (BackfillResult, error) {
 	if err := sqlite.ValidateDB(s.db, "pattern-store.BackfillFromSentinelLog"); err != nil {
-		return nil, err
+		return BackfillResult{}, err
 	}
 	candidates, err := parseSentinelLog(filepath.Join(baseDir, "docs/process/sentinel-log.md"))
 	if err != nil {
-		return nil, fmt.Errorf("patterns: backfill sentinel-log: %w", err)
+		return BackfillResult{}, fmt.Errorf("patterns: backfill sentinel-log: %w", err)
 	}
+
+	var result BackfillResult
+	result.Extracted = len(candidates)
+	result.Candidates = candidates
+
 	if dryRun {
-		return candidates, nil
+		return result, nil
 	}
 	for _, c := range candidates {
-		s.Create(&Pattern{
-			Title:       c.Title,
-			Description: c.Description,
-			Category:    c.Category,
-			Source:      SourceSentinelLog,
-			SourceRef:   c.SourceRef,
-			Tags:        c.Tags,
-			Impact:      c.Impact,
-		})
+		s.insertIfNew(c, SourceSentinelLog, &result)
 	}
-	return candidates, nil
+	return result, nil
 }
 
 func parseAPTableRow(line string) (BackfillCandidate, bool) {
