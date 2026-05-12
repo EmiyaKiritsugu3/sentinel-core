@@ -9,11 +9,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var RootCmd = &cobra.Command{
-	Use:   "sentinel",
-	Short: "Sentinel Core: Governance & Context Engine for AI-Native Development",
-}
-
 func NewRootCmd(db *sqlite.DB) *cobra.Command {
 	root := &cobra.Command{
 		Use:   "sentinel",
