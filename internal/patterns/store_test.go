@@ -219,6 +219,41 @@ func TestList_WithLimit(t *testing.T) {
 
 // Cobertura: List — filtro por Impact
 
+// CG-01: bm25 ASC retorna melhor match primeiro (FP: DESC retornaria pior primeiro)
+
+func TestSearch_Ranking(t *testing.T) {
+	store := setupStore(t)
+
+	store.Create(&Pattern{
+		Title:       "Loop diagnosis empirical",
+		Description: "Diagnosis loop repeated diagnosis pattern with empirical data",
+		Category:    "anti-pattern",
+		Source:      "manual",
+		Tags:        "diagnosis,loop,empirical",
+		Impact:      "high",
+	})
+	store.Create(&Pattern{
+		Title:       "Side observation",
+		Description: "A diagnosis mention in passing",
+		Category:    "cognitive-pattern",
+		Source:      "manual",
+		Tags:        "misc",
+		Impact:      "low",
+	})
+
+	results, err := store.Search("diagnosis")
+	if err != nil {
+		t.Fatalf("Search failed: %v", err)
+	}
+	if len(results) < 2 {
+		t.Fatalf("expected at least 2 results, got %d", len(results))
+	}
+
+	if results[0].Title != "Loop diagnosis empirical" {
+		t.Fatalf("expected best match 'Loop diagnosis empirical' first, got %q — bm25 ASC ordering broken", results[0].Title)
+	}
+}
+
 func TestList_FilterByImpact(t *testing.T) {
 	store := setupStore(t)
 

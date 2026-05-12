@@ -111,7 +111,7 @@ func (s *PatternStore) Search(query string) ([]Pattern, error) {
 	FROM patterns p
 	JOIN patterns_fts fts ON p.rowid = fts.rowid
 	WHERE patterns_fts MATCH ?
-	ORDER BY bm25(patterns_fts) DESC
+	ORDER BY bm25(patterns_fts) ASC
 	LIMIT 20`
 	rows, err := s.db.Conn.Query(q, query)
 	if err != nil {
