@@ -14,10 +14,17 @@ func init() {
 }
 
 func NewScanCmd(db *sqlite.DB) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "scan",
 		Short: "Scan the project code to update the graph database",
-		RunE: func(cmd *cobra.Command, args []string) error {
+	}
+
+	if err := sqlite.ValidateDB(db, "scan-cmd"); err != nil {
+		cmd.RunE = func(cmd *cobra.Command, args []string) error { return err }
+		return cmd
+	}
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 			var err error
 			// Auto-Migração: garante que o banco esteja pronto
 			err = graph.Migrate(db)
@@ -28,7 +35,10 @@ func NewScanCmd(db *sqlite.DB) *cobra.Command {
 			fmt.Println("🔍 Sentinel: Scanning project AST...")
 
 			// Inicializa o Engine Multi-Linguagem
-			engine := graph.NewEngine(db)
+			engine, err := graph.NewEngine(db)
+			if err != nil {
+				return fmt.Errorf("scan: failed to create engine: %w", err)
+			}
 
 			// Registra os Scanners
 			engine.RegisterScanner(graph.NewGoScanner())
@@ -39,8 +49,9 @@ func NewScanCmd(db *sqlite.DB) *cobra.Command {
 				return fmt.Errorf("scan: failed: %w", err)
 			}
 
-			fmt.Println("✅ Scan complete. Graph database updated.")
-			return nil
-		},
+		fmt.Println("✅ Scan complete. Graph database updated.")
+		return nil
 	}
+
+	return cmd
 }

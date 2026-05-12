@@ -46,7 +46,7 @@ func TestDispatcher_ReconcileEvents(t *testing.T) {
 		t.Fatalf("failed to write event file: %v", err)
 	}
 
-	d := NewDispatcher(nil, nil, db)
+	d := &Dispatcher{DB: db}
 	err = d.ReconcileEvents(ctx)
 	if err != nil {
 		t.Fatalf("reconciliation failed: %v", err)

@@ -378,7 +378,10 @@ func (t *AuditTool) ValidateArguments(v *reflect.Validator, args map[string]inte
 }
 
 func (t *AuditTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
-	v := reflect.NewValidator(t.db)
+	v, err := reflect.NewValidator(t.db)
+	if err != nil {
+		return "", fmt.Errorf("audit tool: %w", err)
+	}
 	violations, err := v.ValidateProject(".")
 	if err != nil {
 		return "", fmt.Errorf("audit tool: %w", err)
@@ -529,7 +532,10 @@ func (t *ADRTool) ValidateArguments(v *reflect.Validator, args map[string]interf
 }
 
 func (t *ADRTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
-	manager := state.NewManager(t.db)
+	manager, err := state.NewManager(t.db)
+	if err != nil {
+		return "", fmt.Errorf("adr tool: failed to create manager: %w", err)
+	}
 	task, err := manager.GetActiveTask()
 	if err != nil {
 		return "", fmt.Errorf("adr tool: failed to get active task: %w", err)
@@ -584,7 +590,10 @@ func (t *ScanTool) ValidateArguments(v *reflect.Validator, args map[string]inter
 }
 
 func (t *ScanTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
-	engine := graph.NewEngine(t.db)
+	engine, err := graph.NewEngine(t.db)
+	if err != nil {
+		return "", fmt.Errorf("scan: failed to create engine: %w", err)
+	}
 	engine.RegisterScanner(graph.NewGoScanner())
 	engine.RegisterScanner(graph.NewTreeSitterScanner())
 
@@ -695,7 +704,10 @@ func (t *DecomposeTool) Execute(ctx context.Context, args map[string]interface{}
 		return "", err
 	}
 
-	manager := state.NewManager(t.db)
+	manager, err := state.NewManager(t.db)
+	if err != nil {
+		return "", fmt.Errorf("decompose: failed to create manager: %w", err)
+	}
 	parentTask, err := manager.GetActiveTask()
 	if err != nil {
 		return "", fmt.Errorf("decompose: no active task: %w", err)

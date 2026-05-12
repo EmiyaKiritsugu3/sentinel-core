@@ -16,7 +16,10 @@ func TestDecomposeTool(t *testing.T) {
 		t.Fatalf("failed to migrate test db: %v", err)
 	}
 
-	mgr := state.NewManager(db)
+	mgr, err := state.NewManager(db)
+	if err != nil {
+		t.Fatalf("NewManager() error: %v", err)
+	}
 	taskID, err := mgr.CreateTask("Test Goal", "T3", "go test")
 	if err != nil {
 		t.Fatalf("Failed to create task: %v", err)

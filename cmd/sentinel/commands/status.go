@@ -16,15 +16,25 @@ func init() {
 }
 
 func NewStatusCmd(db *sqlite.DB) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Check the current governance status",
-		RunE: func(cmd *cobra.Command, args []string) error {
+	}
+
+	if err := sqlite.ValidateDB(db, "status-cmd"); err != nil {
+		cmd.RunE = func(cmd *cobra.Command, args []string) error { return err }
+		return cmd
+	}
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 			fmt.Println("🛡️  Sovereign Council Status: ACTIVE")
 			fmt.Println("Database: Online")
 			fmt.Println("")
 
-			mgr := state.NewManager(db)
+			mgr, err := state.NewManager(db)
+			if err != nil {
+				return fmt.Errorf("status: failed to create manager: %w", err)
+			}
 			task, err := mgr.GetActiveTask()
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
@@ -40,7 +50,8 @@ func NewStatusCmd(db *sqlite.DB) *cobra.Command {
 			fmt.Printf("   Tier:   %s\n", task.Tier)
 			fmt.Printf("   Status: %s\n", task.Status)
 
-			return nil
-		},
+		return nil
 	}
+
+	return cmd
 }

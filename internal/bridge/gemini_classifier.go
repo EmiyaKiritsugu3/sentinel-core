@@ -15,8 +15,11 @@ type GeminiClassifier struct {
 	client *genai.Client
 }
 
-func NewGeminiClassifier(client *genai.Client) *GeminiClassifier {
-	return &GeminiClassifier{client: client}
+func NewGeminiClassifier(client *genai.Client) (*GeminiClassifier, error) {
+	if client == nil {
+		return nil, fmt.Errorf("gemini-classifier: nil genai client")
+	}
+	return &GeminiClassifier{client: client}, nil
 }
 
 func (g *GeminiClassifier) Classify(ctx context.Context, description string) (Intent, error) {

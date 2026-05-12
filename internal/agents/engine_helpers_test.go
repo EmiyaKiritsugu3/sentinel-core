@@ -371,7 +371,7 @@ func TestContainsSovereignAudit(t *testing.T) {
 
 func TestReadFileTool_ValidateArguments(t *testing.T) {
 	tool := &ReadFileTool{}
-	v := reflect.NewValidator(nil)
+	v := &reflect.Validator{}
 
 	t.Run("missing path", func(t *testing.T) {
 		err := tool.ValidateArguments(v, map[string]interface{}{})
@@ -390,7 +390,7 @@ func TestReadFileTool_ValidateArguments(t *testing.T) {
 
 func TestWriteFileTool_ValidateArguments(t *testing.T) {
 	tool := &WriteFileTool{}
-	v := reflect.NewValidator(nil)
+	v := &reflect.Validator{}
 
 	t.Run("missing path", func(t *testing.T) {
 		err := tool.ValidateArguments(v, map[string]interface{}{})
@@ -409,7 +409,7 @@ func TestWriteFileTool_ValidateArguments(t *testing.T) {
 
 func TestReplaceTool_ValidateArguments(t *testing.T) {
 	tool := &ReplaceTool{}
-	v := reflect.NewValidator(nil)
+	v := &reflect.Validator{}
 
 	t.Run("missing path", func(t *testing.T) {
 		err := tool.ValidateArguments(v, map[string]interface{}{})
@@ -428,7 +428,7 @@ func TestReplaceTool_ValidateArguments(t *testing.T) {
 
 func TestRunTool_ValidateArguments(t *testing.T) {
 	tool := &RunTool{}
-	v := reflect.NewValidator(nil)
+	v := &reflect.Validator{}
 
 	t.Run("missing command", func(t *testing.T) {
 		err := tool.ValidateArguments(v, map[string]interface{}{})
@@ -447,7 +447,7 @@ func TestRunTool_ValidateArguments(t *testing.T) {
 
 func TestGrepSearchTool_ValidateArguments(t *testing.T) {
 	tool := &GrepSearchTool{}
-	v := reflect.NewValidator(nil)
+	v := &reflect.Validator{}
 
 	t.Run("no dir_path returns nil", func(t *testing.T) {
 		err := tool.ValidateArguments(v, map[string]interface{}{"pattern": "test"})

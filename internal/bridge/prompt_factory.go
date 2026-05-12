@@ -38,13 +38,19 @@ type Factory struct {
 	classifier *IntentClassifier
 }
 
-func NewFactory(db *sqlite.DB, classifier *IntentClassifier) *Factory {
-	return &Factory{db: db, classifier: classifier}
+func NewFactory(db *sqlite.DB, classifier *IntentClassifier) (*Factory, error) {
+	if err := sqlite.ValidateDB(db, "prompt-factory"); err != nil {
+		return nil, err
+	}
+	return &Factory{db: db, classifier: classifier}, nil
 }
 
 // GeneratePayload constrói o payload estruturado para a Engine
 func (f *Factory) GeneratePayload(ctx context.Context, taskID string, personaPrompt string) (*ContextPayload, error) {
-	mgr := state.NewManager(f.db)
+	mgr, err := state.NewManager(f.db)
+	if err != nil {
+		return nil, fmt.Errorf("bridge: failed to create manager: %w", err)
+	}
 	task, verifyCmd, err := mgr.GetTaskByID(taskID)
 	if err != nil {
 		return nil, fmt.Errorf("bridge: failed to get task %s: %w", taskID, err)
@@ -147,8 +153,11 @@ func (f *Factory) loadADRs() ([]ADR, error) {
 }
 
 func (f *Factory) loadSurgicalContext(taskID string) ([]ContextNode, error) {
-	mgr := state.NewManager(f.db)
-	_, _, err := mgr.GetTaskByID(taskID)
+	mgr, err := state.NewManager(f.db)
+	if err != nil {
+		return nil, fmt.Errorf("bridge: failed to create manager: %w", err)
+	}
+	_, _, err = mgr.GetTaskByID(taskID)
 	if err != nil {
 		return nil, fmt.Errorf("bridge: failed to find task context: %w", err)
 	}

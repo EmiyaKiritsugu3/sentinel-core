@@ -29,7 +29,10 @@ func TestFetchStats_EmptyDB(t *testing.T) {
 	db := setupAggregatorDB(t)
 	defer db.Close()
 
-	agg := NewAggregator(db)
+	agg, err := NewAggregator(db)
+	if err != nil {
+		t.Fatalf("NewAggregator() error: %v", err)
+	}
 	stats, err := agg.FetchStats()
 	if err != nil {
 		t.Fatalf("FetchStats() error: %v", err)
@@ -60,7 +63,10 @@ func TestFetchStats_WithNodes(t *testing.T) {
 		t.Fatalf("insert node: %v", err)
 	}
 
-	agg := NewAggregator(db)
+	agg, err := NewAggregator(db)
+	if err != nil {
+		t.Fatalf("NewAggregator() error: %v", err)
+	}
 	stats, err := agg.FetchStats()
 	if err != nil {
 		t.Fatalf("FetchStats() error: %v", err)
@@ -96,7 +102,10 @@ func TestFetchStats_WithTasks(t *testing.T) {
 		t.Fatalf("insert task: %v", err)
 	}
 
-	agg := NewAggregator(db)
+	agg, err := NewAggregator(db)
+	if err != nil {
+		t.Fatalf("NewAggregator() error: %v", err)
+	}
 	stats, err := agg.FetchStats()
 	if err != nil {
 		t.Fatalf("FetchStats() error: %v", err)
@@ -125,7 +134,10 @@ func TestFetchStats_ZeroTasks_SuccessRateZero(t *testing.T) {
 	db := setupAggregatorDB(t)
 	defer db.Close()
 
-	agg := NewAggregator(db)
+	agg, err := NewAggregator(db)
+	if err != nil {
+		t.Fatalf("NewAggregator() error: %v", err)
+	}
 	stats, err := agg.FetchStats()
 	if err != nil {
 		t.Fatalf("FetchStats() error: %v", err)
@@ -142,7 +154,10 @@ func TestNewAggregator(t *testing.T) {
 	db := setupAggregatorDB(t)
 	defer db.Close()
 
-	agg := NewAggregator(db)
+	agg, err := NewAggregator(db)
+	if err != nil {
+		t.Fatalf("NewAggregator() error: %v", err)
+	}
 	if agg == nil {
 		t.Fatal("NewAggregator returned nil")
 	}
@@ -152,16 +167,15 @@ func TestNewAggregator(t *testing.T) {
 }
 
 func TestNewAggregator_NilDB(t *testing.T) {
-	agg := NewAggregator(nil)
-	if agg == nil {
-		t.Fatal("NewAggregator(nil) should return non-nil Aggregator")
-	}
-	_, err := agg.FetchStats()
+	agg, err := NewAggregator(nil)
 	if err == nil {
 		t.Fatal("expected error for nil db, got nil")
 	}
 	if !errors.Is(err, sqlite.ErrNilDB) {
 		t.Errorf("expected ErrNilDB, got: %v", err)
+	}
+	if agg != nil {
+		t.Error("expected nil Aggregator for nil db")
 	}
 }
 
@@ -181,7 +195,10 @@ func TestGenerateMarkdown(t *testing.T) {
 		t.Fatalf("insert task: %v", err)
 	}
 
-	agg := NewAggregator(db)
+	agg, err := NewAggregator(db)
+	if err != nil {
+		t.Fatalf("NewAggregator() error: %v", err)
+	}
 	stats, err := agg.FetchStats()
 	if err != nil {
 		t.Fatalf("FetchStats() error: %v", err)
@@ -247,7 +264,10 @@ func TestFetchStats_WithADRMatch(t *testing.T) {
 	}
 	defer os.Chdir(originalDir)
 
-	agg := NewAggregator(db)
+	agg, err := NewAggregator(db)
+	if err != nil {
+		t.Fatalf("NewAggregator() error: %v", err)
+	}
 	stats, err := agg.FetchStats()
 	if err != nil {
 		t.Fatalf("FetchStats() error: %v", err)

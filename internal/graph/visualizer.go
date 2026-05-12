@@ -14,8 +14,11 @@ type Visualizer struct {
 	db *sqlite.DB
 }
 
-func NewVisualizer(db *sqlite.DB) *Visualizer {
-	return &Visualizer{db: db}
+func NewVisualizer(db *sqlite.DB) (*Visualizer, error) {
+	if err := sqlite.ValidateDB(db, "graph-visualizer"); err != nil {
+		return nil, err
+	}
+	return &Visualizer{db: db}, nil
 }
 
 // GenerateMasterDiagram gera o C4 holístico do projeto

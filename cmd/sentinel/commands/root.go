@@ -20,6 +20,11 @@ func NewRootCmd(db *sqlite.DB) *cobra.Command {
 		Short: "Sentinel Core: Governance & Context Engine for AI-Native Development",
 	}
 
+	if err := sqlite.ValidateDB(db, "root-cmd"); err != nil {
+		root.RunE = func(cmd *cobra.Command, args []string) error { return err }
+		return root
+	}
+
 	// Agrega todos os subcomandos registrados dinamicamente
 	for _, factory := range registry.GetCommands() {
 		root.AddCommand(factory(db))

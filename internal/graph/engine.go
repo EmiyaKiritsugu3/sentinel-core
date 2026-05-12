@@ -20,11 +20,14 @@ type Engine struct {
 	mu        sync.RWMutex
 }
 
-func NewEngine(db *sqlite.DB) *Engine {
+func NewEngine(db *sqlite.DB) (*Engine, error) {
+	if err := sqlite.ValidateDB(db, "graph-engine"); err != nil {
+		return nil, err
+	}
 	return &Engine{
 		db:       db,
 		scanners: make(map[string]FileScanner),
-	}
+	}, nil
 }
 
 func (e *Engine) RegisterObserver(o Observer) {

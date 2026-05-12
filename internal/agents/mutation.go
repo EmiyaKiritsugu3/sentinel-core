@@ -16,8 +16,11 @@ type MutationEngine struct {
 	DB *sqlite.DB
 }
 
-func NewMutationEngine(db *sqlite.DB) *MutationEngine {
-	return &MutationEngine{DB: db}
+func NewMutationEngine(db *sqlite.DB) (*MutationEngine, error) {
+	if err := sqlite.ValidateDB(db, "mutation-engine"); err != nil {
+		return nil, err
+	}
+	return &MutationEngine{DB: db}, nil
 }
 
 var versionRegex = regexp.MustCompile(`-v\d+$`)

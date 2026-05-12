@@ -14,8 +14,11 @@ type RegistryManager struct {
 }
 
 // NewRegistryManager initializes a manager with a database handle.
-func NewRegistryManager(db *sqlite.DB) *RegistryManager {
-	return &RegistryManager{db: db}
+func NewRegistryManager(db *sqlite.DB) (*RegistryManager, error) {
+	if err := sqlite.ValidateDB(db, "registry-manager"); err != nil {
+		return nil, err
+	}
+	return &RegistryManager{db: db}, nil
 }
 
 // SelectBest finds the specialist with the highest reliability score that matches ALL requested capabilities.

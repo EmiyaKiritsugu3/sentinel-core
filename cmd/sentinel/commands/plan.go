@@ -28,7 +28,14 @@ func NewPlanCmd(db *sqlite.DB) *cobra.Command {
 		Use:   "plan [goal] [verification_command]",
 		Short: "Create a new architectural plan and task",
 		Args:  cobra.ExactArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) error {
+	}
+
+	if err := sqlite.ValidateDB(db, "plan-cmd"); err != nil {
+		cmd.RunE = func(cmd *cobra.Command, args []string) error { return err }
+		return cmd
+	}
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 			description := args[0]
 			verifyCmd := args[1]
 
@@ -71,7 +78,10 @@ func NewPlanCmd(db *sqlite.DB) *cobra.Command {
 				}
 			}
 
-			mgr := state.NewManager(db)
+			mgr, err := state.NewManager(db)
+			if err != nil {
+				return fmt.Errorf("plan: failed to create manager: %w", err)
+			}
 			id, err := mgr.CreateTask(description, planTier, verifyCmd)
 			if err != nil {
 				return fmt.Errorf("plan: failed to create task: %w", err)
@@ -79,8 +89,7 @@ func NewPlanCmd(db *sqlite.DB) *cobra.Command {
 
 			fmt.Printf("✅ PLAN FORGED [ID: %s]: %s\n", id, description)
 			fmt.Printf("Tier: %s | Verification Gate: %s\n", planTier, verifyCmd)
-			return nil
-		},
+		return nil
 	}
 	cmd.Flags().StringVar(&planTier, "tier", "T2", "Task tier (T1, T2, T3)")
 	cmd.Flags().BoolVarP(&flagRefine, "refine", "r", false, "interactive disambiguation before saving")

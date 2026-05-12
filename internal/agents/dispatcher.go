@@ -20,12 +20,21 @@ type Dispatcher struct {
 }
 
 // NewDispatcher initializes the orchestration engine.
-func NewDispatcher(registry *RegistryManager, shield *GitShield, db *sqlite.DB) *Dispatcher {
+func NewDispatcher(registry *RegistryManager, shield *GitShield, db *sqlite.DB) (*Dispatcher, error) {
+	if registry == nil {
+		return nil, fmt.Errorf("dispatcher: nil registry manager")
+	}
+	if shield == nil {
+		return nil, fmt.Errorf("dispatcher: nil git shield")
+	}
+	if err := sqlite.ValidateDB(db, "dispatcher"); err != nil {
+		return nil, err
+	}
 	return &Dispatcher{
 		Registry: registry,
 		Shield:   shield,
 		DB:       db,
-	}
+	}, nil
 }
 
 // Dispatch selects a specialist, creates a worktree, and registers the sub-task.

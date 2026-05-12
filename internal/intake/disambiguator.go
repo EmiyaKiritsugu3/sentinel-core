@@ -40,6 +40,8 @@ type Disambiguator struct {
 }
 
 func NewDisambiguator(db *sqlite.DB) *Disambiguator {
+	// db is optional: nil = Phase 1 (lexical scoring) only.
+	// Non-nil DB is validated before use in Phase 2 (graph-anchored).
 	return &Disambiguator{db: db}
 }
 
