@@ -46,9 +46,9 @@ func captureStderr(t *testing.T, fn func()) string {
 		t.Fatalf("pipe: %v", err)
 	}
 	os.Stderr = w
+	defer func() { os.Stderr = old }()
 	fn()
 	w.Close()
-	os.Stderr = old
 	out, _ := io.ReadAll(r)
 	r.Close()
 	return string(out)
@@ -62,9 +62,9 @@ func captureStdout(t *testing.T, fn func()) string {
 		t.Fatalf("pipe: %v", err)
 	}
 	os.Stdout = w
+	defer func() { os.Stdout = old }()
 	fn()
 	w.Close()
-	os.Stdout = old
 	out, _ := io.ReadAll(r)
 	r.Close()
 	return string(out)
@@ -105,6 +105,10 @@ func TestPatternAddCmd(t *testing.T) {
 	})
 	if !strings.Contains(out, "PATTERN CAPTURED") {
 		t.Fatalf("expected capture output, got: %s", out)
+	}
+	// CG-01: FP assertion — new pattern must not trigger dedup warning
+	if strings.Contains(out, "Similar pattern found") {
+		t.Fatal("CG-01 FP: new pattern should not trigger dedup warning")
 	}
 }
 
@@ -169,6 +173,10 @@ func TestPatternListCmd(t *testing.T) {
 	if !strings.Contains(out, "List Test") {
 		t.Fatalf("expected pattern in list, got: %s", out)
 	}
+	// CG-01: FP assertion — list must not show search-no-match message
+	if strings.Contains(out, "No patterns found matching") {
+		t.Fatal("CG-01 FP: list with patterns should not show no-match message")
+	}
 }
 
 func TestPatternListCmd_Empty(t *testing.T) {
@@ -203,6 +211,10 @@ func TestPatternSearchCmd(t *testing.T) {
 	})
 	if !strings.Contains(out, "Searchable Pattern") {
 		t.Fatalf("expected search result, got: %s", out)
+	}
+	// CG-01: FP assertion — search with match must not show no-match message
+	if strings.Contains(out, "No patterns found matching") {
+		t.Fatal("CG-01 FP: search with match should not show no-match message")
 	}
 }
 
@@ -248,6 +260,10 @@ func TestPatternGetCmd(t *testing.T) {
 	})
 	if !strings.Contains(out, "Get Test") {
 		t.Fatalf("expected pattern detail, got: %s", out)
+	}
+	// CG-01: FP assertion — get must not show "not found" for existing pattern
+	if strings.Contains(out, "not found") {
+		t.Fatal("CG-01 FP: get on existing pattern should not show not-found message")
 	}
 }
 

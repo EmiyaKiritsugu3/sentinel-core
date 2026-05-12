@@ -30,3 +30,10 @@ func GetCommands() []CommandFactory {
 	copy(result, factories)
 	return result
 }
+
+// ResetForTesting limpa o registry global. Apenas para uso em testes.
+func ResetForTesting() {
+	mu.Lock()
+	defer mu.Unlock()
+	factories = nil
+}

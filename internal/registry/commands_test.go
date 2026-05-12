@@ -11,9 +11,7 @@ import (
 )
 
 func TestRegister_ConcurrentSafety(t *testing.T) {
-	mu.Lock()
-	factories = nil
-	mu.Unlock()
+	ResetForTesting()
 
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
@@ -32,9 +30,7 @@ func TestRegister_ConcurrentSafety(t *testing.T) {
 }
 
 func TestGetCommands_ReturnsDefensiveCopy(t *testing.T) {
-	mu.Lock()
-	factories = nil
-	mu.Unlock()
+	ResetForTesting()
 
 	Register(func(_ *sqlite.DB) *cobra.Command {
 		return &cobra.Command{Use: "original"}
@@ -49,9 +45,7 @@ func TestGetCommands_ReturnsDefensiveCopy(t *testing.T) {
 }
 
 func TestGetCommands_EmptyRegistry(t *testing.T) {
-	mu.Lock()
-	factories = nil
-	mu.Unlock()
+	ResetForTesting()
 
 	cmds := GetCommands()
 	assert.Empty(t, cmds)
