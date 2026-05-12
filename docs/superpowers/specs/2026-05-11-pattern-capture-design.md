@@ -251,9 +251,9 @@ func (s *PatternStore) BackfillFromSentinelLog() (BackfillResult, error)
 
 1. `sentinel pattern backfill --source cognitive-dna` → parseia AP-01 a AP-03 + PMOs, insere automaticamente (formato estruturado, baixo risco de erro)
 2. `sentinel pattern backfill --source evolution-insights` → parseia seções estruturadas, insere automaticamente
-3. `sentinel pattern backfill --source sentinel-log --dry-run` → lista candidatos extraídos sem inserir. Usuário revisa e seleciona quais inserir via `sentinel pattern add`
+3. `sentinel pattern backfill --source sentinel-log` → lista candidatos extraídos sem inserir (sentinel-log é sempre dry-run por padrão — free-form epiphanies têm alto risco de FP). Usuário revisa e seleciona quais inserir via `sentinel pattern add`
 
-**Sem `--dry-run`** = backfill automático (cognitive-dna e evolution-insights apenas). **Com `--dry-run`** = lista candidatos sem persistir.
+**cognitive-dna e evolution-insights** = backfill automático (insere no DB). **sentinel-log** = sempre dry-run (retorna candidatos sem persistir).
 
 **Formato de extração COGNITIVE-DNA**: Seções com header `## AP-XX` ou `## PMO-XX` são parseadas. Title = nome do anti-pattern/PMO. Description = corpo da seção. Category = `anti-pattern` ou `structural-principle`.
 
@@ -335,8 +335,22 @@ sentinel pattern get <uuid>
 ```bash
 sentinel pattern backfill --source cognitive-dna
 sentinel pattern backfill --source evolution-insights
-sentinel pattern backfill --source sentinel-log --dry-run
-sentinel pattern backfill --all    # cognitive-dna + evolution-insights (sem sentinel-log)
+sentinel pattern backfill --source sentinel-log  # always dry-run — returns candidates without persisting
+sentinel pattern backfill --all                   # cognitive-dna + evolution-insights (sem sentinel-log)
+```
+
+**Output** (cognitive-dna/evolution-insights):
+```
+Backfill complete: 6 extracted, 6 inserted, 0 skipped
+```
+
+**Output** (sentinel-log, always dry-run):
+```
+[DRY-RUN] Would extract 8 candidates from sentinel-log:
+1. "Diagnóstico sem dado empírico = loop" (Filtro A, session 12)
+2. "Especificar artefato de saída reduz iterações" (Filtro C, session 8)
+...
+Use 'sentinel pattern add' to capture selected patterns.
 ```
 
 **Output**:
@@ -429,7 +443,7 @@ sentinel pattern list
 sentinel pattern search "Test"
 sentinel pattern get <id-from-list>
 sentinel pattern backfill --source cognitive-dna
-sentinel pattern backfill --source sentinel-log --dry-run
+sentinel pattern backfill --source sentinel-log  # dry-run by default
 ```
 
 ---
