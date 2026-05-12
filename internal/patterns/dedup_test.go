@@ -55,9 +55,8 @@ func TestFindSimilar(t *testing.T) {
 	store, _ := NewPatternStore(db)
 
 	store.Create(&Pattern{
-		Title:       "Diagnóstico sem dado empírico = loop",
-		Description: "Agent loops when diagnosing without data",
-		Category:    "anti-pattern", Source: "manual", Tags: "loop,diagnosis,empirical", Impact: "high",
+		Title: "Diagnóstico sem dado empírico = loop", Description: "Agent loops when diagnosing without data",
+		Category: "anti-pattern", Source: "manual", Tags: "loop,diagnosis,empirical", Impact: "high",
 	})
 
 	results, err := store.FindSimilar("Diagnóstico sem dado empírico", []string{"loop", "diagnosis"})
@@ -74,5 +73,33 @@ func TestFindSimilar(t *testing.T) {
 	}
 	if len(results) != 0 {
 		t.Fatalf("expected no similar patterns, got %d", len(results))
+	}
+}
+
+// Cobertura: FindSimilar — ramo de tag overlap (sem match levenshtein, mas overlap ≥ 0.5)
+
+func TestFindSimilar_TagOverlap(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	t.Cleanup(func() { db.Close() })
+	if err := graph.Migrate(db); err != nil {
+		t.Fatalf("migration failed: %v", err)
+	}
+	store, _ := NewPatternStore(db)
+
+	store.Create(&Pattern{
+		Title:       "Título completamente diferente",
+		Description: "desc",
+		Category:    "anti-pattern",
+		Source:      "manual",
+		Tags:        "loop,diagnosis,empirical",
+		Impact:      "high",
+	})
+
+	results, err := store.FindSimilar("Outro título sem similaridade", []string{"loop", "diagnosis"})
+	if err != nil {
+		t.Fatalf("FindSimilar failed: %v", err)
+	}
+	if len(results) == 0 {
+		t.Fatal("expected pattern found via tag overlap path")
 	}
 }

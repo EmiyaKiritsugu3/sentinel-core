@@ -189,3 +189,53 @@ func TestSearch_NoResults(t *testing.T) {
 		t.Fatalf("expected 0 results, got %d", len(results))
 	}
 }
+
+// Cobertura: List — ramo LIMIT
+
+func TestList_WithLimit(t *testing.T) {
+	store := setupStore(t)
+
+	store.Create(&Pattern{
+		Title: "P1", Description: "D1", Category: "anti-pattern",
+		Source: "manual", Tags: "a", Impact: "high",
+	})
+	store.Create(&Pattern{
+		Title: "P2", Description: "D2", Category: "cognitive-pattern",
+		Source: "epiphany", Tags: "b", Impact: "low",
+	})
+	store.Create(&Pattern{
+		Title: "P3", Description: "D3", Category: "structural-principle",
+		Source: "cognitive-dna", Tags: "c", Impact: "medium",
+	})
+
+	patterns, err := store.List(ListFilters{Limit: 2})
+	if err != nil {
+		t.Fatalf("List with limit failed: %v", err)
+	}
+	if len(patterns) != 2 {
+		t.Fatalf("expected 2 patterns with limit, got %d", len(patterns))
+	}
+}
+
+// Cobertura: List — filtro por Impact
+
+func TestList_FilterByImpact(t *testing.T) {
+	store := setupStore(t)
+
+	store.Create(&Pattern{
+		Title: "P1", Description: "D1", Category: "anti-pattern",
+		Source: "manual", Tags: "a", Impact: "high",
+	})
+	store.Create(&Pattern{
+		Title: "P2", Description: "D2", Category: "cognitive-pattern",
+		Source: "epiphany", Tags: "b", Impact: "low",
+	})
+
+	patterns, err := store.List(ListFilters{Impact: "high"})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	if len(patterns) != 1 || patterns[0].Title != "P1" {
+		t.Fatalf("expected 1 high-impact pattern P1, got %v", patterns)
+	}
+}

@@ -32,14 +32,14 @@ func NewPatternCmd(db *sqlite.DB) *cobra.Command {
 }
 
 var (
-	addTitle     string
-	addDesc      string
-	addCategory  string
-	addSource    string
+	addTitle    string
+	addDesc     string
+	addCategory string
+	addSource   string
 	addSourceRef string
-	addTags      string
-	addImpact    string
-	addForce     bool
+	addTags     string
+	addImpact   string
+	addForce    bool
 )
 
 func patternAddCmd(db *sqlite.DB) *cobra.Command {
@@ -237,6 +237,39 @@ var (
 	backfillAll    bool
 )
 
+func runBackfillCognitiveDNA(store *patterns.PatternStore, baseDir string) {
+	result, err := store.BackfillFromCognitiveDNA(baseDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: cognitive-dna backfill: %v\n", err)
+		return
+	}
+	fmt.Printf("Cognitive-DNA: %d extracted, %d inserted, %d skipped\n",
+		result.Extracted, result.Inserted, result.Skipped)
+}
+
+func runBackfillEvolutionInsights(store *patterns.PatternStore, baseDir string) {
+	result, err := store.BackfillFromEvolutionInsights(baseDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: evolution-insights backfill: %v\n", err)
+		return
+	}
+	fmt.Printf("Evolution-Insights: %d extracted, %d inserted, %d skipped\n",
+		result.Extracted, result.Inserted, result.Skipped)
+}
+
+func runBackfillSentinelLog(store *patterns.PatternStore, baseDir string) {
+	candidates, err := store.BackfillFromSentinelLog(baseDir, true)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: sentinel-log backfill: %v\n", err)
+		return
+	}
+	fmt.Printf("[DRY-RUN] %d candidates extracted from sentinel-log:\n", len(candidates))
+	for i, c := range candidates {
+		fmt.Printf(" %d. %q (%s)\n", i+1, c.Title, c.SourceRef)
+	}
+	fmt.Println("Use 'sentinel pattern add' to capture selected patterns.")
+}
+
 func patternBackfillCmd(db *sqlite.DB) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "backfill",
@@ -253,36 +286,13 @@ func patternBackfillCmd(db *sqlite.DB) *cobra.Command {
 			baseDir := "."
 
 			if backfillAll || backfillSource == "cognitive-dna" {
-				result, err := store.BackfillFromCognitiveDNA(baseDir)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "warning: cognitive-dna backfill: %v\n", err)
-				} else {
-					fmt.Printf("Cognitive-DNA: %d extracted, %d inserted, %d skipped\n",
-						result.Extracted, result.Inserted, result.Skipped)
-				}
+				runBackfillCognitiveDNA(store, baseDir)
 			}
-
 			if backfillAll || backfillSource == "evolution-insights" {
-				result, err := store.BackfillFromEvolutionInsights(baseDir)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "warning: evolution-insights backfill: %v\n", err)
-				} else {
-					fmt.Printf("Evolution-Insights: %d extracted, %d inserted, %d skipped\n",
-						result.Extracted, result.Inserted, result.Skipped)
-				}
+				runBackfillEvolutionInsights(store, baseDir)
 			}
-
 			if backfillSource == "sentinel-log" {
-				candidates, err := store.BackfillFromSentinelLog(baseDir, true)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "warning: sentinel-log backfill: %v\n", err)
-				} else {
-					fmt.Printf("[DRY-RUN] %d candidates extracted from sentinel-log:\n", len(candidates))
-					for i, c := range candidates {
-						fmt.Printf("  %d. %q (%s)\n", i+1, c.Title, c.SourceRef)
-					}
-					fmt.Println("Use 'sentinel pattern add' to capture selected patterns.")
-				}
+				runBackfillSentinelLog(store, baseDir)
 			}
 
 			return nil

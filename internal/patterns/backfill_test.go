@@ -214,3 +214,95 @@ func TestParseSentinelLog_FalsePositive_ShortLine(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, candidates, "linha curta com Filtro A não deve gerar candidato")
 }
+
+// Cobertura: BackfillFromSentinelLog non-dry-run (caminho de inserção real)
+
+func TestBackfillFromSentinelLog_Insert(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	t.Cleanup(func() { db.Close() })
+	if err := graph.Migrate(db); err != nil {
+		t.Fatalf("migration failed: %v", err)
+	}
+	store, _ := NewPatternStore(db)
+
+	// Cria arquivo sentinel-log com conteúdo Filtro para testar inserção non-dry-run
+	dir := t.TempDir()
+	docDir := filepath.Join(dir, "docs", "process")
+	if err := os.MkdirAll(docDir, 0755); err != nil {
+		t.Fatalf("mkdir failed: %v", err)
+	}
+	content := "# Log\n- Filtro A aplicado no roteamento de módulos críticos\n"
+	if err := os.WriteFile(filepath.Join(docDir, "sentinel-log.md"), []byte(content), 0644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	candidates, err := store.BackfillFromSentinelLog(dir, false)
+	if err != nil {
+		t.Fatalf("BackfillFromSentinelLog insert failed: %v", err)
+	}
+	if len(candidates) == 0 {
+		t.Fatal("expected at least 1 candidate from sentinel-log")
+	}
+	patterns, _ := store.List(ListFilters{Source: "sentinel-log"})
+	if len(patterns) == 0 {
+		t.Fatal("expected patterns persisted after non-dry-run backfill")
+	}
+}
+
+// Cobertura: detectFiltro — ramos B e C
+
+func TestDetectFiltro_BranchB(t *testing.T) {
+	got := detectFiltro("aplicação do Filtro B no módulo X")
+	assert.Equal(t, "B", got)
+}
+
+func TestDetectFiltro_BranchC(t *testing.T) {
+	got := detectFiltro("Filtro C ativado para roteamento crítico")
+	assert.Equal(t, "C", got)
+}
+
+func TestDetectFiltro_Unknown(t *testing.T) {
+	got := detectFiltro("linha sem filtro válido")
+	assert.Equal(t, "unknown", got)
+}
+
+// Cobertura: parseSentinelLine — Filtro B e Filtro C
+
+func TestParseSentinelLine_FiltroB(t *testing.T) {
+	c, ok := parseSentinelLine("- Filtro B aplicado no roteamento de módulos críticos")
+	assert.True(t, ok)
+	assert.Contains(t, c.SourceRef, "Filtro-B")
+}
+
+func TestParseSentinelLine_FiltroC(t *testing.T) {
+	c, ok := parseSentinelLine("* Filtro C detectado em análise de divergência estrutural")
+	assert.True(t, ok)
+	assert.Contains(t, c.SourceRef, "Filtro-C")
+}
+
+// Cobertura: insertIfNew — caminho de erro (Create falha)
+
+func TestInsertIfNew_CreateError(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	t.Cleanup(func() { db.Close() })
+	if err := graph.Migrate(db); err != nil {
+		t.Fatalf("migration failed: %v", err)
+	}
+	store, _ := NewPatternStore(db)
+
+	// Fecha o DB para forçar erro no Create dentro de insertIfNew
+	db.Close()
+
+	var result BackfillResult
+	store.insertIfNew(BackfillCandidate{
+		Title:       "Teste erro",
+		Description: "desc",
+		Category:    "anti-pattern",
+		Source:       SourceManual,
+		Tags:         "test",
+		Impact:       ImpactHigh,
+	}, SourceManual, &result)
+
+	assert.Equal(t, 0, result.Inserted, "insertIfNew não deve contar inserção em erro")
+	assert.True(t, len(result.Errors) > 0, "insertIfNew deve registrar erro quando Create falha")
+}

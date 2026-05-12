@@ -10,10 +10,12 @@ import (
 )
 
 const (
-	CategoryAntiPattern         = "anti-pattern"
-	CategoryCognitivePattern    = "cognitive-pattern"
+	CategoryAntiPattern = "anti-pattern"
+	CategoryCognitivePattern = "cognitive-pattern"
 	CategoryStructuralPrinciple = "structural-principle"
-	CategoryRoutingPrinciple    = "routing-principle"
+	CategoryRoutingPrinciple = "routing-principle"
+
+	timeLayout = "2006-01-02 15:04:05"
 )
 
 const (
@@ -132,8 +134,8 @@ func (s *PatternStore) Get(id string) (*Pattern, error) {
 	if err != nil {
 		return nil, fmt.Errorf("patterns: pattern %s not found: %w", id, err)
 	}
-	p.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
-	p.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+	p.CreatedAt, _ = time.Parse(timeLayout, createdAt)
+	p.UpdatedAt, _ = time.Parse(timeLayout, updatedAt)
 	return &p, nil
 }
 
@@ -148,8 +150,8 @@ func scanPatterns(rows *sql.Rows) ([]Pattern, error) {
 		); err != nil {
 			return nil, fmt.Errorf("patterns: failed to scan pattern: %w", err)
 		}
-		p.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
-		p.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+		p.CreatedAt, _ = time.Parse(timeLayout, createdAt)
+		p.UpdatedAt, _ = time.Parse(timeLayout, updatedAt)
 		patterns = append(patterns, p)
 	}
 	if err := rows.Err(); err != nil {

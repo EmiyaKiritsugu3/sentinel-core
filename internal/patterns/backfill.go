@@ -25,6 +25,31 @@ type BackfillCandidate struct {
 	Impact      string
 }
 
+func (s *PatternStore) insertIfNew(c BackfillCandidate, source string, result *BackfillResult) {
+	existing, _ := s.List(ListFilters{})
+	for _, p := range existing {
+		if strings.EqualFold(p.Title, c.Title) {
+			result.Skipped++
+			return
+		}
+	}
+
+	_, err := s.Create(&Pattern{
+		Title:       c.Title,
+		Description: c.Description,
+		Category:    c.Category,
+		Source:      source,
+		SourceRef:   c.SourceRef,
+		Tags:        c.Tags,
+		Impact:      c.Impact,
+	})
+	if err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", c.Title, err))
+		return
+	}
+	result.Inserted++
+}
+
 func (s *PatternStore) BackfillFromCognitiveDNA(baseDir string) (BackfillResult, error) {
 	var result BackfillResult
 	candidates, err := parseCognitiveDNA(filepath.Join(baseDir, "docs/process/COGNITIVE-DNA.md"))
@@ -34,33 +59,7 @@ func (s *PatternStore) BackfillFromCognitiveDNA(baseDir string) (BackfillResult,
 	result.Extracted = len(candidates)
 
 	for _, c := range candidates {
-		existing, _ := s.List(ListFilters{})
-		dup := false
-		for _, p := range existing {
-			if strings.EqualFold(p.Title, c.Title) {
-				dup = true
-				break
-			}
-		}
-		if dup {
-			result.Skipped++
-			continue
-		}
-
-		_, err := s.Create(&Pattern{
-			Title:       c.Title,
-			Description: c.Description,
-			Category:    c.Category,
-			Source:      SourceCognitiveDNA,
-			SourceRef:   c.SourceRef,
-			Tags:        c.Tags,
-			Impact:      c.Impact,
-		})
-		if err != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", c.Title, err))
-			continue
-		}
-		result.Inserted++
+		s.insertIfNew(c, SourceCognitiveDNA, &result)
 	}
 	return result, nil
 }
@@ -74,33 +73,7 @@ func (s *PatternStore) BackfillFromEvolutionInsights(baseDir string) (BackfillRe
 	result.Extracted = len(candidates)
 
 	for _, c := range candidates {
-		existing, _ := s.List(ListFilters{})
-		dup := false
-		for _, p := range existing {
-			if strings.EqualFold(p.Title, c.Title) {
-				dup = true
-				break
-			}
-		}
-		if dup {
-			result.Skipped++
-			continue
-		}
-
-		_, err := s.Create(&Pattern{
-			Title:       c.Title,
-			Description: c.Description,
-			Category:    c.Category,
-			Source:      SourceEvolutionInsights,
-			SourceRef:   c.SourceRef,
-			Tags:        c.Tags,
-			Impact:      c.Impact,
-		})
-		if err != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", c.Title, err))
-			continue
-		}
-		result.Inserted++
+		s.insertIfNew(c, SourceEvolutionInsights, &result)
 	}
 	return result, nil
 }
@@ -127,6 +100,49 @@ func (s *PatternStore) BackfillFromSentinelLog(baseDir string, dryRun bool) ([]B
 	return candidates, nil
 }
 
+func parseAPTableRow(line string) (BackfillCandidate, bool) {
+	if !strings.Contains(line, "[AP-") {
+		return BackfillCandidate{}, false
+	}
+	parts := strings.Split(line, "|")
+	if len(parts) < 5 {
+		return BackfillCandidate{}, false
+	}
+
+	stripBold := func(s string) string {
+		return strings.TrimPrefix(strings.TrimSuffix(strings.TrimSpace(s), "**"), "**")
+	}
+	id := stripBold(parts[1])
+	name := stripBold(parts[2])
+	desc := stripBold(parts[3])
+
+	return BackfillCandidate{
+		Title:       fmt.Sprintf("%s: %s", id, name),
+		Description: desc,
+		Category:    CategoryAntiPattern,
+		SourceRef:   fmt.Sprintf("COGNITIVE-DNA.md:%s", id),
+		Tags:        "anti-pattern,cognitive-dna",
+		Impact:      ImpactHigh,
+	}, true
+}
+
+func parsePMOBodyLine(line string, pmoBody *strings.Builder) {
+	switch {
+	case strings.Contains(line, "- **Regra:**"):
+		pmoBody.WriteString(strings.TrimPrefix(line, "- **Regra:**"))
+		pmoBody.WriteString(" ")
+	case strings.Contains(line, "- **Modus Operandi:**"):
+		pmoBody.WriteString(strings.TrimPrefix(line, "- **Modus Operandi:**"))
+	}
+}
+
+func flushPMO(currentPMO BackfillCandidate, pmoBody *strings.Builder, candidates *[]BackfillCandidate) {
+	if pmoBody.Len() > 0 {
+		currentPMO.Description = strings.TrimSpace(pmoBody.String())
+		*candidates = append(*candidates, currentPMO)
+	}
+}
+
 func parseCognitiveDNA(path string) ([]BackfillCandidate, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -143,39 +159,22 @@ func parseCognitiveDNA(path string) ([]BackfillCandidate, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		if strings.Contains(line, "[AP-") {
-			parts := strings.Split(line, "|")
-			if len(parts) >= 5 {
-				idPart := strings.TrimSpace(parts[1])
-				namePart := strings.TrimSpace(parts[2])
-				descPart := strings.TrimSpace(parts[3])
-				id := strings.TrimPrefix(strings.TrimSuffix(idPart, "**"), "**")
-				name := strings.TrimPrefix(strings.TrimSuffix(namePart, "**"), "**")
-				desc := strings.TrimPrefix(strings.TrimSuffix(descPart, "**"), "**")
-
-				candidates = append(candidates, BackfillCandidate{
-					Title:       fmt.Sprintf("%s: %s", id, name),
-					Description: desc,
-					Category:    CategoryAntiPattern,
-					SourceRef:   fmt.Sprintf("COGNITIVE-DNA.md:%s", id),
-					Tags:        "anti-pattern,cognitive-dna",
-					Impact:      ImpactHigh,
-				})
-			}
+		if c, ok := parseAPTableRow(line); ok {
+			candidates = append(candidates, c)
+			continue
 		}
 
 		if strings.HasPrefix(line, "### PMO-") {
-			if inPMO && pmoBody.Len() > 0 {
-				currentPMO.Description = strings.TrimSpace(pmoBody.String())
-				candidates = append(candidates, currentPMO)
+			if inPMO {
+				flushPMO(currentPMO, &pmoBody, &candidates)
 			}
 			title := strings.TrimPrefix(line, "### ")
 			currentPMO = BackfillCandidate{
-				Title:     title,
-				Category:  CategoryStructuralPrinciple,
+				Title:    title,
+				Category: CategoryStructuralPrinciple,
 				SourceRef: fmt.Sprintf("COGNITIVE-DNA.md:%s", title),
-				Tags:      "modus-operandi,cognitive-dna",
-				Impact:    ImpactMedium,
+				Tags:     "modus-operandi,cognitive-dna",
+				Impact:   ImpactMedium,
 			}
 			inPMO = true
 			pmoBody.Reset()
@@ -183,21 +182,58 @@ func parseCognitiveDNA(path string) ([]BackfillCandidate, error) {
 		}
 
 		if inPMO {
-			if strings.Contains(line, "- **Regra:**") {
-				pmoBody.WriteString(strings.TrimPrefix(line, "- **Regra:**"))
-				pmoBody.WriteString(" ")
-			} else if strings.Contains(line, "- **Modus Operandi:**") {
-				pmoBody.WriteString(strings.TrimPrefix(line, "- **Modus Operandi:**"))
-			}
+			parsePMOBodyLine(line, &pmoBody)
 		}
 	}
 
-	if inPMO && pmoBody.Len() > 0 {
-		currentPMO.Description = strings.TrimSpace(pmoBody.String())
-		candidates = append(candidates, currentPMO)
+	if inPMO {
+		flushPMO(currentPMO, &pmoBody, &candidates)
 	}
 
 	return candidates, scanner.Err()
+}
+
+func parseEvolutionLine(line string, inGaps, inCognitive bool) (BackfillCandidate, bool) {
+	if !inGaps && !inCognitive {
+		return BackfillCandidate{}, false
+	}
+	if !strings.HasPrefix(line, "- ") {
+		return BackfillCandidate{}, false
+	}
+	if strings.Contains(line, "~~") {
+		return BackfillCandidate{}, false
+	}
+
+	clean := strings.TrimPrefix(line, "- ")
+	clean = strings.TrimPrefix(clean, "[x] ")
+	clean = strings.TrimPrefix(clean, "[ ] ")
+	clean = strings.TrimPrefix(clean, "**")
+	clean = strings.TrimSuffix(clean, "**")
+
+	parts := strings.SplitN(clean, ":", 2)
+	title := strings.TrimSpace(parts[0])
+	if title == "" {
+		return BackfillCandidate{}, false
+	}
+
+	desc := title
+	if len(parts) > 1 {
+		desc = strings.TrimSpace(parts[1])
+	}
+
+	category := CategoryStructuralPrinciple
+	if inCognitive {
+		category = CategoryCognitivePattern
+	}
+
+	return BackfillCandidate{
+		Title:       title,
+		Description: desc,
+		Category:    category,
+		SourceRef:   "EVOLUTION-INSIGHTS.md",
+		Tags:        "evolution-insights",
+		Impact:      ImpactMedium,
+	}, true
 }
 
 func parseEvolutionInsights(path string) ([]BackfillCandidate, error) {
@@ -215,61 +251,61 @@ func parseEvolutionInsights(path string) ([]BackfillCandidate, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		if strings.Contains(line, "Gaps Estruturais") {
+		switch {
+		case strings.Contains(line, "Gaps Estruturais"):
 			inGaps = true
 			inCognitive = false
-			continue
-		}
-		if strings.Contains(line, "Cognitive Patterns") {
+		case strings.Contains(line, "Cognitive Patterns"):
 			inGaps = false
 			inCognitive = true
-			continue
-		}
-		if strings.HasPrefix(line, "##") {
+		case strings.HasPrefix(line, "##"):
 			inGaps = false
 			inCognitive = false
-			continue
-		}
-
-		if (inGaps || inCognitive) && strings.HasPrefix(line, "- ") {
-			clean := strings.TrimPrefix(line, "- ")
-			clean = strings.TrimPrefix(clean, "[x] ")
-			clean = strings.TrimPrefix(clean, "[ ] ")
-			clean = strings.TrimPrefix(clean, "**")
-			clean = strings.TrimSuffix(clean, "**")
-
-			parts := strings.SplitN(clean, ":", 2)
-			title := strings.TrimSpace(parts[0])
-			desc := title
-			if len(parts) > 1 {
-				desc = strings.TrimSpace(parts[1])
+		default:
+			if c, ok := parseEvolutionLine(line, inGaps, inCognitive); ok {
+				candidates = append(candidates, c)
 			}
-
-			if title == "" {
-				continue
-			}
-
-			if strings.Contains(line, "~~") {
-				continue
-			}
-
-			category := CategoryStructuralPrinciple
-			if inCognitive {
-				category = CategoryCognitivePattern
-			}
-
-			candidates = append(candidates, BackfillCandidate{
-				Title:       title,
-				Description: desc,
-				Category:    category,
-				SourceRef:   "EVOLUTION-INSIGHTS.md",
-				Tags:        "evolution-insights",
-				Impact:      ImpactMedium,
-			})
 		}
 	}
 
 	return candidates, scanner.Err()
+}
+
+func detectFiltro(line string) string {
+	switch {
+	case strings.Contains(line, "Filtro A"):
+		return "A"
+	case strings.Contains(line, "Filtro B"):
+		return "B"
+	case strings.Contains(line, "Filtro C"):
+		return "C"
+	default:
+		return "unknown"
+	}
+}
+
+func parseSentinelLine(line string) (BackfillCandidate, bool) {
+	hasFiltro := strings.Contains(line, "Filtro A") || strings.Contains(line, "Filtro B") || strings.Contains(line, "Filtro C")
+	if !hasFiltro {
+		return BackfillCandidate{}, false
+	}
+
+	clean := strings.TrimPrefix(line, "- ")
+	clean = strings.TrimPrefix(clean, "* ")
+	clean = strings.TrimPrefix(clean, "**")
+
+	if len(clean) <= 10 {
+		return BackfillCandidate{}, false
+	}
+
+	return BackfillCandidate{
+		Title:       clean,
+		Description: clean,
+		Category:    CategoryRoutingPrinciple,
+		SourceRef:   fmt.Sprintf("sentinel-log.md:Filtro-%s", detectFiltro(line)),
+		Tags:        "epiphany,sentinel-log",
+		Impact:      ImpactMedium,
+	}, true
 }
 
 func parseSentinelLog(path string) ([]BackfillCandidate, error) {
@@ -284,30 +320,8 @@ func parseSentinelLog(path string) ([]BackfillCandidate, error) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.Contains(line, "Filtro A") || strings.Contains(line, "Filtro B") || strings.Contains(line, "Filtro C") {
-			clean := strings.TrimPrefix(line, "- ")
-			clean = strings.TrimPrefix(clean, "* ")
-			clean = strings.TrimPrefix(clean, "**")
-
-			if len(clean) > 10 {
-				filtro := "unknown"
-				if strings.Contains(line, "Filtro A") {
-					filtro = "A"
-				} else if strings.Contains(line, "Filtro B") {
-					filtro = "B"
-				} else if strings.Contains(line, "Filtro C") {
-					filtro = "C"
-				}
-
-				candidates = append(candidates, BackfillCandidate{
-					Title:       clean,
-					Description: clean,
-					Category:    CategoryRoutingPrinciple,
-					SourceRef:   fmt.Sprintf("sentinel-log.md:Filtro-%s", filtro),
-					Tags:        "epiphany,sentinel-log",
-					Impact:      ImpactMedium,
-				})
-			}
+		if c, ok := parseSentinelLine(line); ok {
+			candidates = append(candidates, c)
 		}
 	}
 
