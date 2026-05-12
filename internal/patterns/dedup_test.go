@@ -54,12 +54,18 @@ func TestFindSimilar(t *testing.T) {
 	if err := graph.Migrate(db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
-	store, _ := NewPatternStore(db)
+	store, err := NewPatternStore(db)
+	if err != nil {
+		t.Fatalf("NewPatternStore failed: %v", err)
+	}
 
-	store.Create(&Pattern{
+	_, err = store.Create(&Pattern{
 		Title: "Diagnóstico sem dado empírico = loop", Description: "Agent loops when diagnosing without data",
 		Category: "anti-pattern", Source: "manual", Tags: "loop,diagnosis,empirical", Impact: "high",
 	})
+	if err != nil {
+		t.Fatalf("seed Create failed: %v", err)
+	}
 
 	results, err := store.FindSimilar("Diagnóstico sem dado empírico", []string{"loop", "diagnosis"})
 	if err != nil {
@@ -96,9 +102,12 @@ func TestFindSimilar_TagOverlap(t *testing.T) {
 	if err := graph.Migrate(db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
-	store, _ := NewPatternStore(db)
+	store, err := NewPatternStore(db)
+	if err != nil {
+		t.Fatalf("NewPatternStore failed: %v", err)
+	}
 
-	store.Create(&Pattern{
+	_, err = store.Create(&Pattern{
 		Title:       "Título completamente diferente",
 		Description: "desc",
 		Category:    "anti-pattern",
@@ -106,6 +115,9 @@ func TestFindSimilar_TagOverlap(t *testing.T) {
 		Tags:        "loop,diagnosis,empirical",
 		Impact:      "high",
 	})
+	if err != nil {
+		t.Fatalf("seed Create failed: %v", err)
+	}
 
 	results, err := store.FindSimilar("Outro título sem similaridade", []string{"loop", "diagnosis"})
 	if err != nil {

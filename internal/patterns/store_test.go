@@ -127,14 +127,20 @@ func TestCreate_InvalidSource(t *testing.T) {
 func TestList_NoFilters(t *testing.T) {
 	store := setupStore(t)
 
-	store.Create(&Pattern{
+	_, err := store.Create(&Pattern{
 		Title: "P1", Description: "D1", Category: "anti-pattern",
 		Source: "manual", Tags: "a", Impact: "high",
 	})
-	store.Create(&Pattern{
+	if err != nil {
+		t.Fatalf("seed Create P1 failed: %v", err)
+	}
+	_, err = store.Create(&Pattern{
 		Title: "P2", Description: "D2", Category: "cognitive-pattern",
 		Source: "epiphany", Tags: "b", Impact: "low",
 	})
+	if err != nil {
+		t.Fatalf("seed Create P2 failed: %v", err)
+	}
 
 	patterns, err := store.List(ListFilters{})
 	if err != nil {
@@ -148,14 +154,20 @@ func TestList_NoFilters(t *testing.T) {
 func TestList_FilterByCategory(t *testing.T) {
 	store := setupStore(t)
 
-	store.Create(&Pattern{
+	_, err := store.Create(&Pattern{
 		Title: "P1", Description: "D1", Category: "anti-pattern",
 		Source: "manual", Tags: "a", Impact: "high",
 	})
-	store.Create(&Pattern{
+	if err != nil {
+		t.Fatalf("seed Create P1 failed: %v", err)
+	}
+	_, err = store.Create(&Pattern{
 		Title: "P2", Description: "D2", Category: "cognitive-pattern",
 		Source: "epiphany", Tags: "b", Impact: "low",
 	})
+	if err != nil {
+		t.Fatalf("seed Create P2 failed: %v", err)
+	}
 
 	patterns, err := store.List(ListFilters{Category: "anti-pattern"})
 	if err != nil {
@@ -172,11 +184,14 @@ func TestList_FilterByCategory(t *testing.T) {
 func TestGet(t *testing.T) {
 	store := setupStore(t)
 
-	id, _ := store.Create(&Pattern{
+	id, err := store.Create(&Pattern{
 		Title: "Test Pattern", Description: "Full description here",
 		Category: "anti-pattern", Source: "cognitive-dna",
 		SourceRef: "COGNITIVE-DNA.md:AP-01", Tags: "test", Impact: "medium",
 	})
+	if err != nil {
+		t.Fatalf("seed Create failed: %v", err)
+	}
 
 	p, err := store.Get(id)
 	if err != nil {
@@ -202,14 +217,20 @@ func TestGet_NotFound(t *testing.T) {
 func TestSearch(t *testing.T) {
 	store := setupStore(t)
 
-	store.Create(&Pattern{
+	_, err := store.Create(&Pattern{
 		Title: "Empirical diagnosis loop", Description: "Agent loops without empirical data",
 		Category: "anti-pattern", Source: "manual", Tags: "loop,diagnosis", Impact: "high",
 	})
-	store.Create(&Pattern{
+	if err != nil {
+		t.Fatalf("seed Create P1 failed: %v", err)
+	}
+	_, err = store.Create(&Pattern{
 		Title: "Cognitive mode switching", Description: "Audit changes constructive to destructive",
 		Category: "cognitive-pattern", Source: "manual", Tags: "audit,cognitive", Impact: "medium",
 	})
+	if err != nil {
+		t.Fatalf("seed Create P2 failed: %v", err)
+	}
 
 	results, err := store.Search("empirical")
 	if err != nil {
@@ -240,18 +261,27 @@ func TestSearch_NoResults(t *testing.T) {
 func TestList_WithLimit(t *testing.T) {
 	store := setupStore(t)
 
-	store.Create(&Pattern{
+	_, err := store.Create(&Pattern{
 		Title: "P1", Description: "D1", Category: "anti-pattern",
 		Source: "manual", Tags: "a", Impact: "high",
 	})
-	store.Create(&Pattern{
+	if err != nil {
+		t.Fatalf("seed Create P1 failed: %v", err)
+	}
+	_, err = store.Create(&Pattern{
 		Title: "P2", Description: "D2", Category: "cognitive-pattern",
 		Source: "epiphany", Tags: "b", Impact: "low",
 	})
-	store.Create(&Pattern{
+	if err != nil {
+		t.Fatalf("seed Create P2 failed: %v", err)
+	}
+	_, err = store.Create(&Pattern{
 		Title: "P3", Description: "D3", Category: "structural-principle",
 		Source: "cognitive-dna", Tags: "c", Impact: "medium",
 	})
+	if err != nil {
+		t.Fatalf("seed Create P3 failed: %v", err)
+	}
 
 	patterns, err := store.List(ListFilters{Limit: 2})
 	if err != nil {

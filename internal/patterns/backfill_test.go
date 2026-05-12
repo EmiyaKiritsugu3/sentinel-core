@@ -37,7 +37,10 @@ func TestBackfillFromCognitiveDNA(t *testing.T) {
 	if err := graph.Migrate(db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
-	store, _ := NewPatternStore(db)
+	store, err := NewPatternStore(db)
+	if err != nil {
+		t.Fatalf("NewPatternStore failed: %v", err)
+	}
 
 	result, err := store.BackfillFromCognitiveDNA(projectRoot)
 	if err != nil {
@@ -63,7 +66,10 @@ func TestBackfillFromCognitiveDNA_Idempotent(t *testing.T) {
 	if err := graph.Migrate(db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
-	store, _ := NewPatternStore(db)
+	store, err := NewPatternStore(db)
+	if err != nil {
+		t.Fatalf("NewPatternStore failed: %v", err)
+	}
 
 	result1, _ := store.BackfillFromCognitiveDNA(projectRoot)
 
@@ -82,7 +88,10 @@ func TestBackfillFromEvolutionInsights(t *testing.T) {
 	if err := graph.Migrate(db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
-	store, _ := NewPatternStore(db)
+	store, err := NewPatternStore(db)
+	if err != nil {
+		t.Fatalf("NewPatternStore failed: %v", err)
+	}
 
 	result, err := store.BackfillFromEvolutionInsights(projectRoot)
 	if err != nil {
@@ -99,7 +108,10 @@ func TestBackfillFromSentinelLog_DryRun(t *testing.T) {
 	if err := graph.Migrate(db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
-	store, _ := NewPatternStore(db)
+	store, err := NewPatternStore(db)
+	if err != nil {
+		t.Fatalf("NewPatternStore failed: %v", err)
+	}
 
 	dir := t.TempDir()
 	docDir := filepath.Join(dir, "docs", "process")
@@ -172,6 +184,10 @@ func TestParseCognitiveDNA_FalsePositive_ModusOperandiOutsidePMO(t *testing.T) {
 
 func TestParseEvolutionInsights_FalsePositive_SectionNameInBody(t *testing.T) {
 	// FP DOCUMENTADO: strings.Contains("Gaps Estruturais") em body ativa section detector
+	// Mecanismo: parseEvolutionInsights usa strings.Contains para detectar seção,
+	// o que match substring em qualquer contexto. O FP é conhecido — a linha
+	// "Veja Gaps Estruturais acima para contexto" vira candidato espúrio porque
+	// a seção está ativa quando o parser a encontra.
 	dir := t.TempDir()
 	path := filepath.Join(dir, "EVOLUTION-INSIGHTS.md")
 	content := "## Gaps Estruturais\n- Item válido: desc\n- Veja Gaps Estruturais acima para contexto\n"
@@ -180,10 +196,15 @@ func TestParseEvolutionInsights_FalsePositive_SectionNameInBody(t *testing.T) {
 
 	candidates, err := parseEvolutionInsights(path)
 	assert.NoError(t, err)
+	var fpCount int
 	for _, c := range candidates {
 		if c.Title == "Veja Gaps Estruturais acima para contexto" {
-			t.Log("FP DOCUMENTADO: substring 'Gaps Estruturais' no body ativou section detector")
+			fpCount++
+			t.Log("FP DOCUMENTADO: substring 'Gaps Estruturais' no body ativou section detector — Candidato espúrio:", c.Title)
 		}
+	}
+	if fpCount == 0 {
+		t.Log("FP não reproduzido — parser pode ter sido corrigido ou input não triggera o path")
 	}
 }
 
@@ -203,7 +224,9 @@ func TestParseEvolutionInsights_FalsePositive_StrikethroughSkipped(t *testing.T)
 }
 
 func TestParseSentinelLog_FalsePositive_FiltroInNarrativeText(t *testing.T) {
-	// FP DOCUMENTADO: "Filtro A" em texto narrativo sem prefix "- "/"* " — len(clean)>10 gera candidato espúrio
+	// FP DOCUMENTADO: "Filtro A" em texto narrativo sem prefix "- "/"* " —
+	// parseSentinelLine não exige prefixo de lista, apenas strings.Contains("Filtro A/B/C"),
+	// logo texto narrativo com substring vira candidato espúrio se len(clean)>10
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sentinel-log.md")
 	content := "# Log\nFiltro A foi discutido na reunião mas não aplicado\n- Filtro A aplicado: contexto suficiente aqui\n"
@@ -212,10 +235,15 @@ func TestParseSentinelLog_FalsePositive_FiltroInNarrativeText(t *testing.T) {
 
 	candidates, err := parseSentinelLog(path)
 	assert.NoError(t, err)
+	var fpCount int
 	for _, c := range candidates {
 		if c.Title == "Filtro A foi discutido na reunião mas não aplicado" {
-			t.Log("FP DOCUMENTADO: texto narrativo com 'Filtro A' capturado como item")
+			fpCount++
+			t.Log("FP DOCUMENTADO: texto narrativo com 'Filtro A' capturado como item — Candidato espúrio:", c.Title)
 		}
+	}
+	if fpCount == 0 {
+		t.Log("FP não reproduzido — parser pode ter sido corrigido ou input não triggera o path")
 	}
 }
 
@@ -240,7 +268,10 @@ func TestBackfillFromSentinelLog_Insert(t *testing.T) {
 	if err := graph.Migrate(db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
-	store, _ := NewPatternStore(db)
+	store, err := NewPatternStore(db)
+	if err != nil {
+		t.Fatalf("NewPatternStore failed: %v", err)
+	}
 
 	// Cria arquivo sentinel-log com conteúdo Filtro para testar inserção non-dry-run
 	dir := t.TempDir()
@@ -260,7 +291,10 @@ func TestBackfillFromSentinelLog_Insert(t *testing.T) {
 	if result.Extracted == 0 {
 		t.Fatal("expected at least 1 candidate from sentinel-log")
 	}
-	patterns, _ := store.List(ListFilters{Source: "sentinel-log"})
+	patterns, err := store.List(ListFilters{Source: "sentinel-log"})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
 	if len(patterns) == 0 {
 		t.Fatal("expected patterns persisted after non-dry-run backfill")
 	}
@@ -305,7 +339,10 @@ func TestInsertIfNew_CreateError(t *testing.T) {
 	if err := graph.Migrate(db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
-	store, _ := NewPatternStore(db)
+	store, err := NewPatternStore(db)
+	if err != nil {
+		t.Fatalf("NewPatternStore failed: %v", err)
+	}
 
 	// Fecha o DB para forçar erro no Create dentro de insertIfNew
 	db.Close()
