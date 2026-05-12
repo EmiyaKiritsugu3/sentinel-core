@@ -17,13 +17,11 @@ func init() {
 	registry.Register(NewPlanCmd)
 }
 
-var (
-	planTier      string
-	flagRefine    bool
-	flagNoSuggest bool
-)
-
 func NewPlanCmd(db *sqlite.DB) *cobra.Command {
+	var planTier string
+	var flagRefine bool
+	var flagNoSuggest bool
+
 	cmd := &cobra.Command{
 		Use:   "plan [goal] [verification_command]",
 		Short: "Create a new architectural plan and task",
