@@ -70,32 +70,9 @@ func captureStdout(t *testing.T, fn func()) string {
 	return string(out)
 }
 
-func resetAddFlags() {
-	addTitle = ""
-	addDesc = ""
-	addCategory = ""
-	addSource = ""
-	addSourceRef = ""
-	addTags = ""
-	addImpact = ""
-	addForce = false
-}
-
-func resetListFlags() {
-	listCategory = ""
-	listSource = ""
-	listImpact = ""
-}
-
-func resetBackfillFlags() {
-	backfillSource = ""
-	backfillAll = false
-}
-
 func TestPatternAddCmd(t *testing.T) {
 	db := setupCmdDB(t)
 	cmd := NewPatternCmd(db)
-	resetAddFlags()
 
 	cmd.SetArgs([]string{"add", "--title", "Test Pattern", "--desc", "A test", "--category", "anti-pattern", "--tags", "test,go", "--impact", "high"})
 	out := captureStdout(t, func() {
@@ -116,11 +93,9 @@ func TestPatternAddCmd_Duplicate(t *testing.T) {
 	db := setupCmdDB(t)
 	cmd := NewPatternCmd(db)
 
-	resetAddFlags()
 	cmd.SetArgs([]string{"add", "--title", "Dup Test", "--desc", "first", "--category", "anti-pattern"})
 	captureStdout(t, func() { cmd.Execute() })
 
-	resetAddFlags()
 	cmd2 := NewPatternCmd(db)
 	cmd2.SetArgs([]string{"add", "--title", "Dup Test", "--desc", "duplicate", "--category", "anti-pattern"})
 	out := captureStdout(t, func() {
@@ -137,11 +112,9 @@ func TestPatternAddCmd_ForceSkipDedup(t *testing.T) {
 	db := setupCmdDB(t)
 	cmd := NewPatternCmd(db)
 
-	resetAddFlags()
 	cmd.SetArgs([]string{"add", "--title", "Force Test", "--desc", "first", "--category", "anti-pattern"})
 	captureStdout(t, func() { cmd.Execute() })
 
-	resetAddFlags()
 	cmd2 := NewPatternCmd(db)
 	cmd2.SetArgs([]string{"add", "--title", "Force Test", "--desc", "forced", "--category", "anti-pattern", "--force"})
 	out := captureStdout(t, func() {
@@ -157,12 +130,10 @@ func TestPatternAddCmd_ForceSkipDedup(t *testing.T) {
 func TestPatternListCmd(t *testing.T) {
 	db := setupCmdDB(t)
 
-	resetAddFlags()
 	addCmd := NewPatternCmd(db)
 	addCmd.SetArgs([]string{"add", "--title", "List Test", "--desc", "for listing", "--category", "cognitive-pattern"})
 	captureStdout(t, func() { addCmd.Execute() })
 
-	resetListFlags()
 	cmd := NewPatternCmd(db)
 	cmd.SetArgs([]string{"list"})
 	out := captureStdout(t, func() {
@@ -181,7 +152,6 @@ func TestPatternListCmd(t *testing.T) {
 
 func TestPatternListCmd_Empty(t *testing.T) {
 	db := setupCmdDB(t)
-	resetListFlags()
 	cmd := NewPatternCmd(db)
 	cmd.SetArgs([]string{"list"})
 	out := captureStdout(t, func() {
@@ -197,7 +167,6 @@ func TestPatternListCmd_Empty(t *testing.T) {
 func TestPatternSearchCmd(t *testing.T) {
 	db := setupCmdDB(t)
 
-	resetAddFlags()
 	addCmd := NewPatternCmd(db)
 	addCmd.SetArgs([]string{"add", "--title", "Searchable Pattern", "--desc", "for search test", "--category", "structural-principle"})
 	captureStdout(t, func() { addCmd.Execute() })
@@ -235,7 +204,6 @@ func TestPatternSearchCmd_NoMatch(t *testing.T) {
 func TestPatternGetCmd(t *testing.T) {
 	db := setupCmdDB(t)
 
-	resetAddFlags()
 	addCmd := NewPatternCmd(db)
 	addCmd.SetArgs([]string{"add", "--title", "Get Test", "--desc", "for get", "--category", "routing-principle"})
 	addOut := captureStdout(t, func() { addCmd.Execute() })
@@ -269,7 +237,6 @@ func TestPatternGetCmd(t *testing.T) {
 
 func TestPatternBackfillAllCmd(t *testing.T) {
 	db := setupCmdDB(t)
-	resetBackfillFlags()
 	cmd := NewPatternCmd(db)
 	cmd.SetArgs([]string{"backfill", "--all"})
 	stderr := captureStderr(t, func() {
@@ -284,7 +251,6 @@ func TestPatternBackfillAllCmd(t *testing.T) {
 
 func TestPatternBackfillSourceCmd(t *testing.T) {
 	db := setupCmdDB(t)
-	resetBackfillFlags()
 	cmd := NewPatternCmd(db)
 	cmd.SetArgs([]string{"backfill", "--source", "sentinel-log"})
 	stderr := captureStderr(t, func() {
