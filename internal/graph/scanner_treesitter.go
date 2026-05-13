@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,11 +34,11 @@ const semanticQuery = `
 func NewTreeSitterScanner() *TreeSitterScanner {
 	tsQ, err := sitter.NewQuery([]byte(semanticQuery), typescript.GetLanguage())
 	if err != nil {
-		fmt.Printf("⚠️  TreeSitter: failed to create TS query: %v\n", err)
+		slog.Warn("failed to create TreeSitter query", "error", err)
 	}
 	tsxQ, err := sitter.NewQuery([]byte(semanticQuery), tsx.GetLanguage())
 	if err != nil {
-		fmt.Printf("⚠️  TreeSitter: failed to create TSX query: %v\n", err)
+		slog.Warn("failed to create TreeSitter TSX query", "error", err)
 	}
 
 	return &TreeSitterScanner{
@@ -55,47 +56,18 @@ func (s *TreeSitterScanner) SupportedExtensions() []string {
 	return []string{".tsx", ".ts"}
 }
 
-func (s *TreeSitterScanner) Scan(path string) ScanResult {
-	file, err := os.Open(path)
-	if err != nil {
-		return ScanResult{Err: fmt.Errorf("scanner: failed to open %s: %w", path, err)}
-	}
-	defer file.Close()
-
-	// Adere ao Standard #01: Uso de buffered readers para eficiência de I/O
-	// Nota: Tree-sitter exige o buffer completo ([]byte) para parsing.
-	sourceCode, err := io.ReadAll(file)
-	if err != nil {
-		return ScanResult{Err: fmt.Errorf("scanner: failed to read %s: %w", path, err)}
-	}
-
-	ext := filepath.Ext(path)
-	var lang *sitter.Language
-	var query *sitter.Query
+// selectLanguage returns the appropriate Tree-sitter language and query for the
+// given file extension.
+func (s *TreeSitterScanner) selectLanguage(ext string) (*sitter.Language, *sitter.Query) {
 	if ext == ".tsx" {
-		lang = tsx.GetLanguage()
-		query = s.tsxQuery
-	} else {
-		lang = typescript.GetLanguage()
-		query = s.tsQuery
+		return tsx.GetLanguage(), s.tsxQuery
 	}
+	return typescript.GetLanguage(), s.tsQuery
+}
 
-	// Recupera parser do pool para garantir thread-safety (Standard #10)
-	parser := s.pool.Get().(*sitter.Parser)
-	defer s.pool.Put(parser)
-
-	parser.SetLanguage(lang)
-	tree, err := parser.ParseCtx(context.Background(), nil, sourceCode)
-	if err != nil || tree == nil || tree.RootNode() == nil {
-		return ScanResult{Err: fmt.Errorf("scanner: failed to parse %s: %w", path, err)}
-	}
-	// CRITICAL: Libera memória CGO (Standard #07 - Memory Integrity)
-	defer tree.Close()
-
-	if query == nil {
-		return ScanResult{Nodes: []Node{{ID: "file:" + path, Name: filepath.Base(path), Type: "file", FilePath: path}}}
-	}
-
+// executeQuery runs a Tree-sitter semantic query against the parsed tree and
+// returns the resulting nodes and edges.
+func (s *TreeSitterScanner) executeQuery(query *sitter.Query, tree *sitter.Tree, sourceCode []byte, path string) ScanResult {
 	res := ScanResult{}
 	fileID := "file:" + path
 	res.Nodes = append(res.Nodes, Node{
@@ -105,7 +77,6 @@ func (s *TreeSitterScanner) Scan(path string) ScanResult {
 		FilePath: path,
 	})
 
-	// Executa a Query Semântica (Fase 3: Language Expansion)
 	cursor := sitter.NewQueryCursor()
 	defer cursor.Close()
 
@@ -123,7 +94,6 @@ func (s *TreeSitterScanner) Scan(path string) ScanResult {
 
 			switch captureName {
 			case "import":
-				// Busca o nó de string que contém o caminho
 				for i := 0; i < int(node.NamedChildCount()); i++ {
 					child := node.NamedChild(i)
 					if child.Type() == "string" {
@@ -145,7 +115,6 @@ func (s *TreeSitterScanner) Scan(path string) ScanResult {
 					}
 				}
 			case "interface", "class", "function", "variable":
-				// Busca o identificador do nome
 				var name string
 				for i := 0; i < int(node.NamedChildCount()); i++ {
 					child := node.NamedChild(i)
@@ -163,6 +132,37 @@ func (s *TreeSitterScanner) Scan(path string) ScanResult {
 	}
 
 	return res
+}
+
+func (s *TreeSitterScanner) Scan(path string) ScanResult {
+	file, err := os.Open(path) //nolint:gosec // path from scanner input
+	if err != nil {
+		return ScanResult{Err: fmt.Errorf("scanner: failed to open %s: %w", path, err)}
+	}
+	defer func() { _ = file.Close() }()
+
+	sourceCode, err := io.ReadAll(file)
+	if err != nil {
+		return ScanResult{Err: fmt.Errorf("scanner: failed to read %s: %w", path, err)}
+	}
+
+	lang, query := s.selectLanguage(filepath.Ext(path))
+
+	parser := s.pool.Get().(*sitter.Parser)
+	defer s.pool.Put(parser)
+
+	parser.SetLanguage(lang)
+	tree, err := parser.ParseCtx(context.Background(), nil, sourceCode)
+	if err != nil || tree == nil || tree.RootNode() == nil {
+		return ScanResult{Err: fmt.Errorf("scanner: failed to parse %s: %w", path, err)}
+	}
+	defer tree.Close()
+
+	if query == nil {
+		return ScanResult{Nodes: []Node{{ID: "file:" + path, Name: filepath.Base(path), Type: "file", FilePath: path}}}
+	}
+
+	return s.executeQuery(query, tree, sourceCode, path)
 }
 
 func (s *TreeSitterScanner) processSymbol(n *sitter.Node, captureName, name, path, fileID string, res *ScanResult) {
