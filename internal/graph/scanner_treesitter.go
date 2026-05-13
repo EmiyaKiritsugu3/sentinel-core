@@ -67,6 +67,47 @@ func (s *TreeSitterScanner) selectLanguage(ext string) (*sitter.Language, *sitte
 	return typescript.GetLanguage(), s.tsQuery
 }
 
+// handleImportCapture extracts import paths from an import statement node
+// and adds them to the scan result.
+func (s *TreeSitterScanner) handleImportCapture(node *sitter.Node, sourceCode []byte, path, fileID string, res *ScanResult) {
+	for i := 0; i < int(node.NamedChildCount()); i++ {
+		child := node.NamedChild(i)
+		if child.Type() == "string" {
+			importPath := strings.Trim(child.Content(sourceCode), "'\"")
+			importID := fmt.Sprintf("import:%s:%s", path, importPath)
+
+			res.Nodes = append(res.Nodes, Node{
+				ID:       importID,
+				Name:     importPath,
+				Type:     "unresolved_import",
+				FilePath: path,
+			})
+
+			res.Edges = append(res.Edges, Edge{
+				From: fileID,
+				To:   importID,
+				Rel:  "imports",
+			})
+		}
+	}
+}
+
+// handleSymbolCapture extracts symbol names from a declaration node
+// and dispatches to processSymbol for type classification.
+func (s *TreeSitterScanner) handleSymbolCapture(node *sitter.Node, captureName string, sourceCode []byte, path, fileID string, res *ScanResult) {
+	var name string
+	for i := 0; i < int(node.NamedChildCount()); i++ {
+		child := node.NamedChild(i)
+		if child.Type() == "identifier" || child.Type() == "type_identifier" {
+			name = child.Content(sourceCode)
+			break
+		}
+	}
+	if name != "" {
+		s.processSymbol(node, captureName, name, path, fileID, res)
+	}
+}
+
 // executeQuery runs a Tree-sitter semantic query against the parsed tree and
 // returns the resulting nodes and edges.
 func (s *TreeSitterScanner) executeQuery(query *sitter.Query, tree *sitter.Tree, sourceCode []byte, path string) ScanResult {
@@ -96,39 +137,9 @@ func (s *TreeSitterScanner) executeQuery(query *sitter.Query, tree *sitter.Tree,
 
 			switch captureName {
 			case "import":
-				for i := 0; i < int(node.NamedChildCount()); i++ {
-					child := node.NamedChild(i)
-					if child.Type() == "string" {
-						importPath := strings.Trim(child.Content(sourceCode), "'\"")
-						importID := fmt.Sprintf("import:%s:%s", path, importPath)
-
-						res.Nodes = append(res.Nodes, Node{
-							ID:       importID,
-							Name:     importPath,
-							Type:     "unresolved_import",
-							FilePath: path,
-						})
-
-						res.Edges = append(res.Edges, Edge{
-							From: fileID,
-							To:   importID,
-							Rel:  "imports",
-						})
-					}
-				}
+				s.handleImportCapture(node, sourceCode, path, fileID, &res)
 			case "interface", "class", "function", "variable":
-				var name string
-				for i := 0; i < int(node.NamedChildCount()); i++ {
-					child := node.NamedChild(i)
-					if child.Type() == "identifier" || child.Type() == "type_identifier" {
-						name = child.Content(sourceCode)
-						break
-					}
-				}
-
-				if name != "" {
-					s.processSymbol(node, captureName, name, path, fileID, &res)
-				}
+				s.handleSymbolCapture(node, captureName, sourceCode, path, fileID, &res)
 			}
 		}
 	}
