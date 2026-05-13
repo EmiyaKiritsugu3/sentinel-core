@@ -16,6 +16,12 @@ Este documento define a trajetória oficial de desenvolvimento do Sentinel Core.
   - Refatoração para Injeção de Dependência (Fim das Globais).
   - Blindagem de Segurança (shlex, Foreign Keys, Transactions).
   - Implementação do Sovereign Validator (Hard Gates).
+- [x] **Fase 2.11: Linter Cleanup & Quality Firewall**
+  - Complexidade ciclomática reduzida: 6 funções refatoradas (gocyclo ≤ 15).
+  - 131 exported doc comments adicionados em 20+ arquivos.
+  - Thread safety no Registry: `sync.RWMutex` + `go test -race` pass.
+  - Context threading no Disambiguator (noctx fix).
+  - `golangci-lint run`: 0 issues (de 137).
 
 ## 🚀 Próximas Frentes (O Plano Concreto)
 
@@ -112,5 +118,5 @@ Ideias com mérito técnico validado, sem data definida. Cada uma tem uma **pré
 
 ---
 
-*Atualizado em: 2026-05-08*
+*Atualizado em: 2026-05-13*
 *Assinado: Sovereign Council*

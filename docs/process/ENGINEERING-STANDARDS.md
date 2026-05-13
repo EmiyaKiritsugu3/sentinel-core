@@ -52,5 +52,15 @@ Este documento define os padrões técnicos inegociáveis do Sentinel Core. Toda
 
 * **Standard #15 (The Hard Gate Enforcement)**: O status `COMPLETED` de uma tarefa é um portão de ferro. Ele é bloqueado sistematicamente até que o comando contido no ADR vinculado retorne `Exit Code 0`. O progresso é medido por evidência física, não por intenção.
 
+## 🧹 Code Quality & Linting
+
+* **Standard #18 (Zero Linter Debt)**: Todo código enviado para `main` deve passar por `golangci-lint run` com zero issues. As verificações obrigatórias são:
+  * `gocyclo` ≤ 15 para toda função — complexidade ciclomática alta é refatorada antes do merge.
+  * `revive/exported` — todo símbolo exportado (type, func, const, method) deve ter doc comment no formato `// SymbolName verb phrase.`.
+  * `noctx` — toda chamada de banco ou rede deve usar variante Context (QueryRowContext, QueryContext, etc.).
+  * `errcheck` — nenhum erro pode ser descartado sem `//nolint` explícito e justificado.
+  * `gosec` — permissões de arquivo 0600/0750 (G306), sem G304/G204 não justificados.
+* **Standard #19 (Thread Safety)**: Todo código que acessa estado compartilhado (`map`, slice sem sincronização) deve ser protegido por `sync.RWMutex` ou `sync.Mutex`. A suíte `go test -race ./...` deve passar sem warnings. O padrão `sync.Map` é preferível em cenários de leitura-heavy com writes esparsos.
+
 ---
-*Última Atualização: 2026-05-03*
+*Última Atualização: 2026-05-13*
