@@ -166,6 +166,25 @@ func writeContainerDefs(sb *strings.Builder, containers []c4Container) {
 	sb.WriteString("\n")
 }
 
+// classifyEdgeEndpoints maps edge From/To IDs to containers when the ID
+// has a "file:" prefix. Only maps endpoints not already in the container map.
+func classifyEdgeEndpoints(edges []Edge, nodeToContainer map[string]string) {
+	for _, e := range edges {
+		if _, ok := nodeToContainer[e.To]; !ok && strings.HasPrefix(e.To, "file:") {
+			path := strings.TrimPrefix(e.To, "file:")
+			if cid := classifyContainer(path); cid != "" {
+				nodeToContainer[e.To] = cid
+			}
+		}
+		if _, ok := nodeToContainer[e.From]; !ok && strings.HasPrefix(e.From, "file:") {
+			path := strings.TrimPrefix(e.From, "file:")
+			if cid := classifyContainer(path); cid != "" {
+				nodeToContainer[e.From] = cid
+			}
+		}
+	}
+}
+
 // buildNodeToContainerMap classifies all nodes and edge endpoints into their
 // corresponding C4 containers based on file paths.
 func buildNodeToContainerMap(nodes []Node, edges []Edge) map[string]string {
@@ -181,20 +200,7 @@ func buildNodeToContainerMap(nodes []Node, edges []Edge) map[string]string {
 		}
 	}
 
-	for _, e := range edges {
-		if _, ok := nodeToContainer[e.To]; !ok && strings.HasPrefix(e.To, "file:") {
-			path := strings.TrimPrefix(e.To, "file:")
-			if cid := classifyContainer(path); cid != "" {
-				nodeToContainer[e.To] = cid
-			}
-		}
-		if _, ok := nodeToContainer[e.From]; !ok && strings.HasPrefix(e.From, "file:") {
-			path := strings.TrimPrefix(e.From, "file:")
-			if cid := classifyContainer(path); cid != "" {
-				nodeToContainer[e.From] = cid
-			}
-		}
-	}
+	classifyEdgeEndpoints(edges, nodeToContainer)
 
 	return nodeToContainer
 }
