@@ -12,13 +12,14 @@ import (
 )
 
 func TestDispatcher_ReconcileEvents(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate test db: %v", err)
 	}
-	defer os.RemoveAll(".sentinel")
+	defer func() { _ = os.RemoveAll(".sentinel") }()
 
 	_, err := db.Conn.ExecContext(ctx, "INSERT INTO tasks (id, description, status) VALUES ('parent-1', 'Parent Task', 'IN_PROGRESS')")
 	if err != nil {
@@ -30,7 +31,7 @@ func TestDispatcher_ReconcileEvents(t *testing.T) {
 	}
 
 	eventDir := ".sentinel/events"
-	os.MkdirAll(eventDir, 0755)
+	_ = os.MkdirAll(eventDir, 0755) //nolint:gosec // test fixture
 
 	eventFile := filepath.Join(eventDir, "task-1.json")
 	eventData := map[string]string{
@@ -41,7 +42,7 @@ func TestDispatcher_ReconcileEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to marshal event data: %v", err)
 	}
-	err = os.WriteFile(eventFile, bytes, 0644)
+	err = os.WriteFile(eventFile, bytes, 0644) //nolint:gosec // test fixture
 	if err != nil {
 		t.Fatalf("failed to write event file: %v", err)
 	}

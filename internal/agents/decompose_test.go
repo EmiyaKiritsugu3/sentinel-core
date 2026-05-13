@@ -10,9 +10,10 @@ import (
 )
 
 func TestDecomposeTool(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate test db: %v", err)
 	}
 
@@ -20,11 +21,11 @@ func TestDecomposeTool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewManager() error: %v", err)
 	}
-	taskID, err := mgr.CreateTask("Test Goal", "T3", "go test")
+	taskID, err := mgr.CreateTask(context.Background(), "Test Goal", "T3", "go test")
 	if err != nil {
 		t.Fatalf("Failed to create task: %v", err)
 	}
-	if err := mgr.StartTask(taskID); err != nil {
+	if err := mgr.StartTask(context.Background(), taskID); err != nil {
 		t.Fatalf("Failed to start task: %v", err)
 	}
 

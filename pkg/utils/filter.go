@@ -1,3 +1,4 @@
+// Package utils provides shared utility functions for the project.
 package utils
 
 import (
@@ -21,11 +22,11 @@ func NewIgnoreFilter(root string) *IgnoreFilter {
 
 func (f *IgnoreFilter) loadGitignore(root string) {
 	path := filepath.Join(root, ".gitignore")
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // .gitignore path from trusted root
 	if err != nil {
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {

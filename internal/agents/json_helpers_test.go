@@ -3,6 +3,7 @@ package agents
 import "testing"
 
 func TestUnmarshalCapabilities_Valid(t *testing.T) {
+	t.Parallel()
 	caps, err := unmarshalCapabilities(`["go","git"]`)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -13,6 +14,7 @@ func TestUnmarshalCapabilities_Valid(t *testing.T) {
 }
 
 func TestUnmarshalCapabilities_Empty(t *testing.T) {
+	t.Parallel()
 	caps, err := unmarshalCapabilities(`[]`)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -23,6 +25,7 @@ func TestUnmarshalCapabilities_Empty(t *testing.T) {
 }
 
 func TestUnmarshalCapabilities_InvalidJSON(t *testing.T) {
+	t.Parallel()
 	_, err := unmarshalCapabilities(`not-json`)
 	if err == nil {
 		t.Fatal("expected error for invalid json")

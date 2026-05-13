@@ -10,6 +10,7 @@ import (
 )
 
 func TestNewMutationEngine_NilDB(t *testing.T) {
+	t.Parallel()
 	e, err := NewMutationEngine(nil)
 	if err == nil {
 		t.Fatal("expected error for nil db, got nil")
@@ -23,6 +24,7 @@ func TestNewMutationEngine_NilDB(t *testing.T) {
 }
 
 func TestNewRegistryManager_NilDB(t *testing.T) {
+	t.Parallel()
 	m, err := NewRegistryManager(nil)
 	if err == nil {
 		t.Fatal("expected error for nil db, got nil")
@@ -36,8 +38,9 @@ func TestNewRegistryManager_NilDB(t *testing.T) {
 }
 
 func TestNewDispatcher_NilRegistry(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	shield := &GitShield{}
 	d, err := NewDispatcher(nil, shield, db)
@@ -50,8 +53,9 @@ func TestNewDispatcher_NilRegistry(t *testing.T) {
 }
 
 func TestNewDispatcher_NilShield(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	regMgr, err := NewRegistryManager(db)
 	if err != nil {
@@ -68,6 +72,7 @@ func TestNewDispatcher_NilShield(t *testing.T) {
 }
 
 func TestNewDispatcher_NilDB(t *testing.T) {
+	t.Parallel()
 	regMgr := &RegistryManager{}
 	shield := &GitShield{}
 
@@ -84,8 +89,9 @@ func TestNewDispatcher_NilDB(t *testing.T) {
 }
 
 func TestNewEngine_NilRegistry(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	auth := &mockAuthProvider{key: "fake-key"}
 	validator, err := reflect.NewValidator(db)
@@ -103,8 +109,9 @@ func TestNewEngine_NilRegistry(t *testing.T) {
 }
 
 func TestNewEngine_NilAuth(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	validator, err := reflect.NewValidator(db)
 	if err != nil {
@@ -121,8 +128,9 @@ func TestNewEngine_NilAuth(t *testing.T) {
 }
 
 func TestNewEngine_NilValidator(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	auth := &mockAuthProvider{key: "fake-key"}
 
@@ -136,6 +144,7 @@ func TestNewEngine_NilValidator(t *testing.T) {
 }
 
 func TestNewEngine_NilDB(t *testing.T) {
+	t.Parallel()
 	auth := &mockAuthProvider{key: "fake-key"}
 	validator := &reflect.Validator{}
 

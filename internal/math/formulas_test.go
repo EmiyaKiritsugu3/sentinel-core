@@ -1,13 +1,16 @@
 package math_test
 
 import (
-	"github.com/EmiyaKiritsugu3/sentinel-core/internal/math"
 	"testing"
+
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/math"
 )
 
 func TestCalculateDelta(t *testing.T) {
+	t.Parallel()
 	// Case 1: High gain, low cost
 	// Prob=0.9, Impact=10, Latency=50ms, Cost=0.01
+
 	got := math.CalculateDelta(0.9, 10, 50, 0.01)
 	if got <= 0 {
 		t.Errorf("expected positive delta for high gain scenario, got %f", got)
@@ -22,6 +25,7 @@ func TestCalculateDelta(t *testing.T) {
 }
 
 func TestCalculateTrustScore(t *testing.T) {
+	t.Parallel()
 	if got := math.CalculateTrustScore(0, 0); got != 0.5 {
 		t.Errorf("zero history: want 0.5, got %f", got)
 	}
@@ -34,6 +38,7 @@ func TestCalculateTrustScore(t *testing.T) {
 }
 
 func TestTrustToDynamicLambda(t *testing.T) {
+	t.Parallel()
 	if got := math.TrustToDynamicLambda(0.0); got != 0.5 {
 		t.Errorf("trust=0: want 0.5, got %f", got)
 	}
@@ -43,6 +48,7 @@ func TestTrustToDynamicLambda(t *testing.T) {
 }
 
 func TestCalculateDivergence(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		current  float64
@@ -56,6 +62,7 @@ func TestCalculateDivergence(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := math.CalculateDivergence(tt.current, tt.previous)
 			if tt.wantHigh && got <= 1.0 {
 				t.Errorf("%s: expected divergence > 1.0, got %.4f", tt.name, got)
@@ -68,6 +75,7 @@ func TestCalculateDivergence(t *testing.T) {
 }
 
 func TestCalculateLambda(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		action   int
@@ -82,6 +90,7 @@ func TestCalculateLambda(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := math.CalculateLambda(tt.action, tt.thought)
 			if result != tt.expected {
 				t.Errorf("got %v, want %v", result, tt.expected)

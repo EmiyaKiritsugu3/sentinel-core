@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -21,8 +22,8 @@ func setupCmdDB(t *testing.T) *sqlite.DB {
 	if err != nil {
 		t.Fatalf("failed to init test db: %v", err)
 	}
-	t.Cleanup(func() { db.Close() })
-	if err := graph.Migrate(db); err != nil {
+	t.Cleanup(func() { _ = db.Close() })
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
 	return db
@@ -48,9 +49,9 @@ func captureStderr(t *testing.T, fn func()) string {
 	os.Stderr = w
 	defer func() { os.Stderr = old }()
 	fn()
-	w.Close()
+	_ = w.Close()
 	out, _ := io.ReadAll(r)
-	r.Close()
+	_ = r.Close()
 	return string(out)
 }
 
@@ -64,9 +65,9 @@ func captureStdout(t *testing.T, fn func()) string {
 	os.Stdout = w
 	defer func() { os.Stdout = old }()
 	fn()
-	w.Close()
+	_ = w.Close()
 	out, _ := io.ReadAll(r)
-	r.Close()
+	_ = r.Close()
 	return string(out)
 }
 
@@ -94,7 +95,7 @@ func TestPatternAddCmd_Duplicate(t *testing.T) {
 	cmd := NewPatternCmd(db)
 
 	cmd.SetArgs([]string{"add", "--title", "Dup Test", "--desc", "first", "--category", "anti-pattern"})
-	captureStdout(t, func() { cmd.Execute() })
+	captureStdout(t, func() { _ = cmd.Execute() })
 
 	cmd2 := NewPatternCmd(db)
 	cmd2.SetArgs([]string{"add", "--title", "Dup Test", "--desc", "duplicate", "--category", "anti-pattern"})
@@ -113,7 +114,7 @@ func TestPatternAddCmd_ForceSkipDedup(t *testing.T) {
 	cmd := NewPatternCmd(db)
 
 	cmd.SetArgs([]string{"add", "--title", "Force Test", "--desc", "first", "--category", "anti-pattern"})
-	captureStdout(t, func() { cmd.Execute() })
+	captureStdout(t, func() { _ = cmd.Execute() })
 
 	cmd2 := NewPatternCmd(db)
 	cmd2.SetArgs([]string{"add", "--title", "Force Test", "--desc", "forced", "--category", "anti-pattern", "--force"})
@@ -132,7 +133,7 @@ func TestPatternListCmd(t *testing.T) {
 
 	addCmd := NewPatternCmd(db)
 	addCmd.SetArgs([]string{"add", "--title", "List Test", "--desc", "for listing", "--category", "cognitive-pattern"})
-	captureStdout(t, func() { addCmd.Execute() })
+	captureStdout(t, func() { _ = addCmd.Execute() })
 
 	cmd := NewPatternCmd(db)
 	cmd.SetArgs([]string{"list"})
@@ -169,7 +170,7 @@ func TestPatternSearchCmd(t *testing.T) {
 
 	addCmd := NewPatternCmd(db)
 	addCmd.SetArgs([]string{"add", "--title", "Searchable Pattern", "--desc", "for search test", "--category", "structural-principle"})
-	captureStdout(t, func() { addCmd.Execute() })
+	captureStdout(t, func() { _ = addCmd.Execute() })
 
 	cmd := NewPatternCmd(db)
 	cmd.SetArgs([]string{"search", "Searchable"})
@@ -206,7 +207,7 @@ func TestPatternGetCmd(t *testing.T) {
 
 	addCmd := NewPatternCmd(db)
 	addCmd.SetArgs([]string{"add", "--title", "Get Test", "--desc", "for get", "--category", "routing-principle"})
-	addOut := captureStdout(t, func() { addCmd.Execute() })
+	addOut := captureStdout(t, func() { _ = addCmd.Execute() })
 
 	idx := strings.Index(addOut, "[ID: ")
 	if idx == -1 {
@@ -266,7 +267,7 @@ func TestPatternBackfillSourceCmd(t *testing.T) {
 func TestRunBackfillCognitiveDNA_Success(t *testing.T) {
 	store, _ := setupCmdStore(t)
 	stderr := captureStderr(t, func() {
-		runBackfillCognitiveDNA(store, findProjectRoot())
+		runBackfillCognitiveDNA(context.Background(), store, findProjectRoot())
 	})
 	if stderr != "" {
 		t.Fatalf("unexpected stderr: %s", stderr)
@@ -276,7 +277,7 @@ func TestRunBackfillCognitiveDNA_Success(t *testing.T) {
 func TestRunBackfillCognitiveDNA_Error(t *testing.T) {
 	store, _ := setupCmdStore(t)
 	stderr := captureStderr(t, func() {
-		runBackfillCognitiveDNA(store, "/nonexistent/path")
+		runBackfillCognitiveDNA(context.Background(), store, "/nonexistent/path")
 	})
 	if stderr == "" {
 		t.Fatal("expected warning on stderr for nonexistent path")
@@ -286,7 +287,7 @@ func TestRunBackfillCognitiveDNA_Error(t *testing.T) {
 func TestRunBackfillEvolutionInsights_Success(t *testing.T) {
 	store, _ := setupCmdStore(t)
 	stderr := captureStderr(t, func() {
-		runBackfillEvolutionInsights(store, findProjectRoot())
+		runBackfillEvolutionInsights(context.Background(), store, findProjectRoot())
 	})
 	if stderr != "" {
 		t.Fatalf("unexpected stderr: %s", stderr)
@@ -296,7 +297,7 @@ func TestRunBackfillEvolutionInsights_Success(t *testing.T) {
 func TestRunBackfillEvolutionInsights_Error(t *testing.T) {
 	store, _ := setupCmdStore(t)
 	stderr := captureStderr(t, func() {
-		runBackfillEvolutionInsights(store, "/nonexistent/path")
+		runBackfillEvolutionInsights(context.Background(), store, "/nonexistent/path")
 	})
 	if stderr == "" {
 		t.Fatal("expected warning on stderr for nonexistent path")
@@ -308,16 +309,16 @@ func TestRunBackfillSentinelLog_Success(t *testing.T) {
 
 	dir := t.TempDir()
 	docDir := filepath.Join(dir, "docs", "process")
-	if err := os.MkdirAll(docDir, 0755); err != nil {
+	if err := os.MkdirAll(docDir, 0755); err != nil { //nolint:gosec // test fixture
 		t.Fatalf("mkdir failed: %v", err)
 	}
 	content := "# Log\n- Filtro A aplicado no roteamento de módulos críticos\n"
-	if err := os.WriteFile(filepath.Join(docDir, "sentinel-log.md"), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(docDir, "sentinel-log.md"), []byte(content), 0644); err != nil { //nolint:gosec // test fixture
 		t.Fatalf("write failed: %v", err)
 	}
 
 	stderr := captureStderr(t, func() {
-		runBackfillSentinelLog(store, dir)
+		runBackfillSentinelLog(context.Background(), store, dir)
 	})
 	if stderr != "" {
 		t.Fatalf("unexpected stderr: %s", stderr)
@@ -327,7 +328,7 @@ func TestRunBackfillSentinelLog_Success(t *testing.T) {
 func TestRunBackfillSentinelLog_Error(t *testing.T) {
 	store, _ := setupCmdStore(t)
 	stderr := captureStderr(t, func() {
-		runBackfillSentinelLog(store, "/nonexistent/path")
+		runBackfillSentinelLog(context.Background(), store, "/nonexistent/path")
 	})
 	if stderr == "" {
 		t.Fatal("expected warning on stderr for nonexistent path")

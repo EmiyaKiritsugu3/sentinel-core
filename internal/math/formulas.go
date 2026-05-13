@@ -1,3 +1,4 @@
+// Package math implements the Sovereign Math Engine for divergence detection.
 package math
 
 import gomath "math"

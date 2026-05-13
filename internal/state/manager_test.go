@@ -8,6 +8,7 @@ import (
 )
 
 func TestNewManager_NilDB(t *testing.T) {
+	t.Parallel()
 	m, err := NewManager(nil)
 	if err == nil {
 		t.Fatal("expected error for nil db, got nil")

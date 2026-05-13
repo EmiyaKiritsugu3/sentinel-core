@@ -8,6 +8,7 @@ import (
 )
 
 func TestNewEngine_NilDB(t *testing.T) {
+	t.Parallel()
 	e, err := NewEngine(nil)
 	if err == nil {
 		t.Fatal("expected error for nil db, got nil")
@@ -21,6 +22,7 @@ func TestNewEngine_NilDB(t *testing.T) {
 }
 
 func TestNewVisualizer_NilDB(t *testing.T) {
+	t.Parallel()
 	v, err := NewVisualizer(nil)
 	if err == nil {
 		t.Fatal("expected error for nil db, got nil")

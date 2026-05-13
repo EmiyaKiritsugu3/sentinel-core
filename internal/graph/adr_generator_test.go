@@ -8,10 +8,11 @@ import (
 )
 
 func TestADRGenerator_Generate(t *testing.T) {
-	// Setup
+	t.Parallel()
+
 	tempDir := "temp_adr_test"
-	os.MkdirAll(tempDir, 0755)
-	defer os.RemoveAll(tempDir)
+	_ = os.MkdirAll(tempDir, 0755) //nolint:gosec // test fixture
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	gen := &ADRGenerator{basePath: tempDir}
 	data := ADRData{
@@ -29,11 +30,11 @@ func TestADRGenerator_Generate(t *testing.T) {
 		t.Fatalf("Generate() failed: %v", err)
 	}
 
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // test fixture
 	if err != nil {
 		t.Fatalf("Failed to open generated ADR: %v", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	content, err := io.ReadAll(f)
 	if err != nil {

@@ -13,6 +13,8 @@ func init() {
 	registry.Register(NewVisualizeCmd)
 }
 
+// NewVisualizeCmd creates a cobra command that generates architecture
+// diagrams (master graph and C4 container) from the graph database.
 func NewVisualizeCmd(db *sqlite.DB) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "visualize",
@@ -25,23 +27,23 @@ func NewVisualizeCmd(db *sqlite.DB) *cobra.Command {
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-			fmt.Println("🎨 Sentinel: Generating architectural maps...")
-			viz, err := graph.NewVisualizer(db)
-			if err != nil {
-				return fmt.Errorf("visualize: failed to create visualizer: %w", err)
-			}
+		fmt.Println("🎨 Sentinel: Generating architectural maps...")
+		viz, err := graph.NewVisualizer(db)
+		if err != nil {
+			return fmt.Errorf("visualize: failed to create visualizer: %w", err)
+		}
 
-			err = viz.GenerateMasterDiagram()
-			if err != nil {
-				return fmt.Errorf("visualize: master graph failed: %w", err)
-			}
+		err = viz.GenerateMasterDiagram(cmd.Context())
+		if err != nil {
+			return fmt.Errorf("visualize: master graph failed: %w", err)
+		}
 
-			err = viz.GenerateC4ContainerDiagram()
-			if err != nil {
-				return fmt.Errorf("visualize: C4 container diagram failed: %w", err)
-			}
+		err = viz.GenerateC4ContainerDiagram(cmd.Context())
+		if err != nil {
+			return fmt.Errorf("visualize: C4 container diagram failed: %w", err)
+		}
 
-			fmt.Println("✅ MASTER-GRAPH.md and C4-CONTAINER-GRAPH.md generated in docs/architecture/")
+		fmt.Println("✅ MASTER-GRAPH.md and C4-CONTAINER-GRAPH.md generated in docs/architecture/")
 		return nil
 	}
 

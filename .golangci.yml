@@ -1,28 +1,50 @@
-linters-settings:
-  gocyclo:
-    min-complexity: 15
-  revive:
-    rules:
-      - name: exported
-        severity: warning
-  noctx:
-    # check for context-less DB calls (standard #11)
-    re: "^(Query|QueryRow|Exec|Begin)$"
+version: "2"
 
 linters:
   disable-all: true
   enable:
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
-    - gocyclo
-    - revive
-    - noctx
-    - misspell
-    - bodyclose
+  - errcheck
+  - govet
+  - ineffassign
+  - staticcheck
+  - unused
+  - gocyclo
+  - revive
+  - noctx
+  - misspell
+  - bodyclose
+  - gosec
+  - unconvert
+  - errname
+
+  settings:
+    gocyclo:
+      min-complexity: 15
+    revive:
+      rules:
+      - name: exported
+        severity: information
+    noctx:
+      # check for context-less DB calls (standard #11)
+      re: "^(Query|QueryRow|Exec|Begin)$"
+
+  exclusions:
+    paths:
+      - web/node_modules
+      - .worktrees
+    rules:
+      - path: "web/node_modules"
+        linters:
+          - gocyclo
+          - revive
+      - path: ".worktrees"
+        linters:
+          - all
+
+formatters:
+  enable:
+  - gofmt
+  - goimports
 
 run:
   timeout: 5m

@@ -1,3 +1,4 @@
+// Package liveview provides a WebSocket-based live graph viewer.
 package liveview
 
 import (
@@ -9,6 +10,7 @@ import (
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 )
 
+// GraphSnapshot is a JSON-serializable graph state.
 type GraphSnapshot struct {
 	Nodes []graph.Node `json:"nodes"`
 	Edges []graph.Edge `json:"edges"`
@@ -26,7 +28,7 @@ func handleGetGraph(db *sqlite.DB) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		defer nodesRows.Close()
+		defer func() { _ = nodesRows.Close() }()
 
 		var nodes []graph.Node
 		for nodesRows.Next() {
@@ -43,7 +45,7 @@ func handleGetGraph(db *sqlite.DB) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		defer edgesRows.Close()
+		defer func() { _ = edgesRows.Close() }()
 
 		var edges []graph.Edge
 		for edgesRows.Next() {

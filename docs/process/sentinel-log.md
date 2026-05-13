@@ -1,5 +1,41 @@
 # Sentinel Log — Compiled Brain [PID-SENTINEL]
 
+## [2026-05-13] Milestone: Linter Cleanup & Quality Firewall [PID-SENTINEL-LINTER-CLEANUP]
+
+**Status**: COMPLETED 💎
+**Impact**: HIGH (Project Hygiene — 137→0 issues)
+
+### 🔍 Analysis
+
+1. **Cyclomatic Complexity Reduction (6 functions)**: Extraídas 15+ helper functions de 6 funções de alta complexidade:
+   - `GrepSearchTool.Execute` (22→10): `shouldSkipDir`, `isTextFile`, `scanFileMatches`
+   - `NewInstructCmd` (19→8): `readIntent`, `collectADRDetails`
+   - `TreeSitterScanner.Scan` (19→6): `selectLanguage`, `executeQuery`
+   - `Visualizer.formatC4Mermaid` (19→5): `writeContainerDefs`, `buildNodeToContainerMap`, `aggregateRelationships`
+   - `Engine.Execute` (16→14): `shouldTerminate` — combina toolCalls + textResponses em um gate
+   - `Disambiguator.anchorSignal` (16→8): `hasCodeAnchor`, `hasLineReference`, `matchKeywordsInGraph`
+2. **Exported Doc Comments (131)**: Every exported symbol across 33 files now has a Go doc comment (`// SymbolName verb phrase.`), satisfying revive/exported.
+3. **Thread Safety (Registry)**: `sync.RWMutex` + `GetTool()`, `SetTool()`, `ToolsSnapshot()` methods. `go test -race ./...` passes clean.
+4. **Context Threading (Disambiguator)**: `Analyze` → `VaguenessScore` → `anchorSignal` → `matchKeywordsInGraph` now all accept `context.Context`, fixing 3 noctx violations.
+5. **Bugfix**: `formatC4Mermaid` containers changed from `map[string]container` to `[]c4Container` — output is now deterministic (map iteration was non-deterministic).
+
+### 📊 Metrics
+
+| Check | Before | After |
+|---|---|---|
+| `golangci-lint run` | 137 issues | **0 issues** ✅ |
+| `gocyclo` violations | 6 | **0** ✅ |
+| `revive/exported` | 131 missing | **0** ✅ |
+| `noctx` | 3 violations | **0** ✅ |
+| `go test -race ./...` | FAIL (agents) | **ALL PASS** ✅ |
+| `go vet ./...` | ✅ | ✅ |
+
+### 💡 Key Learning
+
+"Complexidade ciclomática não é métrica acadêmica — é o preditor mais confiável de bugs e dificuldade de manutenção. Cada função com gocyclo > 15 esconde pelo menos 2 responsabilidades que deveriam estar separadas. A extração de helpers não é 'refatoração por estética' — é cirurgia preventiva contra débito técnico exponencial."
+
+---
+
 ## [2026-05-08] Milestone: Bayesian Trust Calibration & Lyapunov Divergence Detection [PID-SENTINEL-TRUST-LYAPUNOV]
 
 **Status**: COMPLETED 💎

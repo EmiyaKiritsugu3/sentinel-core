@@ -1,6 +1,8 @@
+// Package sqlite provides the SQLite database wrapper and initialization.
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -9,6 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// DB wraps a database/sql connection.
 type DB struct {
 	Conn *sql.DB
 }
@@ -22,7 +25,7 @@ func Init() (*DB, error) {
 func InitAtPath(dbPath string) (*DB, error) {
 	sentinelDir := filepath.Dir(dbPath)
 	if _, err := os.Stat(sentinelDir); os.IsNotExist(err) && sentinelDir != "." {
-		err := os.MkdirAll(sentinelDir, 0755)
+		err := os.MkdirAll(sentinelDir, 0750)
 		if err != nil {
 			return nil, fmt.Errorf("sqlite: could not create directory %s: %w", sentinelDir, err)
 		}
@@ -41,8 +44,10 @@ func InitAtPath(dbPath string) (*DB, error) {
 		"PRAGMA synchronous = NORMAL;",
 	}
 
+	ctx := context.Background()
+
 	for _, p := range pragmas {
-		if _, err := db.Exec(p); err != nil {
+		if _, err := db.ExecContext(ctx, p); err != nil {
 			return nil, fmt.Errorf("sqlite: failed to apply pragma %s: %w", p, err)
 		}
 	}
@@ -51,7 +56,7 @@ func InitAtPath(dbPath string) (*DB, error) {
 	db.SetMaxOpenConns(8)
 	db.SetMaxIdleConns(8)
 
-	if err := db.Ping(); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		return nil, fmt.Errorf("sqlite: could not ping db: %w", err)
 	}
 

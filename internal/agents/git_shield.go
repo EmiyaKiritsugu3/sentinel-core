@@ -2,7 +2,7 @@ package agents
 
 import (
 	"fmt"
-	"os"
+	"log/slog"
 	"os/exec"
 	"strings"
 
@@ -22,7 +22,7 @@ func NewGitShield(workingDir string, v Validator) *GitShield {
 
 // run executes a git command directly without shell wrapping (Standard #10).
 func (g *GitShield) run(args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
+	cmd := exec.Command("git", args...) //nolint:noctx,gosec // git commands are local
 	cmd.Dir = g.WorkingDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -90,7 +90,7 @@ func (g *GitShield) CleanupWorktrees() error {
 			path := strings.TrimPrefix(line, "worktree ")
 			if strings.Contains(path, "sentinel-task-") {
 				if _, err := g.run("worktree", "remove", "--force", path); err != nil {
-					fmt.Fprintf(os.Stderr, "warning: git: could not remove worktree %s: %v\n", path, err)
+					slog.Warn("failed to remove worktree", "path", path, "error", err)
 					continue
 				}
 			}

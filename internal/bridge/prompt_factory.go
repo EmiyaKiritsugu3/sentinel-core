@@ -12,11 +12,13 @@ import (
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 )
 
+// ADR represents an Architectural Decision Record.
 type ADR struct {
 	Title   string
 	Content string
 }
 
+// ContextNode represents a code symbol node with its location and content.
 type ContextNode struct {
 	Name        string
 	Type        string
@@ -26,6 +28,7 @@ type ContextNode struct {
 	CodeSnippet string
 }
 
+// ContextPayload holds the structured prompt data for the agent engine.
 type ContextPayload struct {
 	SystemInstruction   string
 	SurgicalContext     string
@@ -33,11 +36,13 @@ type ContextPayload struct {
 	VerificationCommand string
 }
 
+// Factory builds ContextPayload instances using a state manager and intent classifier.
 type Factory struct {
 	db         *sqlite.DB
 	classifier *IntentClassifier
 }
 
+// NewFactory creates a new Factory with the given database and classifier.
 func NewFactory(db *sqlite.DB, classifier *IntentClassifier) (*Factory, error) {
 	if err := sqlite.ValidateDB(db, "prompt-factory"); err != nil {
 		return nil, err
@@ -51,7 +56,7 @@ func (f *Factory) GeneratePayload(ctx context.Context, taskID string, personaPro
 	if err != nil {
 		return nil, fmt.Errorf("bridge: failed to create manager: %w", err)
 	}
-	task, verifyCmd, err := mgr.GetTaskByID(taskID)
+	task, verifyCmd, err := mgr.GetTaskByID(ctx, taskID)
 	if err != nil {
 		return nil, fmt.Errorf("bridge: failed to get task %s: %w", taskID, err)
 	}
@@ -71,7 +76,7 @@ func (f *Factory) GeneratePayload(ctx context.Context, taskID string, personaPro
 		intent = f.classifier.Classify(ctx, taskID, task.Description)
 	}
 	strategy := StrategyFor(intent)
-	nodes, err := f.loadContextByStrategy(taskID, strategy)
+	nodes, err := f.loadContextByStrategy(ctx, taskID, strategy)
 	if err != nil {
 		return nil, fmt.Errorf("bridge: failed to load context: %w", err)
 	}
@@ -132,7 +137,7 @@ func (f *Factory) GeneratePayload(ctx context.Context, taskID string, personaPro
 	// Surgical Context: Just the code nodes
 	var contextOut strings.Builder
 	for _, n := range nodes {
-		contextOut.WriteString(fmt.Sprintf("\n---\n**Symbol**: %s (%s)\n**Location**: %s [Lines %d-%d]\n%s\n", n.Name, n.Type, n.FilePath, n.StartLine, n.EndLine, n.CodeSnippet))
+		fmt.Fprintf(&contextOut, "\n---\n**Symbol**: %s (%s)\n**Location**: %s [Lines %d-%d]\n%s\n", n.Name, n.Type, n.FilePath, n.StartLine, n.EndLine, n.CodeSnippet)
 	}
 
 	return &ContextPayload{
@@ -152,21 +157,21 @@ func (f *Factory) loadADRs() ([]ADR, error) {
 	return []ADR{{Title: "System Design", Content: content}}, nil
 }
 
-func (f *Factory) loadSurgicalContext(taskID string) ([]ContextNode, error) {
+func (f *Factory) loadSurgicalContext(ctx context.Context, taskID string) ([]ContextNode, error) {
 	mgr, err := state.NewManager(f.db)
 	if err != nil {
 		return nil, fmt.Errorf("bridge: failed to create manager: %w", err)
 	}
-	_, _, err = mgr.GetTaskByID(taskID)
+	_, _, err = mgr.GetTaskByID(ctx, taskID)
 	if err != nil {
 		return nil, fmt.Errorf("bridge: failed to find task context: %w", err)
 	}
 
-	rows, err := f.db.Conn.Query("SELECT name, type, file_path, start_line, end_line FROM nodes WHERE type IN ('struct', 'function') ORDER BY last_indexed DESC LIMIT 10")
+	rows, err := f.db.Conn.QueryContext(ctx, "SELECT name, type, file_path, start_line, end_line FROM nodes WHERE type IN ('struct', 'function') ORDER BY last_indexed DESC LIMIT 10")
 	if err != nil {
 		return nil, fmt.Errorf("bridge: db query error: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var nodes []ContextNode
 	for rows.Next() {
@@ -191,10 +196,10 @@ func (f *Factory) loadSurgicalContext(taskID string) ([]ContextNode, error) {
 	return nodes, nil
 }
 
-func (f *Factory) loadContextByStrategy(taskID string, strategy ContextStrategy) ([]ContextNode, error) {
+func (f *Factory) loadContextByStrategy(ctx context.Context, taskID string, strategy ContextStrategy) ([]ContextNode, error) {
 	// Zero-value strategy → use existing default behavior
 	if strategy.NodeLimit == 0 {
-		return f.loadSurgicalContext(taskID)
+		return f.loadSurgicalContext(ctx, taskID)
 	}
 
 	limit := strategy.NodeLimit
@@ -221,15 +226,15 @@ func (f *Factory) loadContextByStrategy(taskID string, strategy ContextStrategy)
 		typeFilter = `type IN ('struct', 'function') OR file_path LIKE '%_test.go'`
 	}
 
-	query := fmt.Sprintf(
+	query := fmt.Sprintf( //nolint:gosec // typeFilter and orderClause are validated constants
 		"SELECT name, type, file_path, start_line, end_line FROM nodes WHERE %s %s LIMIT %d",
 		typeFilter, orderClause, limit,
 	)
-	rows, err := f.db.Conn.Query(query)
+	rows, err := f.db.Conn.QueryContext(ctx, query, limit)
 	if err != nil {
 		return nil, fmt.Errorf("bridge: context query error: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var nodes []ContextNode
 	for rows.Next() {
@@ -296,11 +301,11 @@ func extractLines(path string, start, end int) (string, error) {
 		return "", fmt.Errorf("extract: invalid line range %d-%d", start, end)
 	}
 
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // path from DB query (validated)
 	if err != nil {
 		return "", fmt.Errorf("extract: failed to open %s: %w", path, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var result []string
 	scanner := bufio.NewScanner(file)

@@ -3,8 +3,10 @@
 **Deterministic Architectural Governance & Context Compiler Engine**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://golang.org/)
-[![Status](https://img.shields.io/badge/Status-Alpha-orange.svg)](https://github.com/EmiyaKiritsugu3/sentinel-core)
+[![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8?style=flat&logo=go)](https://golang.org/)
+[![Status](https://img.shields.io/badge/Status-Beta-green.svg)](https://github.com/EmiyaKiritsugu3/sentinel-core)
+[![Linter](https://img.shields.io/badge/Linter-0%20issues-brightgreen)](https://github.com/EmiyaKiritsugu3/sentinel-core)
+[![Race](https://img.shields.io/badge/Race%20Detector-Pass-brightgreen)](https://github.com/EmiyaKiritsugu3/sentinel-core)
 
 > "Code without architecture is just noise. Action without verification is just a risk."
 
@@ -27,6 +29,8 @@ Sentinel introduces the **Subagent Triad Architecture**, separating concerns to 
 * **Lyapunov Divergence Detection (Gate A.5)**: Tracks per-step reasoning divergence. If consecutive steps show >5x lambda increase, the system intervenes before the model drifts further into hallucination.
 * **Entropy Circuit Breaker (Gates A + B)**: Gate A filters by cognitive entropy (action vs. thought token ratio). Gate B validates structural integrity via in-memory AST parsing before filesystem writes.
 * **Nil Guard Hardening**: All exported methods validate dependencies via typed `ErrNilDB` sentinel error, enabling systematic `errors.Is()` matching across the codebase.
+* **Zero Linter Debt**: Enforced via `golangci-lint` v2 with 0 blocking issues — gocyclo ≤ 15, all exported symbols documented, no data races, no context leaks (noctx).
+* **Thread-Safe Registry**: All tool registrations and lookups protected by `sync.RWMutex`, vetted by `go test -race`.
 * **Zero Dependencies**: Compiled in Go, it's a single static binary. No `node_modules`, no runtime friction.
 
 ## 🛠️ How it Works (The Sovereign Workflow)

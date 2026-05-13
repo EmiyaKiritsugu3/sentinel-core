@@ -1,8 +1,10 @@
 package graph
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -12,24 +14,29 @@ import (
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/utils"
 )
 
+// Engine manages the scanning pipeline and coordinates scanners, observers, and persistence.
 type Engine struct {
-	db        *sqlite.DB
-	scanners  map[string]FileScanner
-	filter    *utils.IgnoreFilter
-	observers []Observer
-	mu        sync.RWMutex
+	db         *sqlite.DB
+	scanners   map[string]FileScanner
+	filter     *utils.IgnoreFilter
+	observers  []Observer
+	observeSem chan struct{}
+	mu         sync.RWMutex
 }
 
+// NewEngine creates a new Engine with the given database connection.
 func NewEngine(db *sqlite.DB) (*Engine, error) {
 	if err := sqlite.ValidateDB(db, "graph-engine"); err != nil {
 		return nil, err
 	}
 	return &Engine{
-		db:       db,
-		scanners: make(map[string]FileScanner),
+		db:         db,
+		scanners:   make(map[string]FileScanner),
+		observeSem: make(chan struct{}, 16),
 	}, nil
 }
 
+// RegisterObserver registers an observer to receive graph lifecycle events.
 func (e *Engine) RegisterObserver(o Observer) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -40,11 +47,20 @@ func (e *Engine) notifyObservers(event GraphEvent) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	for _, o := range e.observers {
-		// Notifica de forma assíncrona para não bloquear o processamento principal
-		go o.Notify(event)
+		// Notifica de forma assíncrona com backpressure protection
+		select {
+		case e.observeSem <- struct{}{}:
+			go func(observer Observer) {
+				defer func() { <-e.observeSem }()
+				observer.Notify(event)
+			}(o)
+		default:
+			slog.Warn("observer backpressure: dropping event", "type", event.Type)
+		}
 	}
 }
 
+// RegisterScanner registers a file scanner for its supported file extensions.
 func (e *Engine) RegisterScanner(s FileScanner) {
 	for _, ext := range s.SupportedExtensions() {
 		e.scanners[ext] = s
@@ -52,7 +68,7 @@ func (e *Engine) RegisterScanner(s FileScanner) {
 }
 
 // ScanProject varre o diretório e coordena os scanners registrados
-func (e *Engine) ScanProject(root string) error {
+func (e *Engine) ScanProject(ctx context.Context, root string) error {
 	e.notifyObservers(GraphEvent{Type: EventScanStarted, Time: time.Now()})
 	defer e.notifyObservers(GraphEvent{Type: EventScanCompleted, Time: time.Now()})
 
@@ -77,7 +93,7 @@ func (e *Engine) ScanProject(root string) error {
 				}
 
 				// Verificação de Hash Incremental movida para o Engine para ser global
-				res := e.scanFileWithIncrementalCheck(scanner, path)
+				res := e.scanFileWithIncrementalCheck(ctx, scanner, path)
 				resultsChan <- res
 			}
 		}()
@@ -96,7 +112,7 @@ func (e *Engine) ScanProject(root string) error {
 				continue
 			}
 
-			err := e.persistResult(res)
+			err := e.persistResult(ctx, res)
 			if err != nil {
 				scanErr = err
 			}
@@ -130,10 +146,10 @@ func (e *Engine) ScanProject(root string) error {
 	}
 
 	// 4. Linker Phase (S11: Dependency Linker)
-	return e.LinkDependencies()
+	return e.LinkDependencies(ctx)
 }
 
-func (e *Engine) scanFileWithIncrementalCheck(scanner FileScanner, path string) ScanResult {
+func (e *Engine) scanFileWithIncrementalCheck(ctx context.Context, scanner FileScanner, path string) ScanResult {
 	hash, err := utils.CalculateHash(path)
 	if err != nil {
 		return ScanResult{Err: fmt.Errorf("engine: hash failed for %s: %w", path, err)}
@@ -141,7 +157,7 @@ func (e *Engine) scanFileWithIncrementalCheck(scanner FileScanner, path string) 
 
 	var existingHash string
 	fileID := "file:" + path
-	err = e.db.Conn.QueryRow("SELECT hash FROM nodes WHERE id = ?", fileID).Scan(&existingHash)
+	err = e.db.Conn.QueryRowContext(ctx, "SELECT hash FROM nodes WHERE id = ?", fileID).Scan(&existingHash)
 	if err == nil && existingHash == hash {
 		return ScanResult{}
 	}
@@ -159,31 +175,31 @@ func (e *Engine) scanFileWithIncrementalCheck(scanner FileScanner, path string) 
 	return res
 }
 
-func (e *Engine) persistResult(res ScanResult) error {
-	tx, err := e.db.Conn.Begin()
+func (e *Engine) persistResult(ctx context.Context, res ScanResult) error {
+	tx, err := e.db.Conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("engine: could not start transaction: %w", err)
 	}
 
 	filePath := res.Nodes[0].FilePath
-	_, err = tx.Exec("DELETE FROM nodes WHERE file_path = ? AND type != 'file'", filePath)
+	_, err = tx.ExecContext(ctx, "DELETE FROM nodes WHERE file_path = ? AND type != 'file'", filePath)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("engine: failed to prune symbols in %s: %w", filePath, err)
 	}
 
 	for _, n := range res.Nodes {
-		err = e.upsertNodeTx(tx, n)
+		err = e.upsertNodeTx(ctx, tx, n)
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return err
 		}
 	}
 
 	for _, ed := range res.Edges {
-		err = e.createEdgeTx(tx, ed)
+		err = e.createEdgeTx(ctx, tx, ed)
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return err
 		}
 	}
@@ -204,7 +220,7 @@ func (e *Engine) persistResult(res ScanResult) error {
 	return nil
 }
 
-func (e *Engine) upsertNodeTx(tx *sql.Tx, n Node) error {
+func (e *Engine) upsertNodeTx(ctx context.Context, tx *sql.Tx, n Node) error {
 	query := `
 	INSERT INTO nodes (id, name, type, file_path, start_line, end_line, hash)
 	VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -216,16 +232,16 @@ func (e *Engine) upsertNodeTx(tx *sql.Tx, n Node) error {
 		hash=excluded.hash,
 		last_indexed=CURRENT_TIMESTAMP
 	`
-	_, err := tx.Exec(query, n.ID, n.Name, n.Type, n.FilePath, n.StartLine, n.EndLine, n.Hash)
+	_, err := tx.ExecContext(ctx, query, n.ID, n.Name, n.Type, n.FilePath, n.StartLine, n.EndLine, n.Hash)
 	if err != nil {
 		return fmt.Errorf("engine: upsert failed for %s: %w", n.ID, err)
 	}
 	return nil
 }
 
-func (e *Engine) createEdgeTx(tx *sql.Tx, ed Edge) error {
+func (e *Engine) createEdgeTx(ctx context.Context, tx *sql.Tx, ed Edge) error {
 	query := `INSERT OR IGNORE INTO edges (from_node_id, to_node_id, relation_type) VALUES (?, ?, ?)`
-	_, err := tx.Exec(query, ed.From, ed.To, ed.Rel)
+	_, err := tx.ExecContext(ctx, query, ed.From, ed.To, ed.Rel)
 	if err != nil {
 		return fmt.Errorf("engine: edge creation failed: %w", err)
 	}

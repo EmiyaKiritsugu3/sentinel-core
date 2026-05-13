@@ -1,6 +1,7 @@
 package patterns
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 )
 
 func TestLevenshteinDistance(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b     string
 		expected int
@@ -30,6 +32,7 @@ func TestLevenshteinDistance(t *testing.T) {
 }
 
 func TestTagOverlap(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b     string
 		expected float64
@@ -49,9 +52,10 @@ func TestTagOverlap(t *testing.T) {
 }
 
 func TestFindSimilar(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	t.Cleanup(func() { db.Close() })
-	if err := graph.Migrate(db); err != nil {
+	t.Cleanup(func() { _ = db.Close() })
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
 	store, err := NewPatternStore(db)
@@ -59,7 +63,7 @@ func TestFindSimilar(t *testing.T) {
 		t.Fatalf("NewPatternStore failed: %v", err)
 	}
 
-	_, err = store.Create(&Pattern{
+	_, err = store.Create(context.Background(), &Pattern{
 		Title: "Diagnóstico sem dado empírico = loop", Description: "Agent loops when diagnosing without data",
 		Category: "anti-pattern", Source: "manual", Tags: "loop,diagnosis,empirical", Impact: "high",
 	})
@@ -67,7 +71,7 @@ func TestFindSimilar(t *testing.T) {
 		t.Fatalf("seed Create failed: %v", err)
 	}
 
-	results, err := store.FindSimilar("Diagnóstico sem dado empírico", []string{"loop", "diagnosis"})
+	results, err := store.FindSimilar(context.Background(), "Diagnóstico sem dado empírico", []string{"loop", "diagnosis"})
 	if err != nil {
 		t.Fatalf("FindSimilar failed: %v", err)
 	}
@@ -75,7 +79,7 @@ func TestFindSimilar(t *testing.T) {
 		t.Fatal("expected similar pattern to be found")
 	}
 
-	results, err = store.FindSimilar("Refactor module structure", []string{"refactor", "structure"})
+	results, err = store.FindSimilar(context.Background(), "Refactor module structure", []string{"refactor", "structure"})
 	if err != nil {
 		t.Fatalf("FindSimilar failed: %v", err)
 	}
@@ -87,8 +91,9 @@ func TestFindSimilar(t *testing.T) {
 // CG-02: FindSimilar deve retornar ErrNilDB quando store não tem DB
 
 func TestFindSimilar_NilDB(t *testing.T) {
+	t.Parallel()
 	s := &PatternStore{}
-	_, err := s.FindSimilar("test", []string{"a"})
+	_, err := s.FindSimilar(context.Background(), "test", []string{"a"})
 	if !errors.Is(err, sqlite.ErrNilDB) {
 		t.Fatalf("expected ErrNilDB, got %v", err)
 	}
@@ -97,9 +102,10 @@ func TestFindSimilar_NilDB(t *testing.T) {
 // Cobertura: FindSimilar — ramo de tag overlap (sem match levenshtein, mas overlap ≥ 0.5)
 
 func TestFindSimilar_TagOverlap(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	t.Cleanup(func() { db.Close() })
-	if err := graph.Migrate(db); err != nil {
+	t.Cleanup(func() { _ = db.Close() })
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
 	store, err := NewPatternStore(db)
@@ -107,7 +113,7 @@ func TestFindSimilar_TagOverlap(t *testing.T) {
 		t.Fatalf("NewPatternStore failed: %v", err)
 	}
 
-	_, err = store.Create(&Pattern{
+	_, err = store.Create(context.Background(), &Pattern{
 		Title:       "Título completamente diferente",
 		Description: "desc",
 		Category:    "anti-pattern",
@@ -119,7 +125,7 @@ func TestFindSimilar_TagOverlap(t *testing.T) {
 		t.Fatalf("seed Create failed: %v", err)
 	}
 
-	results, err := store.FindSimilar("Outro título sem similaridade", []string{"loop", "diagnosis"})
+	results, err := store.FindSimilar(context.Background(), "Outro título sem similaridade", []string{"loop", "diagnosis"})
 	if err != nil {
 		t.Fatalf("FindSimilar failed: %v", err)
 	}

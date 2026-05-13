@@ -1,16 +1,18 @@
+// Package bridge connects the agent engine to external AI providers.
 // internal/bridge/classifier.go
 package bridge
 
 import (
 	"context"
-	"fmt"
-	"os"
+	"log/slog"
 	"strings"
 	"sync"
 )
 
+// Intent represents a task intent category.
 type Intent string
 
+// Intent constants for task classification.
 const (
 	IntentDiagnose  Intent = "diagnose"
 	IntentImplement Intent = "implement"
@@ -40,6 +42,7 @@ type IntentClassifier struct {
 	cache     sync.Map // taskID → Intent, goroutine-safe
 }
 
+// NewIntentClassifier creates a new IntentClassifier with the given AI classifier and confidence threshold.
 func NewIntentClassifier(ai AIClassifier, threshold float64) *IntentClassifier {
 	return &IntentClassifier{ai: ai, threshold: threshold}
 }
@@ -55,7 +58,7 @@ func (c *IntentClassifier) Classify(ctx context.Context, taskID, description str
 			if aiIntent, err := c.ai.Classify(ctx, description); err == nil {
 				intent = aiIntent
 			} else {
-				fmt.Fprintf(os.Stderr, "warning: classifier: gemini fallback failed: %v\n", err)
+				slog.Warn("gemini fallback failed", "error", err)
 			}
 		} else {
 			intent = IntentUnknown
@@ -108,8 +111,10 @@ func heuristicClassify(description string) (Intent, float64) {
 // when no AI key is configured.
 type NilClassifier struct{}
 
+// NewNilClassifier creates a new NilClassifier.
 func NewNilClassifier() *NilClassifier { return &NilClassifier{} }
 
+// Classify returns IntentUnknown with no error.
 func (n *NilClassifier) Classify(_ context.Context, _ string) (Intent, error) {
 	return IntentUnknown, nil
 }

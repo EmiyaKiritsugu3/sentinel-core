@@ -1,6 +1,7 @@
 package patterns
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -32,9 +33,10 @@ func findProjectRoot() string {
 }
 
 func TestBackfillFromCognitiveDNA(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	t.Cleanup(func() { db.Close() })
-	if err := graph.Migrate(db); err != nil {
+	t.Cleanup(func() { _ = db.Close() })
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
 	store, err := NewPatternStore(db)
@@ -42,7 +44,7 @@ func TestBackfillFromCognitiveDNA(t *testing.T) {
 		t.Fatalf("NewPatternStore failed: %v", err)
 	}
 
-	result, err := store.BackfillFromCognitiveDNA(projectRoot)
+	result, err := store.BackfillFromCognitiveDNA(context.Background(), projectRoot)
 	if err != nil {
 		t.Fatalf("BackfillFromCognitiveDNA failed: %v", err)
 	}
@@ -51,7 +53,7 @@ func TestBackfillFromCognitiveDNA(t *testing.T) {
 		t.Fatal("expected at least 1 pattern inserted from COGNITIVE-DNA")
 	}
 
-	patterns, err := store.List(ListFilters{Source: "cognitive-dna"})
+	patterns, err := store.List(context.Background(), ListFilters{Source: "cognitive-dna"})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -61,9 +63,10 @@ func TestBackfillFromCognitiveDNA(t *testing.T) {
 }
 
 func TestBackfillFromCognitiveDNA_Idempotent(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	t.Cleanup(func() { db.Close() })
-	if err := graph.Migrate(db); err != nil {
+	t.Cleanup(func() { _ = db.Close() })
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
 	store, err := NewPatternStore(db)
@@ -71,9 +74,9 @@ func TestBackfillFromCognitiveDNA_Idempotent(t *testing.T) {
 		t.Fatalf("NewPatternStore failed: %v", err)
 	}
 
-	result1, _ := store.BackfillFromCognitiveDNA(projectRoot)
+	result1, _ := store.BackfillFromCognitiveDNA(context.Background(), projectRoot)
 
-	result2, _ := store.BackfillFromCognitiveDNA(projectRoot)
+	result2, _ := store.BackfillFromCognitiveDNA(context.Background(), projectRoot)
 	if result2.Inserted != 0 {
 		t.Fatalf("expected 0 inserts on second run, got %d", result2.Inserted)
 	}
@@ -83,9 +86,10 @@ func TestBackfillFromCognitiveDNA_Idempotent(t *testing.T) {
 }
 
 func TestBackfillFromEvolutionInsights(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	t.Cleanup(func() { db.Close() })
-	if err := graph.Migrate(db); err != nil {
+	t.Cleanup(func() { _ = db.Close() })
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
 	store, err := NewPatternStore(db)
@@ -93,7 +97,7 @@ func TestBackfillFromEvolutionInsights(t *testing.T) {
 		t.Fatalf("NewPatternStore failed: %v", err)
 	}
 
-	result, err := store.BackfillFromEvolutionInsights(projectRoot)
+	result, err := store.BackfillFromEvolutionInsights(context.Background(), projectRoot)
 	if err != nil {
 		t.Fatalf("BackfillFromEvolutionInsights failed: %v", err)
 	}
@@ -103,9 +107,10 @@ func TestBackfillFromEvolutionInsights(t *testing.T) {
 }
 
 func TestBackfillFromSentinelLog_DryRun(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	t.Cleanup(func() { db.Close() })
-	if err := graph.Migrate(db); err != nil {
+	t.Cleanup(func() { _ = db.Close() })
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
 	store, err := NewPatternStore(db)
@@ -115,19 +120,19 @@ func TestBackfillFromSentinelLog_DryRun(t *testing.T) {
 
 	dir := t.TempDir()
 	docDir := filepath.Join(dir, "docs", "process")
-	if err := os.MkdirAll(docDir, 0755); err != nil {
+	if err := os.MkdirAll(docDir, 0755); err != nil { //nolint:gosec // test fixture {
 		t.Fatalf("mkdir failed: %v", err)
 	}
 	content := "# Log\n- Filtro A aplicado no roteamento de módulos críticos\n- Filtro B detectado em análise estrutural\n"
-	if err := os.WriteFile(filepath.Join(docDir, "sentinel-log.md"), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(docDir, "sentinel-log.md"), []byte(content), 0644); err != nil { //nolint:gosec // test fixture {
 		t.Fatalf("write failed: %v", err)
 	}
 
-	result, err := store.BackfillFromSentinelLog(dir, true)
+	result, err := store.BackfillFromSentinelLog(context.Background(), dir, true)
 	if err != nil {
 		t.Fatalf("BackfillFromSentinelLog dry-run failed: %v", err)
 	}
-	patterns, _ := store.List(ListFilters{Source: "sentinel-log"})
+	patterns, _ := store.List(context.Background(), ListFilters{Source: "sentinel-log"})
 	if len(patterns) != 0 {
 		t.Fatalf("expected 0 patterns after dry-run, got %d", len(patterns))
 	}
@@ -143,11 +148,13 @@ func TestBackfillFromSentinelLog_DryRun(t *testing.T) {
 // deve ser testado contra inputs que match a substring mas não são itens válidos.
 
 func TestParseCognitiveDNA_FalsePositive_APBracketInComment(t *testing.T) {
+	t.Parallel()
 	// [AP- em comentário HTML sem pipes — len(parts) < 5 não gera candidato
+
 	dir := t.TempDir()
 	path := filepath.Join(dir, "COGNITIVE-DNA.md")
 	content := "# DNA\n<!-- Ver [AP-FOO] na seção acima -->\nTexto normal\n"
-	err := os.WriteFile(path, []byte(content), 0644)
+	err := os.WriteFile(path, []byte(content), 0644) //nolint:gosec // test fixture
 	assert.NoError(t, err)
 
 	candidates, err := parseCognitiveDNA(path)
@@ -156,11 +163,13 @@ func TestParseCognitiveDNA_FalsePositive_APBracketInComment(t *testing.T) {
 }
 
 func TestParseCognitiveDNA_FalsePositive_RegraOutsidePMO(t *testing.T) {
+	t.Parallel()
 	// Regra/MO antes de "### PMO-" — inPMO == false, não captura
+
 	dir := t.TempDir()
 	path := filepath.Join(dir, "COGNITIVE-DNA.md")
 	content := "# DNA\n- **Regra:** isso não é um PMO\n### PMO-001: Test\nconteúdo\n"
-	err := os.WriteFile(path, []byte(content), 0644)
+	err := os.WriteFile(path, []byte(content), 0644) //nolint:gosec // test fixture
 	assert.NoError(t, err)
 
 	candidates, err := parseCognitiveDNA(path)
@@ -171,10 +180,11 @@ func TestParseCognitiveDNA_FalsePositive_RegraOutsidePMO(t *testing.T) {
 }
 
 func TestParseCognitiveDNA_FalsePositive_ModusOperandiOutsidePMO(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "COGNITIVE-DNA.md")
 	content := "# DNA\n- **Modus Operandi:** texto órfão\n"
-	err := os.WriteFile(path, []byte(content), 0644)
+	err := os.WriteFile(path, []byte(content), 0644) //nolint:gosec // test fixture
 	assert.NoError(t, err)
 
 	candidates, err := parseCognitiveDNA(path)
@@ -183,15 +193,17 @@ func TestParseCognitiveDNA_FalsePositive_ModusOperandiOutsidePMO(t *testing.T) {
 }
 
 func TestParseEvolutionInsights_FalsePositive_SectionNameInBody(t *testing.T) {
+	t.Parallel()
 	// FP DOCUMENTADO: strings.Contains("Gaps Estruturais") em body ativa section detector
 	// Mecanismo: parseEvolutionInsights usa strings.Contains para detectar seção,
 	// o que match substring em qualquer contexto. O FP é conhecido — a linha
 	// "Veja Gaps Estruturais acima para contexto" vira candidato espúrio porque
 	// a seção está ativa quando o parser a encontra.
+
 	dir := t.TempDir()
 	path := filepath.Join(dir, "EVOLUTION-INSIGHTS.md")
 	content := "## Gaps Estruturais\n- Item válido: desc\n- Veja Gaps Estruturais acima para contexto\n"
-	err := os.WriteFile(path, []byte(content), 0644)
+	err := os.WriteFile(path, []byte(content), 0644) //nolint:gosec // test fixture
 	assert.NoError(t, err)
 
 	candidates, err := parseEvolutionInsights(path)
@@ -209,11 +221,13 @@ func TestParseEvolutionInsights_FalsePositive_SectionNameInBody(t *testing.T) {
 }
 
 func TestParseEvolutionInsights_FalsePositive_StrikethroughSkipped(t *testing.T) {
+	t.Parallel()
 	// strings.Contains(line, "~~") faz skip — item riscado NÃO deve aparecer
+
 	dir := t.TempDir()
 	path := filepath.Join(dir, "EVOLUTION-INSIGHTS.md")
 	content := "## Gaps Estruturais\n- ~~Item riscado~~: desc antiga\n- Item válido: desc boa\n"
-	err := os.WriteFile(path, []byte(content), 0644)
+	err := os.WriteFile(path, []byte(content), 0644) //nolint:gosec // test fixture
 	assert.NoError(t, err)
 
 	candidates, err := parseEvolutionInsights(path)
@@ -224,13 +238,15 @@ func TestParseEvolutionInsights_FalsePositive_StrikethroughSkipped(t *testing.T)
 }
 
 func TestParseSentinelLog_FalsePositive_FiltroInNarrativeText(t *testing.T) {
+	t.Parallel()
 	// FP DOCUMENTADO: "Filtro A" em texto narrativo sem prefix "- "/"* " —
 	// parseSentinelLine não exige prefixo de lista, apenas strings.Contains("Filtro A/B/C"),
 	// logo texto narrativo com substring vira candidato espúrio se len(clean)>10
+
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sentinel-log.md")
 	content := "# Log\nFiltro A foi discutido na reunião mas não aplicado\n- Filtro A aplicado: contexto suficiente aqui\n"
-	err := os.WriteFile(path, []byte(content), 0644)
+	err := os.WriteFile(path, []byte(content), 0644) //nolint:gosec // test fixture
 	assert.NoError(t, err)
 
 	candidates, err := parseSentinelLog(path)
@@ -248,11 +264,13 @@ func TestParseSentinelLog_FalsePositive_FiltroInNarrativeText(t *testing.T) {
 }
 
 func TestParseSentinelLog_FalsePositive_ShortLine(t *testing.T) {
+	t.Parallel()
 	// "Filtro A" em linha curta — len(clean) > 10 protege
+
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sentinel-log.md")
 	content := "# Log\n- Filtro A\n"
-	err := os.WriteFile(path, []byte(content), 0644)
+	err := os.WriteFile(path, []byte(content), 0644) //nolint:gosec // test fixture
 	assert.NoError(t, err)
 
 	candidates, err := parseSentinelLog(path)
@@ -263,9 +281,10 @@ func TestParseSentinelLog_FalsePositive_ShortLine(t *testing.T) {
 // Cobertura: BackfillFromSentinelLog non-dry-run (caminho de inserção real)
 
 func TestBackfillFromSentinelLog_Insert(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	t.Cleanup(func() { db.Close() })
-	if err := graph.Migrate(db); err != nil {
+	t.Cleanup(func() { _ = db.Close() })
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
 	store, err := NewPatternStore(db)
@@ -276,22 +295,22 @@ func TestBackfillFromSentinelLog_Insert(t *testing.T) {
 	// Cria arquivo sentinel-log com conteúdo Filtro para testar inserção non-dry-run
 	dir := t.TempDir()
 	docDir := filepath.Join(dir, "docs", "process")
-	if err := os.MkdirAll(docDir, 0755); err != nil {
+	if err := os.MkdirAll(docDir, 0755); err != nil { //nolint:gosec // test fixture {
 		t.Fatalf("mkdir failed: %v", err)
 	}
 	content := "# Log\n- Filtro A aplicado no roteamento de módulos críticos\n"
-	if err := os.WriteFile(filepath.Join(docDir, "sentinel-log.md"), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(docDir, "sentinel-log.md"), []byte(content), 0644); err != nil { //nolint:gosec // test fixture {
 		t.Fatalf("write failed: %v", err)
 	}
 
-	result, err := store.BackfillFromSentinelLog(dir, false)
+	result, err := store.BackfillFromSentinelLog(context.Background(), dir, false)
 	if err != nil {
 		t.Fatalf("BackfillFromSentinelLog insert failed: %v", err)
 	}
 	if result.Extracted == 0 {
 		t.Fatal("expected at least 1 candidate from sentinel-log")
 	}
-	patterns, err := store.List(ListFilters{Source: "sentinel-log"})
+	patterns, err := store.List(context.Background(), ListFilters{Source: "sentinel-log"})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -303,16 +322,19 @@ func TestBackfillFromSentinelLog_Insert(t *testing.T) {
 // Cobertura: detectFiltro — ramos B e C
 
 func TestDetectFiltro_BranchB(t *testing.T) {
+	t.Parallel()
 	got := detectFiltro("aplicação do Filtro B no módulo X")
 	assert.Equal(t, "B", got)
 }
 
 func TestDetectFiltro_BranchC(t *testing.T) {
+	t.Parallel()
 	got := detectFiltro("Filtro C ativado para roteamento crítico")
 	assert.Equal(t, "C", got)
 }
 
 func TestDetectFiltro_Unknown(t *testing.T) {
+	t.Parallel()
 	got := detectFiltro("linha sem filtro válido")
 	assert.Equal(t, "unknown", got)
 }
@@ -320,12 +342,14 @@ func TestDetectFiltro_Unknown(t *testing.T) {
 // Cobertura: parseSentinelLine — Filtro B e Filtro C
 
 func TestParseSentinelLine_FiltroB(t *testing.T) {
+	t.Parallel()
 	c, ok := parseSentinelLine("- Filtro B aplicado no roteamento de módulos críticos")
 	assert.True(t, ok)
 	assert.Contains(t, c.SourceRef, "Filtro-B")
 }
 
 func TestParseSentinelLine_FiltroC(t *testing.T) {
+	t.Parallel()
 	c, ok := parseSentinelLine("* Filtro C detectado em análise de divergência estrutural")
 	assert.True(t, ok)
 	assert.Contains(t, c.SourceRef, "Filtro-C")
@@ -334,9 +358,10 @@ func TestParseSentinelLine_FiltroC(t *testing.T) {
 // Cobertura: insertIfNew — caminho de erro (Create falha)
 
 func TestInsertIfNew_CreateError(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	t.Cleanup(func() { db.Close() })
-	if err := graph.Migrate(db); err != nil {
+	t.Cleanup(func() { _ = db.Close() })
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
 	store, err := NewPatternStore(db)
@@ -345,16 +370,16 @@ func TestInsertIfNew_CreateError(t *testing.T) {
 	}
 
 	// Fecha o DB para forçar erro no Create dentro de insertIfNew
-	db.Close()
+	_ = db.Close()
 
 	var result BackfillResult
-	store.insertIfNew(BackfillCandidate{
+	store.insertIfNew(context.Background(), BackfillCandidate{
 		Title:       "Teste erro",
 		Description: "desc",
 		Category:    "anti-pattern",
-		Source:       SourceManual,
-		Tags:         "test",
-		Impact:       ImpactHigh,
+		Source:      SourceManual,
+		Tags:        "test",
+		Impact:      ImpactHigh,
 	}, SourceManual, &result)
 
 	assert.Equal(t, 0, result.Inserted, "insertIfNew não deve contar inserção em erro")
@@ -364,24 +389,27 @@ func TestInsertIfNew_CreateError(t *testing.T) {
 // CG-02: Métodos BackfillFrom* devem retornar ErrNilDB quando store não tem DB
 
 func TestBackfillFromCognitiveDNA_NilDB(t *testing.T) {
+	t.Parallel()
 	s := &PatternStore{}
-	_, err := s.BackfillFromCognitiveDNA(".")
+	_, err := s.BackfillFromCognitiveDNA(context.Background(), ".")
 	if !errors.Is(err, sqlite.ErrNilDB) {
 		t.Fatalf("expected ErrNilDB, got %v", err)
 	}
 }
 
 func TestBackfillFromEvolutionInsights_NilDB(t *testing.T) {
+	t.Parallel()
 	s := &PatternStore{}
-	_, err := s.BackfillFromEvolutionInsights(".")
+	_, err := s.BackfillFromEvolutionInsights(context.Background(), ".")
 	if !errors.Is(err, sqlite.ErrNilDB) {
 		t.Fatalf("expected ErrNilDB, got %v", err)
 	}
 }
 
 func TestBackfillFromSentinelLog_NilDB(t *testing.T) {
+	t.Parallel()
 	s := &PatternStore{}
-	_, err := s.BackfillFromSentinelLog(".", true)
+	_, err := s.BackfillFromSentinelLog(context.Background(), ".", true)
 	if !errors.Is(err, sqlite.ErrNilDB) {
 		t.Fatalf("expected ErrNilDB, got %v", err)
 	}

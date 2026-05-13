@@ -18,6 +18,67 @@ func init() {
 	registry.Register(NewInstructCmd)
 }
 
+// readIntent determines the user intent from an explicit message flag, stdin pipe,
+// or interactive prompt. Returns the intent string (may be empty).
+func readIntent(message string, quick bool) (string, error) {
+	if message != "" {
+		return message, nil
+	}
+
+	stat, err := os.Stdin.Stat()
+	if err == nil && (stat.Mode()&os.ModeCharDevice) == 0 {
+		scanner := bufio.NewScanner(os.Stdin)
+		if scanner.Scan() {
+			return strings.TrimSpace(scanner.Text()), nil
+		}
+		return "", nil
+	}
+
+	if quick {
+		return "", nil
+	}
+
+	fmt.Println("\n🧠 SENTINEL INTERVIEW MODE")
+	fmt.Println("======================================")
+	fmt.Println("O que você deseja construir hoje?")
+	fmt.Print("> ")
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return "", fmt.Errorf("instruct: failed to read input: %w", err)
+	}
+	return strings.TrimSpace(line), nil
+}
+
+// collectADRDetails fills an ADRData based on the user's menu choice.
+func collectADRDetails(choice string, intent string, evidence string) graph.ADRData {
+	adrData := graph.ADRData{
+		Title:  intent,
+		Status: "PROPOSED",
+	}
+
+	switch choice {
+	case "m":
+		adrData = runSocraticInterview(intent, evidence)
+	case "a":
+		fmt.Println("✨ Chamando AI Bridge para expansão... (Simulado na Fase 4.1)")
+		adrData.Context = "Expandido via IA baseado em: " + intent + "\n" + evidence
+		adrData.Decision = "Padrão recomendado pela IA para este cenário."
+		adrData.VerificationCommand = "go test ./..."
+	case "s":
+		adrData.Status = "DRAFT"
+		adrData.Context = "Aguardando refinamento pelo Sentinel Agent."
+		adrData.VerificationCommand = "# O Agente definirá o commando de prova"
+	default: // q
+		adrData.Context = "Capturado via commando 'instruct'.\nIntenção: " + intent
+		adrData.Decision = "[Descreva a abordagem técnica]"
+		adrData.VerificationCommand = "go build ./..."
+	}
+
+	return adrData
+}
+
+// NewInstructCmd creates a cobra command that captures user intent and generates ADR tasks.
 func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 	var message string
 	var quick bool
@@ -33,108 +94,64 @@ func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-			var intent string
+		intent, err := readIntent(message, quick)
+		if err != nil {
+			return err
+		}
+		if intent == "" {
+			return nil
+		}
 
-			// 1. Prioridade: Flag explícita ou Stdin
-			if message != "" {
-				intent = message
-			} else {
-				stat, err := os.Stdin.Stat()
-				if err == nil && (stat.Mode()&os.ModeCharDevice) == 0 {
-					scanner := bufio.NewScanner(os.Stdin)
-					if scanner.Scan() {
-						intent = strings.TrimSpace(scanner.Text())
-					}
-				} else {
-					fmt.Println("\n🧠 SENTINEL INTERVIEW MODE")
-					fmt.Println("======================================")
-					fmt.Println("O que você deseja construir hoje?")
-					fmt.Print("> ")
-					reader := bufio.NewReader(os.Stdin)
-					line, _ := reader.ReadString('\n')
-					intent = strings.TrimSpace(line)
-				}
-			}
+		fmt.Printf("\n🔍 Sentinel: Analisando '%s'...\n", intent)
 
-			if intent == "" {
-				return nil
+		isVague := isVagueIntent(intent)
+		var evidence string
+		if isVague && !quick {
+			evidence = performDiagnostic(cmd.Context(), db)
+			if evidence != "" {
+				fmt.Println("\n⚠️  EVIDÊNCIA ENCONTRADA (Sessão de Diagnóstico):")
+				fmt.Println(evidence)
+				fmt.Println("\nIsto parece ser o ponto de partida ideal para evitar 'guessing'.")
 			}
+		}
 
-			// 2. Sovereign Triage & Data-Driven Scout
-			fmt.Printf("\n🔍 Sentinel: Analisando '%s'...\n", intent)
+		var choice string
+		if quick {
+			choice = "q"
+		} else {
+			fmt.Println("\nComo deseja preencher os detalhes técnicos do ADR?")
+			fmt.Println("[m] Manual (Entrevista Socrática)")
+			fmt.Println("[a] IA Now (Sugestão via Gemini)")
+			fmt.Println("[s] Sentinel (Delegar ao Agente durante a execução)")
+			fmt.Println("[q] Quick (Usar placeholders)")
+			fmt.Print("\nEscolha> ")
+			_, _ = fmt.Scanln(&choice)
+		}
 
-			// Busca por 'God Objects' ou pontos de impacto se a intenção for vaga
-			isVague := isVagueIntent(intent)
-			var evidence string
-			if isVague && !quick {
-				evidence = performDiagnostic(cmd.Context(), db)
-				if evidence != "" {
-					fmt.Println("\n⚠️  EVIDÊNCIA ENCONTRADA (Sessão de Diagnóstico):")
-					fmt.Println(evidence)
-					fmt.Println("\nIsto parece ser o ponto de partida ideal para evitar 'guessing'.")
-				}
-			}
+		adrData := collectADRDetails(choice, intent, evidence)
 
-			// 3. Sovereign Menu
-			var choice string
-			if quick {
-				choice = "q"
-			} else {
-				fmt.Println("\nComo deseja preencher os detalhes técnicos do ADR?")
-				fmt.Println("[m] Manual (Entrevista Socrática)")
-				fmt.Println("[a] IA Now (Sugestão via Gemini)")
-				fmt.Println("[s] Sentinel (Delegar ao Agente durante a execução)")
-				fmt.Println("[q] Quick (Usar placeholders)")
-				fmt.Print("\nEscolha> ")
-				fmt.Scanln(&choice)
-			}
+		if adrData.Status != "DRAFT" && strings.TrimSpace(adrData.VerificationCommand) == "" {
+			return fmt.Errorf("instruct: verification command is required for non-draft ADRs")
+		}
 
-			adrData := graph.ADRData{
-				Title:  intent,
-				Status: "PROPOSED",
-			}
+		manager, err := state.NewManager(db)
+		if err != nil {
+			return fmt.Errorf("instruct: failed to create manager: %w", err)
+		}
+		id, err := manager.CreateTask(cmd.Context(), intent, "T1", adrData.VerificationCommand)
+		if err != nil {
+			return fmt.Errorf("instruct: failed to create task: %w", err)
+		}
 
-			switch choice {
-			case "m":
-				adrData = runSocraticInterview(intent, evidence)
-			case "a":
-				fmt.Println("✨ Chamando AI Bridge para expansão... (Simulado na Fase 4.1)")
-				adrData.Context = "Expandido via IA baseado em: " + intent + "\n" + evidence
-				adrData.Decision = "Padrão recomendado pela IA para este cenário."
-				adrData.VerificationCommand = "go test ./..."
-			case "s":
-				adrData.Status = "DRAFT"
-				adrData.Context = "Aguardando refinamento pelo Sentinel Agent."
-				adrData.VerificationCommand = "# O Agente definirá o comando de prova"
-			default: // q
-				adrData.Context = "Capturado via comando 'instruct'.\nIntenção: " + intent
-				adrData.Decision = "[Descreva a abordagem técnica]"
-				adrData.VerificationCommand = "go build ./..."
-			}
-
-			// 4. Persistência
-			if adrData.Status != "DRAFT" && strings.TrimSpace(adrData.VerificationCommand) == "" {
-				return fmt.Errorf("instruct: verification command is required for non-draft ADRs")
-			}
-
-			manager, err := state.NewManager(db)
-			if err != nil {
-				return fmt.Errorf("instruct: failed to create manager: %w", err)
-			}
-			id, err := manager.CreateTask(intent, "T1", adrData.VerificationCommand)
-			if err != nil {
-				return fmt.Errorf("instruct: failed to create task: %w", err)
-			}
-
-			adrData.TaskID = id
-			gen := graph.NewADRGenerator()
-			adrPath, err := gen.Generate(adrData)
-			if err != nil {
-				fmt.Printf("\n⚠️  ADR Generation failed: %v\n", err)
-			} else {
-				fmt.Printf("\n📄 ADR Gerado: %s\n", adrPath)
-				fmt.Printf("✅ Task [%s] criada com Protocolo de Verificação: %s\n", id, adrData.VerificationCommand)
-			}
+		adrData.TaskID = id
+		gen := graph.NewADRGenerator()
+		adrPath, err := gen.Generate(adrData)
+		if err != nil {
+			fmt.Printf("\n⚠️  ADR Generation failed: %v\n", err)
+		} else {
+			fmt.Printf("\n📄 ADR Gerado: %s\n", adrPath)
+			fmt.Printf("✅ Task [%s] criada com Protocolo de Verificação: %s\n", id, adrData.VerificationCommand)
+		}
 
 		return nil
 	}
@@ -163,7 +180,7 @@ func performDiagnostic(ctx context.Context, db *sqlite.DB) string {
 	if err != nil {
 		return ""
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var evidence strings.Builder
 	evidence.WriteString("Baseado no Grafo de Dependências, os arquivos com maior carga de complexidade são:\n")
@@ -200,7 +217,7 @@ func runSocraticInterview(intent string, evidence string) graph.ADRData {
 	fmt.Print("> ")
 	decision, _ := reader.ReadString('\n')
 
-	fmt.Println("\n3. Qual o COMANDO DE VERIFICAÇÃO (ex: go test)?")
+	fmt.Println("\n3. Qual o COMMANDO DE VERIFICAÇÃO (ex: go test)?")
 	fmt.Print("> ")
 	verify, _ := reader.ReadString('\n')
 

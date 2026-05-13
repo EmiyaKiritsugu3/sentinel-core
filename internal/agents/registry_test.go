@@ -10,14 +10,16 @@ import (
 )
 
 func TestRegistryManager_SelectBest(t *testing.T) {
+	// Not parallel at parent level: parent sets up DB shared by subtests.
+	// Subtests that need isolation use t.Parallel() individually.
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	t.Cleanup(func() { _ = db.Close() })
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate test db: %v", err)
 	}
 
 	// Clear seeded specialists so test data is the only source of matches.
-	if _, err := db.Conn.Exec("DELETE FROM specialist_registry"); err != nil {
+	if _, err := db.Conn.ExecContext(context.Background(), "DELETE FROM specialist_registry"); err != nil {
 		t.Fatalf("failed to clear seeded specialists: %v", err)
 	}
 
@@ -37,7 +39,7 @@ func TestRegistryManager_SelectBest(t *testing.T) {
 	}
 
 	for _, ins := range inserts {
-		_, err := db.Conn.Exec("INSERT INTO specialist_registry (id, name, base_persona, current_persona_path, reliability_score, capabilities) VALUES (?, ?, ?, ?, ?, ?)",
+		_, err := db.Conn.ExecContext(context.Background(), "INSERT INTO specialist_registry (id, name, base_persona, current_persona_path, reliability_score, capabilities) VALUES (?, ?, ?, ?, ?, ?)",
 			ins.id, ins.name, "persona", "path", ins.rel, ins.caps)
 		if err != nil {
 			t.Fatalf("failed to insert data: %v", err)
@@ -51,6 +53,7 @@ func TestRegistryManager_SelectBest(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Match Go and SQLite", func(t *testing.T) {
+		t.Parallel()
 		s, err := mgr.SelectBest(ctx, []string{"go", "sqlite"})
 		if err != nil {
 			t.Fatalf("expected specialist, got error: %v", err)
@@ -61,6 +64,7 @@ func TestRegistryManager_SelectBest(t *testing.T) {
 	})
 
 	t.Run("Match Go (Highest reliability)", func(t *testing.T) {
+		t.Parallel()
 		s, err := mgr.SelectBest(ctx, []string{"go"})
 		if err != nil {
 			t.Fatalf("expected specialist, got error: %v", err)
@@ -71,6 +75,7 @@ func TestRegistryManager_SelectBest(t *testing.T) {
 	})
 
 	t.Run("No Match", func(t *testing.T) {
+		t.Parallel()
 		_, err := mgr.SelectBest(ctx, []string{"python"})
 		if err == nil {
 			t.Error("expected error for no match, got nil")

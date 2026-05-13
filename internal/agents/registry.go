@@ -28,7 +28,7 @@ func (m *RegistryManager) SelectBest(ctx context.Context, caps []string) (*Speci
 	if err != nil {
 		return nil, fmt.Errorf("registry: failed to query specialists: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var s Specialist

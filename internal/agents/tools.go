@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,15 +24,20 @@ import (
 
 // --- ReadFileTool ---
 
+// ReadFileTool reads a file from the project directory with optional line range.
 type ReadFileTool struct {
 	db *sqlite.DB
 }
 
+// Name returns the tool identifier "read_file".
 func (t *ReadFileTool) Name() string { return "read_file" }
+
+// Description returns a human-readable description of the tool.
 func (t *ReadFileTool) Description() string {
 	return "Reads a file from the project directory. Supports line range."
 }
 
+// Definition returns the Gemini function declaration schema for the tool.
 func (t *ReadFileTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{
 		Name:        t.Name(),
@@ -57,6 +63,7 @@ func (t *ReadFileTool) Definition() *genai.FunctionDeclaration {
 	}
 }
 
+// ValidateArguments checks that the path argument is present and valid.
 func (t *ReadFileTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
 	path, ok := args["path"].(string)
 	if !ok {
@@ -65,6 +72,8 @@ func (t *ReadFileTool) ValidateArguments(v *reflect.Validator, args map[string]i
 	return v.ValidatePath(path)
 }
 
+// Execute reads the file at the given path and returns the content within the
+// specified line range.
 func (t *ReadFileTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	path, _ := args["path"].(string)
 
@@ -77,11 +86,11 @@ func (t *ReadFileTool) Execute(ctx context.Context, args map[string]interface{})
 		end = int(e)
 	}
 
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // path from user input (validated)
 	if err != nil {
 		return "", fmt.Errorf("read_file: failed to open %s: %w", path, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var result []string
 	scanner := bufio.NewScanner(file)
@@ -105,15 +114,20 @@ func (t *ReadFileTool) Execute(ctx context.Context, args map[string]interface{})
 
 // --- WriteFileTool ---
 
+// WriteFileTool writes content to a file, creating parent directories as needed.
 type WriteFileTool struct {
 	db *sqlite.DB
 }
 
+// Name returns the tool identifier "write_file".
 func (t *WriteFileTool) Name() string { return "write_file" }
+
+// Description returns a human-readable description of the tool.
 func (t *WriteFileTool) Description() string {
 	return "Writes content to a file. Overwrites existing files."
 }
 
+// Definition returns the Gemini function declaration schema for the tool.
 func (t *WriteFileTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{
 		Name:        t.Name(),
@@ -135,6 +149,7 @@ func (t *WriteFileTool) Definition() *genai.FunctionDeclaration {
 	}
 }
 
+// ValidateArguments checks that path and content arguments are present and valid.
 func (t *WriteFileTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
 	path, ok := args["path"].(string)
 	if !ok {
@@ -143,6 +158,7 @@ func (t *WriteFileTool) ValidateArguments(v *reflect.Validator, args map[string]
 	return v.ValidatePath(path)
 }
 
+// Execute writes the content to the file after validating structural integrity.
 func (t *WriteFileTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	path, _ := args["path"].(string)
 	content, _ := args["content"].(string)
@@ -154,11 +170,11 @@ func (t *WriteFileTool) Execute(ctx context.Context, args map[string]interface{}
 
 	// Garante que o diretório pai exista
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return "", fmt.Errorf("write_file: failed to create directory %s: %w", dir, err)
 	}
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		return "", fmt.Errorf("write_file: failed to write file %s: %w", path, err)
 	}
 
@@ -167,15 +183,20 @@ func (t *WriteFileTool) Execute(ctx context.Context, args map[string]interface{}
 
 // --- ReplaceTool ---
 
+// ReplaceTool replaces a specific string in a file with new content.
 type ReplaceTool struct {
 	db *sqlite.DB
 }
 
+// Name returns the tool identifier "replace".
 func (t *ReplaceTool) Name() string { return "replace" }
+
+// Description returns a human-readable description of the tool.
 func (t *ReplaceTool) Description() string {
 	return "Replaces a specific string in a file with new content."
 }
 
+// Definition returns the Gemini function declaration schema for the tool.
 func (t *ReplaceTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{
 		Name:        t.Name(),
@@ -201,6 +222,7 @@ func (t *ReplaceTool) Definition() *genai.FunctionDeclaration {
 	}
 }
 
+// ValidateArguments checks that path, old_string, and new_string are present and valid.
 func (t *ReplaceTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
 	path, ok := args["path"].(string)
 	if !ok {
@@ -209,16 +231,17 @@ func (t *ReplaceTool) ValidateArguments(v *reflect.Validator, args map[string]in
 	return v.ValidatePath(path)
 }
 
+// Execute replaces old_string with new_string in the specified file.
 func (t *ReplaceTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	path, _ := args["path"].(string)
 	oldStr, _ := args["old_string"].(string)
 	newStr, _ := args["new_string"].(string)
 
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // path from user input (validated)
 	if err != nil {
 		return "", fmt.Errorf("replace: failed to open %s: %w", path, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var sb strings.Builder
 	scanner := bufio.NewScanner(file)
@@ -241,24 +264,81 @@ func (t *ReplaceTool) Execute(ctx context.Context, args map[string]interface{}) 
 		return "", err // Sentinel Protocol: Block writing syntactically invalid code
 	}
 
-	if err := os.WriteFile(path, []byte(newContent), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(newContent), 0600); err != nil {
 		return "", fmt.Errorf("replace: failed to write file %s: %w", path, err)
 	}
 
 	return fmt.Sprintf("Successfully replaced content in %s.", path), nil
 }
 
+// textFileExtensions defines file extensions that GrepSearchTool scans.
+var textFileExtensions = map[string]bool{
+	".go":   true,
+	".md":   true,
+	".json": true,
+	".yaml": true,
+	".yml":  true,
+	".sql":  true,
+}
+
+// skipDirs defines directory names that GrepSearchTool skips during traversal.
+var skipDirs = map[string]bool{
+	".git":         true,
+	"node_modules": true,
+	"vendor":       true,
+}
+
+// shouldSkipDir returns true if the directory should be skipped during file traversal.
+func shouldSkipDir(d fs.DirEntry) bool {
+	return skipDirs[d.Name()]
+}
+
+// isTextFile returns true if the file extension is one that GrepSearchTool scans.
+func isTextFile(ext string) bool {
+	return textFileExtensions[ext]
+}
+
+// scanFileMatches opens a file, scans each line for regex matches, and returns
+// formatted "path:line: text" entries. Returns an error if the file cannot be opened
+// or too many matches are found.
+func scanFileMatches(re *regexp.Regexp, path string) ([]string, error) {
+	file, err := os.Open(path) //nolint:gosec // path from user input (validated)
+	if err != nil {
+		return nil, nil //nolint:nilnil // skip files we can't open
+	}
+	defer func() { _ = file.Close() }()
+
+	var matches []string
+	scanner := bufio.NewScanner(file)
+	lineNum := 1
+	for scanner.Scan() {
+		if re.MatchString(scanner.Text()) {
+			matches = append(matches, fmt.Sprintf("%s:%d: %s", path, lineNum, scanner.Text()))
+		}
+		if len(matches) > 100 {
+			return matches, fmt.Errorf("too many matches found")
+		}
+		lineNum++
+	}
+	return matches, nil
+}
+
 // --- GrepSearchTool ---
 
+// GrepSearchTool searches for a regular expression pattern within file contents.
 type GrepSearchTool struct {
 	db *sqlite.DB
 }
 
+// Name returns the tool identifier "grep_search".
 func (t *GrepSearchTool) Name() string { return "grep_search" }
+
+// Description returns a human-readable description of the tool.
 func (t *GrepSearchTool) Description() string {
 	return "Searches for a regular expression pattern within file contents across the project."
 }
 
+// Definition returns the Gemini function declaration schema for the tool.
 func (t *GrepSearchTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{
 		Name:        t.Name(),
@@ -280,6 +360,7 @@ func (t *GrepSearchTool) Definition() *genai.FunctionDeclaration {
 	}
 }
 
+// ValidateArguments checks that dir_path is valid if provided.
 func (t *GrepSearchTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
 	if dir, ok := args["dir_path"].(string); ok {
 		return v.ValidatePath(dir)
@@ -287,6 +368,7 @@ func (t *GrepSearchTool) ValidateArguments(v *reflect.Validator, args map[string
 	return nil
 }
 
+// Execute searches for a regex pattern within file contents across the project directory.
 func (t *GrepSearchTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	pattern, _ := args["pattern"].(string)
 	dir, ok := args["dir_path"].(string)
@@ -305,35 +387,22 @@ func (t *GrepSearchTool) Execute(ctx context.Context, args map[string]interface{
 			return err
 		}
 		if d.IsDir() {
-			if d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == "vendor" {
+			if shouldSkipDir(d) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 
-		// Only scan text files (simple heuristic)
-		ext := filepath.Ext(path)
-		if ext != ".go" && ext != ".md" && ext != ".json" && ext != ".yaml" && ext != ".yml" && ext != ".sql" {
+		if !isTextFile(filepath.Ext(path)) {
 			return nil
 		}
 
-		file, err := os.Open(path)
-		if err != nil {
-			return nil // Skip files we can't open
+		fileMatches, scanErr := scanFileMatches(re, path)
+		if scanErr != nil && scanErr.Error() == "too many matches found" {
+			matches = append(matches, fileMatches...)
+			return scanErr
 		}
-		defer file.Close()
-
-		scanner := bufio.NewScanner(file)
-		lineNum := 1
-		for scanner.Scan() {
-			if re.MatchString(scanner.Text()) {
-				matches = append(matches, fmt.Sprintf("%s:%d: %s", path, lineNum, scanner.Text()))
-			}
-			if len(matches) > 100 {
-				return fmt.Errorf("too many matches found")
-			}
-			lineNum++
-		}
+		matches = append(matches, fileMatches...)
 		return nil
 	})
 
@@ -354,15 +423,20 @@ func (t *GrepSearchTool) Execute(ctx context.Context, args map[string]interface{
 
 // --- AuditTool ---
 
+// AuditTool runs the Sovereign Validator to detect Standard violations.
 type AuditTool struct {
 	db *sqlite.DB
 }
 
+// Name returns the tool identifier "sentinel:audit".
 func (t *AuditTool) Name() string { return "sentinel:audit" }
+
+// Description returns a human-readable description of the tool.
 func (t *AuditTool) Description() string {
 	return "Runs the Sovereign Validator across the project to detect Standard violations."
 }
 
+// Definition returns the Gemini function declaration schema for the tool.
 func (t *AuditTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{
 		Name:        t.Name(),
@@ -373,10 +447,12 @@ func (t *AuditTool) Definition() *genai.FunctionDeclaration {
 	}
 }
 
+// ValidateArguments returns nil; the audit tool has no arguments.
 func (t *AuditTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
 	return nil
 }
 
+// Execute runs the Sovereign Validator and returns a report of violations.
 func (t *AuditTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	v, err := reflect.NewValidator(t.db)
 	if err != nil {
@@ -392,13 +468,13 @@ func (t *AuditTool) Execute(ctx context.Context, args map[string]interface{}) (s
 	}
 
 	var report strings.Builder
-	report.WriteString(fmt.Sprintf("Sovereign Audit Report: %d violation(s) found\n", len(violations)))
+	fmt.Fprintf(&report, "Sovereign Audit Report: %d violation(s) found\n", len(violations))
 	for i, v := range violations {
 		if i >= 30 {
 			report.WriteString("\n... [TRUNCATED] Please fix the above violations first.")
 			break
 		}
-		report.WriteString(fmt.Sprintf("- [%s] %s:%d: %s\n", v.StandardID, v.FilePath, v.Line, v.Reason))
+		fmt.Fprintf(&report, "- [%s] %s:%d: %s\n", v.StandardID, v.FilePath, v.Line, v.Reason)
 	}
 
 	return report.String(), nil
@@ -406,15 +482,20 @@ func (t *AuditTool) Execute(ctx context.Context, args map[string]interface{}) (s
 
 // --- RunTool ---
 
+// RunTool executes a safe, approved shell command and returns its output.
 type RunTool struct {
 	db *sqlite.DB
 }
 
+// Name returns the tool identifier "sentinel:run".
 func (t *RunTool) Name() string { return "sentinel:run" }
+
+// Description returns a human-readable description of the tool.
 func (t *RunTool) Description() string {
 	return "Runs a safe, approved shell command (e.g., 'go build ./...', 'go test -v ./...'). Does not support pipes or redirection."
 }
 
+// Definition returns the Gemini function declaration schema for the tool.
 func (t *RunTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{
 		Name:        t.Name(),
@@ -432,6 +513,7 @@ func (t *RunTool) Definition() *genai.FunctionDeclaration {
 	}
 }
 
+// ValidateArguments checks that the command argument is present and valid.
 func (t *RunTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
 	cmd, ok := args["command"].(string)
 	if !ok {
@@ -440,6 +522,7 @@ func (t *RunTool) ValidateArguments(v *reflect.Validator, args map[string]interf
 	return v.ValidateCommand(cmd)
 }
 
+// Execute runs the command and returns its output, truncated to 200 lines or 10KB.
 func (t *RunTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	cmdStr, _ := args["command"].(string)
 
@@ -451,7 +534,7 @@ func (t *RunTool) Execute(ctx context.Context, args map[string]interface{}) (str
 		return "", fmt.Errorf("run: empty command")
 	}
 
-	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
+	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...) //nolint:gosec // intentional: command from trusted config
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -479,15 +562,20 @@ func (t *RunTool) Execute(ctx context.Context, args map[string]interface{}) (str
 
 // --- ADRTool ---
 
+// ADRTool generates a formal Architectural Decision Record file.
 type ADRTool struct {
 	db *sqlite.DB
 }
 
+// Name returns the tool identifier "sentinel:adr".
 func (t *ADRTool) Name() string { return "sentinel:adr" }
+
+// Description returns a human-readable description of the tool.
 func (t *ADRTool) Description() string {
 	return "Generates a formal Architectural Decision Record (ADR) file for the current task."
 }
 
+// Definition returns the Gemini function declaration schema for the tool.
 func (t *ADRTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{
 		Name:        t.Name(),
@@ -521,6 +609,8 @@ func (t *ADRTool) Definition() *genai.FunctionDeclaration {
 	}
 }
 
+// ValidateArguments checks that title, context, decision, consequences, and
+// verification_command are present and valid.
 func (t *ADRTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
 	for _, field := range []string{"title", "context", "decision", "consequences", "verification_command"} {
 		value, ok := args[field].(string)
@@ -531,12 +621,13 @@ func (t *ADRTool) ValidateArguments(v *reflect.Validator, args map[string]interf
 	return nil
 }
 
+// Execute generates an ADR file from the provided arguments.
 func (t *ADRTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	manager, err := state.NewManager(t.db)
 	if err != nil {
 		return "", fmt.Errorf("adr tool: failed to create manager: %w", err)
 	}
-	task, err := manager.GetActiveTask()
+	task, err := manager.GetActiveTask(ctx)
 	if err != nil {
 		return "", fmt.Errorf("adr tool: failed to get active task: %w", err)
 	}
@@ -566,15 +657,20 @@ func (t *ADRTool) Execute(ctx context.Context, args map[string]interface{}) (str
 
 // --- ScanTool ---
 
+// ScanTool triggers a project scan to update the dependency graph.
 type ScanTool struct {
 	db *sqlite.DB
 }
 
+// Name returns the tool identifier "sentinel_scan".
 func (t *ScanTool) Name() string { return "sentinel_scan" }
+
+// Description returns a human-readable description of the tool.
 func (t *ScanTool) Description() string {
 	return "Updates the architectural graph by scanning the project's source code."
 }
 
+// Definition returns the Gemini function declaration schema for the tool.
 func (t *ScanTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{
 		Name:        t.Name(),
@@ -585,10 +681,12 @@ func (t *ScanTool) Definition() *genai.FunctionDeclaration {
 	}
 }
 
+// ValidateArguments returns nil; the scan tool has no arguments.
 func (t *ScanTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
 	return nil
 }
 
+// Execute runs the graph engine scan and returns a summary.
 func (t *ScanTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	engine, err := graph.NewEngine(t.db)
 	if err != nil {
@@ -597,7 +695,7 @@ func (t *ScanTool) Execute(ctx context.Context, args map[string]interface{}) (st
 	engine.RegisterScanner(graph.NewGoScanner())
 	engine.RegisterScanner(graph.NewTreeSitterScanner())
 
-	if err := engine.ScanProject("."); err != nil {
+	if err := engine.ScanProject(ctx, "."); err != nil {
 		return "", fmt.Errorf("scan: failed: %w", err)
 	}
 
@@ -606,15 +704,20 @@ func (t *ScanTool) Execute(ctx context.Context, args map[string]interface{}) (st
 
 // --- DecomposeTool ---
 
+// DecomposeTool creates sub-tasks from a parent task for parallel execution.
 type DecomposeTool struct {
 	db *sqlite.DB
 }
 
+// Name returns the tool identifier "sentinel:decompose".
 func (t *DecomposeTool) Name() string { return "sentinel:decompose" }
+
+// Description returns a human-readable description of the tool.
 func (t *DecomposeTool) Description() string {
 	return "Decomposes a complex task into multiple atomic sub-tasks for parallel execution."
 }
 
+// Definition returns the Gemini function declaration schema for the tool.
 func (t *DecomposeTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{
 		Name:        t.Name(),
@@ -652,6 +755,8 @@ func (t *DecomposeTool) Definition() *genai.FunctionDeclaration {
 	}
 }
 
+// ValidateArguments checks that task_id, description, branch_name, and subtasks
+// are present and valid.
 func (t *DecomposeTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
 	subtasksRaw, ok := args["subtasks"]
 	if !ok {
@@ -698,6 +803,7 @@ func (t *DecomposeTool) ValidateArguments(v *reflect.Validator, args map[string]
 	return nil
 }
 
+// Execute creates sub-tasks in the database and returns a summary.
 func (t *DecomposeTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	// Issue 2: Defensive validation before processing
 	if err := t.ValidateArguments(nil, args); err != nil {
@@ -708,7 +814,7 @@ func (t *DecomposeTool) Execute(ctx context.Context, args map[string]interface{}
 	if err != nil {
 		return "", fmt.Errorf("decompose: failed to create manager: %w", err)
 	}
-	parentTask, err := manager.GetActiveTask()
+	parentTask, err := manager.GetActiveTask(ctx)
 	if err != nil {
 		return "", fmt.Errorf("decompose: no active task: %w", err)
 	}
@@ -721,7 +827,7 @@ func (t *DecomposeTool) Execute(ctx context.Context, args map[string]interface{}
 	if err != nil {
 		return "", fmt.Errorf("decompose: failed to start transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	for _, stRaw := range subtasks {
 		st := stRaw.(map[string]interface{})
@@ -747,7 +853,7 @@ func (t *DecomposeTool) Execute(ctx context.Context, args map[string]interface{}
 	return fmt.Sprintf("Successfully decomposed task into %d sub-tasks: %s", len(results), strings.Join(results, ", ")), nil
 }
 
-// RegisterCoreTools adiciona as ferramentas fundamentais ao registro.
+// RegisterCoreTools registers the core tools in the agent registry.
 func RegisterCoreTools(r *Registry, db *sqlite.DB) {
 	r.Tools["read_file"] = &ReadFileTool{db: db}
 	r.Tools["write_file"] = &WriteFileTool{db: db}

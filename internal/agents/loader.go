@@ -24,11 +24,11 @@ func NewLoader() *Loader {
 
 // LoadAgent reads an agent definition from a file using Standard #01 (Buffered Reads).
 func (l *Loader) LoadAgent(path string) (*AgentDefinition, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // path from caller
 	if err != nil {
 		return nil, fmt.Errorf("failed to open agent file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var yamlBuilder strings.Builder
 	var mdBuilder strings.Builder

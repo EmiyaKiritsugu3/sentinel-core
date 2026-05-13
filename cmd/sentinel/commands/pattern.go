@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -16,6 +17,9 @@ func init() {
 	registry.Register(NewPatternCmd)
 }
 
+// NewPatternCmd creates a cobra command that provides subcommands for
+// capturing, listing, searching, retrieving, and backfilling architectural
+// and cognitive patterns.
 func NewPatternCmd(db *sqlite.DB) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pattern",
@@ -44,7 +48,7 @@ func patternAddCmd(db *sqlite.DB) *cobra.Command {
 		Use:   "add",
 		Short: "Capture a new pattern",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := graph.Migrate(db); err != nil {
+			if err := graph.Migrate(cmd.Context(), db); err != nil {
 				return fmt.Errorf("pattern add: migration failed: %w", err)
 			}
 			store, err := patterns.NewPatternStore(db)
@@ -54,7 +58,7 @@ func patternAddCmd(db *sqlite.DB) *cobra.Command {
 
 			if !force {
 				tagSlice := strings.Split(tags, ",")
-				similar, err := store.FindSimilar(title, tagSlice)
+				similar, err := store.FindSimilar(cmd.Context(), title, tagSlice)
 				if err != nil {
 					return fmt.Errorf("pattern add: dedup check failed: %w", err)
 				}
@@ -72,7 +76,7 @@ func patternAddCmd(db *sqlite.DB) *cobra.Command {
 				impact = patterns.ImpactMedium
 			}
 
-			id, err := store.Create(&patterns.Pattern{
+			id, err := store.Create(cmd.Context(), &patterns.Pattern{
 				Title:       title,
 				Description: desc,
 				Category:    category,
@@ -99,9 +103,9 @@ func patternAddCmd(db *sqlite.DB) *cobra.Command {
 	cmd.Flags().StringVar(&impact, "impact", "", "Impact: high, medium, low (default: medium)")
 	cmd.Flags().BoolVar(&force, "force", false, "Skip dedup check")
 
-	cmd.MarkFlagRequired("title")
-	cmd.MarkFlagRequired("desc")
-	cmd.MarkFlagRequired("category")
+	_ = cmd.MarkFlagRequired("title")
+	_ = cmd.MarkFlagRequired("desc")
+	_ = cmd.MarkFlagRequired("category")
 
 	return cmd
 }
@@ -113,7 +117,7 @@ func patternListCmd(db *sqlite.DB) *cobra.Command {
 		Use:   "list",
 		Short: "List captured patterns",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := graph.Migrate(db); err != nil {
+			if err := graph.Migrate(cmd.Context(), db); err != nil {
 				return fmt.Errorf("pattern list: migration failed: %w", err)
 			}
 			store, err := patterns.NewPatternStore(db)
@@ -121,7 +125,7 @@ func patternListCmd(db *sqlite.DB) *cobra.Command {
 				return err
 			}
 
-			result, err := store.List(patterns.ListFilters{
+			result, err := store.List(cmd.Context(), patterns.ListFilters{
 				Category: category,
 				Source:   source,
 				Impact:   impact,
@@ -162,7 +166,7 @@ func patternSearchCmd(db *sqlite.DB) *cobra.Command {
 		Short: "Full-text search across patterns",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := graph.Migrate(db); err != nil {
+			if err := graph.Migrate(cmd.Context(), db); err != nil {
 				return fmt.Errorf("pattern search: migration failed: %w", err)
 			}
 			store, err := patterns.NewPatternStore(db)
@@ -170,7 +174,7 @@ func patternSearchCmd(db *sqlite.DB) *cobra.Command {
 				return err
 			}
 
-			result, err := store.Search(args[0])
+			result, err := store.Search(cmd.Context(), args[0])
 			if err != nil {
 				return fmt.Errorf("pattern search: %w", err)
 			}
@@ -199,7 +203,7 @@ func patternGetCmd(db *sqlite.DB) *cobra.Command {
 		Short: "Show full details of a pattern",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := graph.Migrate(db); err != nil {
+			if err := graph.Migrate(cmd.Context(), db); err != nil {
 				return fmt.Errorf("pattern get: migration failed: %w", err)
 			}
 			store, err := patterns.NewPatternStore(db)
@@ -207,7 +211,7 @@ func patternGetCmd(db *sqlite.DB) *cobra.Command {
 				return err
 			}
 
-			p, err := store.Get(args[0])
+			p, err := store.Get(cmd.Context(), args[0])
 			if err != nil {
 				return fmt.Errorf("pattern get: pattern not found: %s", args[0])
 			}
@@ -227,8 +231,8 @@ func patternGetCmd(db *sqlite.DB) *cobra.Command {
 	}
 }
 
-func runBackfillCognitiveDNA(store *patterns.PatternStore, baseDir string) {
-	result, err := store.BackfillFromCognitiveDNA(baseDir)
+func runBackfillCognitiveDNA(ctx context.Context, store *patterns.PatternStore, baseDir string) {
+	result, err := store.BackfillFromCognitiveDNA(ctx, baseDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: cognitive-dna backfill: %v\n", err)
 		return
@@ -237,8 +241,8 @@ func runBackfillCognitiveDNA(store *patterns.PatternStore, baseDir string) {
 		result.Extracted, result.Inserted, result.Skipped)
 }
 
-func runBackfillEvolutionInsights(store *patterns.PatternStore, baseDir string) {
-	result, err := store.BackfillFromEvolutionInsights(baseDir)
+func runBackfillEvolutionInsights(ctx context.Context, store *patterns.PatternStore, baseDir string) {
+	result, err := store.BackfillFromEvolutionInsights(ctx, baseDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: evolution-insights backfill: %v\n", err)
 		return
@@ -247,8 +251,8 @@ func runBackfillEvolutionInsights(store *patterns.PatternStore, baseDir string) 
 		result.Extracted, result.Inserted, result.Skipped)
 }
 
-func runBackfillSentinelLog(store *patterns.PatternStore, baseDir string) {
-	result, err := store.BackfillFromSentinelLog(baseDir, true)
+func runBackfillSentinelLog(ctx context.Context, store *patterns.PatternStore, baseDir string) {
+	result, err := store.BackfillFromSentinelLog(ctx, baseDir, true)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: sentinel-log backfill: %v\n", err)
 		return
@@ -268,7 +272,7 @@ func patternBackfillCmd(db *sqlite.DB) *cobra.Command {
 		Use:   "backfill",
 		Short: "Extract and insert patterns from existing documentation",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := graph.Migrate(db); err != nil {
+			if err := graph.Migrate(cmd.Context(), db); err != nil {
 				return fmt.Errorf("pattern backfill: migration failed: %w", err)
 			}
 			store, err := patterns.NewPatternStore(db)
@@ -279,13 +283,13 @@ func patternBackfillCmd(db *sqlite.DB) *cobra.Command {
 			baseDir := "."
 
 			if all || source == "cognitive-dna" {
-				runBackfillCognitiveDNA(store, baseDir)
+				runBackfillCognitiveDNA(cmd.Context(), store, baseDir)
 			}
 			if all || source == "evolution-insights" {
-				runBackfillEvolutionInsights(store, baseDir)
+				runBackfillEvolutionInsights(cmd.Context(), store, baseDir)
 			}
 			if source == "sentinel-log" {
-				runBackfillSentinelLog(store, baseDir)
+				runBackfillSentinelLog(cmd.Context(), store, baseDir)
 			}
 
 			return nil

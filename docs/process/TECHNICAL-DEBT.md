@@ -1,5 +1,24 @@
 # Technical Debt Log [PID-SENTINEL]
 
+## [2026-05-13] Linter Cleanup — Quality Firewall [PID-SENTINEL-LINTER-CLEANUP]
+
+**Status**: RESOLVED ✅
+
+- ~~**gocyclo (6 funções > 15)**: GrepSearchTool.Execute (22), NewInstructCmd (19), TreeSitterScanner.Scan (19), formatC4Mermaid (19), Engine.Execute (16), anchorSignal (16). Todas refatoradas com extração de helpers.~~ **RESOLVED**: Todas ≤ 15.
+- ~~**revive/exported (131 issues)**: Símbolos exportados sem doc comments.~~ **RESOLVED**: 131 doc comments adicionados em 20+ arquivos.
+- ~~**noctx — `disambiguator.go`**: QueryRow/Query sem contexto.~~ **RESOLVED**: Context threading através de Analyze → VaguenessScore → anchorSignal → matchKeywordsInGraph.
+- ~~**Data race — Registry.Tools map**: Acesso concorrente sem sincronização.~~ **RESOLVED**: sync.RWMutex + GetTool/SetTool/ToolsSnapshot.
+
+### Resumo da Operação
+| Check | Antes | Depois |
+|---|---|---|
+| Linter issues | 137 | 0 |
+| gocyclo violations | 6 | 0 |
+| Exported doc comments | 131 missing | All documented |
+| Data races | 1 | 0 |
+| Build | ✅ | ✅ |
+| Test -race | FAIL (agents) | ✅ ALL PASS |
+
 ## [2026-05-03] State Machine & Orchestration (Filtro B)
 
 - **Sub-task Depth Explosion**: O `DecomposeTool` limita a largura (5 sub-tarefas), mas o `Dispatcher` não possui um limite de profundidade (Task -> Subtask -> Sub-subtask). Risco teórico de recursão exponencial em árvores de decisão complexas.

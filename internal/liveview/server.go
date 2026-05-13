@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"sync"
@@ -59,6 +59,7 @@ type Server struct {
 	mu         sync.RWMutex
 }
 
+// NewServer creates a new WebSocket hub Server.
 func NewServer() *Server {
 	return &Server{
 		broadcast:  make(chan graph.GraphEvent, 256), // Buffer to prevent engine blocking
@@ -89,13 +90,13 @@ func (s *Server) Run(ctx context.Context) (err error) {
 			if _, ok := s.clients[c]; ok {
 				delete(s.clients, c)
 				close(c.send)
-				c.conn.Close()
+				_ = c.conn.Close()
 			}
 			s.mu.Unlock()
 		case event := <-s.broadcast:
 			payload, err := json.Marshal(event)
 			if err != nil {
-				log.Printf("liveview: failed to serialize event %v: %v\n", event.Type, err)
+				slog.Warn("failed to serialize event", "type", event.Type, "error", err)
 				continue
 			}
 
@@ -104,7 +105,7 @@ func (s *Server) Run(ctx context.Context) (err error) {
 				select {
 				case c.send <- payload:
 				default:
-					log.Printf("liveview: client send buffer full, dropping event\n")
+					slog.Warn("client send buffer full, dropping event")
 				}
 			}
 			s.mu.RUnlock()
@@ -118,14 +119,14 @@ func (s *Server) Notify(event graph.GraphEvent) {
 	select {
 	case s.broadcast <- event:
 	default:
-		log.Printf("liveview: broadcast channel full, dropping event %v\n", event.Type)
+		slog.Warn("broadcast channel full, dropping event", "type", event.Type)
 	}
 }
 
 func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("liveview: upgrade error:", err)
+		slog.Warn("websocket upgrade error", "error", err)
 		return
 	}
 
@@ -142,14 +143,14 @@ func (s *Server) readPump(c *wsClient) {
 	}()
 
 	c.conn.SetReadLimit(512)
-	c.conn.SetReadDeadline(time.Now().Add(pongWait))
-	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetPongHandler(func(string) error { _ = c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 
 	for {
 		_, _, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("liveview: read error: %v", err)
+				slog.Warn("read error", "error", err)
 			}
 			break
 		}
@@ -162,23 +163,23 @@ func (s *Server) writePump(c *wsClient) {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		c.conn.Close()
+		_ = c.conn.Close()
 	}()
 
 	for {
 		select {
 		case msg, ok := <-c.send:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// Hub closed the channel.
-				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				_ = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 			if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 				return
 			}
 		case <-ticker.C:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
@@ -196,7 +197,7 @@ func (s *Server) StartHTTP(port int, db *sqlite.DB) error {
 	http.Handle("/", fs)
 
 	addr := fmt.Sprintf(":%d", port)
-	log.Printf("📡 Live View Server listening on %s...\n", addr)
+	slog.Info("liveview server listening", "addr", addr)
 
-	return http.ListenAndServe(addr, nil) // nosemgrep: go.lang.security.audit.net.use-tls.use-tls -- local-only dev tool, TLS not applicable
+	return http.ListenAndServe(addr, nil) //nolint:gosec // nosemgrep: go.lang.security.audit.net.use-tls.use-tls -- local-only dev tool, TLS not applicable
 }

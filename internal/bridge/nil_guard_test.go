@@ -8,6 +8,7 @@ import (
 )
 
 func TestNewGeminiClassifier_NilClient(t *testing.T) {
+	t.Parallel()
 	gc, err := NewGeminiClassifier(nil)
 	if err == nil {
 		t.Fatal("expected error for nil client, got nil")
@@ -18,6 +19,7 @@ func TestNewGeminiClassifier_NilClient(t *testing.T) {
 }
 
 func TestNewFactory_NilDB(t *testing.T) {
+	t.Parallel()
 	f, err := NewFactory(nil, nil)
 	if err == nil {
 		t.Fatal("expected error for nil db, got nil")

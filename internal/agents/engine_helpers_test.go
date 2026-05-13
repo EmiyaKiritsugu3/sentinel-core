@@ -13,13 +13,14 @@ import (
 // --- readPriorTrust ---
 
 func TestReadPriorTrust_NoRow(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
-	successes, total, trust, err := readPriorTrust(db, "nonexistent-agent")
+	successes, total, trust, err := readPriorTrust(context.Background(), db, "nonexistent-agent")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -32,13 +33,14 @@ func TestReadPriorTrust_NoRow(t *testing.T) {
 }
 
 func TestReadPriorTrust_ExistingRow(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
-	_, err := db.Conn.Exec(
+	_, err := db.Conn.ExecContext(context.Background(),
 		"INSERT INTO agent_trust (agent_name, successes, total, trust_score) VALUES (?, ?, ?, ?)",
 		"test-agent", 7, 10, 0.7273,
 	)
@@ -46,7 +48,7 @@ func TestReadPriorTrust_ExistingRow(t *testing.T) {
 		t.Fatalf("failed to seed trust data: %v", err)
 	}
 
-	successes, total, trust, err := readPriorTrust(db, "test-agent")
+	successes, total, trust, err := readPriorTrust(context.Background(), db, "test-agent")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -59,13 +61,14 @@ func TestReadPriorTrust_ExistingRow(t *testing.T) {
 }
 
 func TestReadPriorTrust_ClosedDB(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	if err := graph.Migrate(db); err != nil {
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
-	db.Close()
+	_ = db.Close()
 
-	_, _, _, err := readPriorTrust(db, "any-agent")
+	_, _, _, err := readPriorTrust(context.Background(), db, "any-agent")
 	if err == nil {
 		t.Fatal("expected error for closed DB, got nil")
 	}
@@ -74,20 +77,21 @@ func TestReadPriorTrust_ClosedDB(t *testing.T) {
 // --- persistTrust ---
 
 func TestPersistTrust_NewAgent(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
-	err := persistTrust(db, "new-agent", 0, 0, true)
+	err := persistTrust(context.Background(), db, "new-agent", 0, 0, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	var successes, total int
 	var trustScore float64
-	err = db.Conn.QueryRow(
+	err = db.Conn.QueryRowContext(context.Background(),
 		"SELECT successes, total, trust_score FROM agent_trust WHERE agent_name = ?", "new-agent",
 	).Scan(&successes, &total, &trustScore)
 	if err != nil {
@@ -99,13 +103,14 @@ func TestPersistTrust_NewAgent(t *testing.T) {
 }
 
 func TestPersistTrust_ExistingAgentFailure(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
-	_, err := db.Conn.Exec(
+	_, err := db.Conn.ExecContext(context.Background(),
 		"INSERT INTO agent_trust (agent_name, successes, total, trust_score) VALUES (?, ?, ?, ?)",
 		"existing-agent", 5, 10, 0.5455,
 	)
@@ -113,13 +118,13 @@ func TestPersistTrust_ExistingAgentFailure(t *testing.T) {
 		t.Fatalf("failed to seed trust data: %v", err)
 	}
 
-	err = persistTrust(db, "existing-agent", 5, 10, false)
+	err = persistTrust(context.Background(), db, "existing-agent", 5, 10, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	var successes, total int
-	err = db.Conn.QueryRow(
+	err = db.Conn.QueryRowContext(context.Background(),
 		"SELECT successes, total FROM agent_trust WHERE agent_name = ?", "existing-agent",
 	).Scan(&successes, &total)
 	if err != nil {
@@ -131,13 +136,14 @@ func TestPersistTrust_ExistingAgentFailure(t *testing.T) {
 }
 
 func TestPersistTrust_ClosedDB(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	if err := graph.Migrate(db); err != nil {
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
-	db.Close()
+	_ = db.Close()
 
-	err := persistTrust(db, "any-agent", 0, 0, true)
+	err := persistTrust(context.Background(), db, "any-agent", 0, 0, true)
 	if err == nil {
 		t.Fatal("expected error for closed DB, got nil")
 	}
@@ -146,6 +152,7 @@ func TestPersistTrust_ClosedDB(t *testing.T) {
 // --- countThoughtActionTokens ---
 
 func TestCountThoughtActionTokens_AllAction(t *testing.T) {
+	t.Parallel()
 	parts := []genai.Part{
 		genai.Text("I will now implement the feature."),
 		genai.Text("Writing code to handle authentication."),
@@ -160,6 +167,7 @@ func TestCountThoughtActionTokens_AllAction(t *testing.T) {
 }
 
 func TestCountThoughtActionTokens_AllThought(t *testing.T) {
+	t.Parallel()
 	parts := []genai.Part{
 		genai.Text("```thought\nthis is my reasoning step"),
 		genai.Text("```thought\nanother thought block"),
@@ -174,6 +182,7 @@ func TestCountThoughtActionTokens_AllThought(t *testing.T) {
 }
 
 func TestCountThoughtActionTokens_Mixed(t *testing.T) {
+	t.Parallel()
 	parts := []genai.Part{
 		genai.Text("Let me implement this now."),
 		genai.Text("```thought\nreasoning about the approach"),
@@ -188,6 +197,7 @@ func TestCountThoughtActionTokens_Mixed(t *testing.T) {
 }
 
 func TestCountThoughtActionTokens_CodeBlockThought(t *testing.T) {
+	t.Parallel()
 	parts := []genai.Part{
 		genai.Text("```thought\nreasoning here\n```"),
 	}
@@ -201,6 +211,7 @@ func TestCountThoughtActionTokens_CodeBlockThought(t *testing.T) {
 }
 
 func TestCountThoughtActionTokens_Empty(t *testing.T) {
+	t.Parallel()
 	actionTokens, thoughtTokens := countThoughtActionTokens(nil)
 	if actionTokens != 0 || thoughtTokens != 0 {
 		t.Errorf("expected (0, 0) for nil parts, got (%d, %d)", actionTokens, thoughtTokens)
@@ -210,6 +221,7 @@ func TestCountThoughtActionTokens_Empty(t *testing.T) {
 // --- checkGateA ---
 
 func TestCheckGateA_Intervene(t *testing.T) {
+	t.Parallel()
 	intervene, msg := checkGateA(3.5, 2.0)
 	if !intervene {
 		t.Error("expected intervene=true when lambda > effectiveMaxLambda")
@@ -220,6 +232,7 @@ func TestCheckGateA_Intervene(t *testing.T) {
 }
 
 func TestCheckGateA_NoIntervene(t *testing.T) {
+	t.Parallel()
 	intervene, msg := checkGateA(1.5, 3.0)
 	if intervene {
 		t.Error("expected intervene=false when lambda < effectiveMaxLambda")
@@ -230,6 +243,7 @@ func TestCheckGateA_NoIntervene(t *testing.T) {
 }
 
 func TestCheckGateA_ExactlyAtThreshold(t *testing.T) {
+	t.Parallel()
 	intervene, _ := checkGateA(2.0, 2.0)
 	if intervene {
 		t.Error("expected intervene=false when lambda == effectiveMaxLambda (not strictly greater)")
@@ -239,6 +253,7 @@ func TestCheckGateA_ExactlyAtThreshold(t *testing.T) {
 // --- checkGateA5 ---
 
 func TestCheckGateA5_NoPreviousLambda(t *testing.T) {
+	t.Parallel()
 	newCount, intervene, msg := checkGateA5(2.0, 0, 0)
 	if intervene {
 		t.Error("expected no intervention when previousLambda=0")
@@ -252,6 +267,7 @@ func TestCheckGateA5_NoPreviousLambda(t *testing.T) {
 }
 
 func TestCheckGateA5_FirstDivergence(t *testing.T) {
+	t.Parallel()
 	newCount, intervene, _ := checkGateA5(10.0, 1.0, 0)
 	if intervene {
 		t.Error("expected no intervention on first divergence (count=1 < 2)")
@@ -262,6 +278,7 @@ func TestCheckGateA5_FirstDivergence(t *testing.T) {
 }
 
 func TestCheckGateA5_SecondDivergence_Intervene(t *testing.T) {
+	t.Parallel()
 	newCount, intervene, msg := checkGateA5(10.0, 1.0, 1)
 	if !intervene {
 		t.Error("expected intervention on second consecutive divergence")
@@ -275,6 +292,7 @@ func TestCheckGateA5_SecondDivergence_Intervene(t *testing.T) {
 }
 
 func TestCheckGateA5_StableStep_ResetsCount(t *testing.T) {
+	t.Parallel()
 	newCount, intervene, _ := checkGateA5(1.05, 1.0, 3)
 	if intervene {
 		t.Error("expected no intervention on stable step")
@@ -285,6 +303,7 @@ func TestCheckGateA5_StableStep_ResetsCount(t *testing.T) {
 }
 
 func TestCheckGateA5_NegativePreviousLambda(t *testing.T) {
+	t.Parallel()
 	newCount, intervene, _ := checkGateA5(2.0, -0.5, 0)
 	if intervene {
 		t.Error("expected no intervention for negative previousLambda")
@@ -297,14 +316,15 @@ func TestCheckGateA5_NegativePreviousLambda(t *testing.T) {
 // --- persistMetrics ---
 
 func TestPersistMetrics(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
 	taskID := "metrics-test-task"
-	_, err := db.Conn.Exec(
+	_, err := db.Conn.ExecContext(context.Background(),
 		"INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
 		taskID, "metrics test", "IN_PROGRESS", "T2",
 	)
@@ -312,7 +332,7 @@ func TestPersistMetrics(t *testing.T) {
 		t.Fatalf("failed to insert task: %v", err)
 	}
 
-	err = persistMetrics(db, taskID, 500, 0.05, 1200.0, 0.8)
+	err = persistMetrics(context.Background(), db, taskID, 500, 0.05, 1200.0, 0.8)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -320,7 +340,7 @@ func TestPersistMetrics(t *testing.T) {
 	var latencyMs float64
 	var tokensUsed int
 	var apiCost, mathDelta float64
-	err = db.Conn.QueryRow(
+	err = db.Conn.QueryRowContext(context.Background(),
 		"SELECT latency_ms, tokens_used, api_cost, math_delta FROM tasks WHERE id = ?", taskID,
 	).Scan(&latencyMs, &tokensUsed, &apiCost, &mathDelta)
 	if err != nil {
@@ -335,33 +355,38 @@ func TestPersistMetrics(t *testing.T) {
 }
 
 func TestPersistMetrics_ClosedDB(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	if err := graph.Migrate(db); err != nil {
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
-	db.Close()
+	_ = db.Close()
 
-	err := persistMetrics(db, "any-task", 100, 0.01, 500.0, 0.5)
+	err := persistMetrics(context.Background(), db, "any-task", 100, 0.01, 500.0, 0.5)
 	if err == nil {
 		t.Fatal("expected error for closed DB, got nil")
 	}
 }
 
-// --- containsSovereignAudit ---
+// --- shouldTerminate ---
 
-func TestContainsSovereignAudit(t *testing.T) {
+func TestShouldTerminate(t *testing.T) {
+	t.Parallel()
 	t.Run("present", func(t *testing.T) {
-		if !containsSovereignAudit([]string{"Some text", "Sovereign Audit Report"}) {
+		t.Parallel()
+		if !shouldTerminate(nil, []string{"Some text", "Sovereign Audit Report"}) {
 			t.Error("expected true when Sovereign Audit Report is present")
 		}
 	})
 	t.Run("absent", func(t *testing.T) {
-		if containsSovereignAudit([]string{"Just some text"}) {
+		t.Parallel()
+		if shouldTerminate(nil, []string{"Just some text"}) {
 			t.Error("expected false when Sovereign Audit Report is absent")
 		}
 	})
 	t.Run("empty", func(t *testing.T) {
-		if containsSovereignAudit(nil) {
+		t.Parallel()
+		if shouldTerminate(nil, nil) {
 			t.Error("expected false for nil input")
 		}
 	})
@@ -370,10 +395,12 @@ func TestContainsSovereignAudit(t *testing.T) {
 // --- ValidateArguments coverage for tools ---
 
 func TestReadFileTool_ValidateArguments(t *testing.T) {
+	t.Parallel()
 	tool := &ReadFileTool{}
 	v := &reflect.Validator{}
 
 	t.Run("missing path", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(v, map[string]interface{}{})
 		if err == nil {
 			t.Fatal("expected error for missing path")
@@ -381,6 +408,7 @@ func TestReadFileTool_ValidateArguments(t *testing.T) {
 	})
 
 	t.Run("valid path", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(v, map[string]interface{}{"path": "main.go"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -389,10 +417,12 @@ func TestReadFileTool_ValidateArguments(t *testing.T) {
 }
 
 func TestWriteFileTool_ValidateArguments(t *testing.T) {
+	t.Parallel()
 	tool := &WriteFileTool{}
 	v := &reflect.Validator{}
 
 	t.Run("missing path", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(v, map[string]interface{}{})
 		if err == nil {
 			t.Fatal("expected error for missing path")
@@ -400,6 +430,7 @@ func TestWriteFileTool_ValidateArguments(t *testing.T) {
 	})
 
 	t.Run("valid path", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(v, map[string]interface{}{"path": "output.go"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -408,10 +439,12 @@ func TestWriteFileTool_ValidateArguments(t *testing.T) {
 }
 
 func TestReplaceTool_ValidateArguments(t *testing.T) {
+	t.Parallel()
 	tool := &ReplaceTool{}
 	v := &reflect.Validator{}
 
 	t.Run("missing path", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(v, map[string]interface{}{})
 		if err == nil {
 			t.Fatal("expected error for missing path")
@@ -419,6 +452,7 @@ func TestReplaceTool_ValidateArguments(t *testing.T) {
 	})
 
 	t.Run("valid path", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(v, map[string]interface{}{"path": "main.go"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -427,10 +461,12 @@ func TestReplaceTool_ValidateArguments(t *testing.T) {
 }
 
 func TestRunTool_ValidateArguments(t *testing.T) {
+	t.Parallel()
 	tool := &RunTool{}
 	v := &reflect.Validator{}
 
 	t.Run("missing command", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(v, map[string]interface{}{})
 		if err == nil {
 			t.Fatal("expected error for missing command")
@@ -438,6 +474,7 @@ func TestRunTool_ValidateArguments(t *testing.T) {
 	})
 
 	t.Run("valid command", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(v, map[string]interface{}{"command": "go test ./..."})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -446,10 +483,12 @@ func TestRunTool_ValidateArguments(t *testing.T) {
 }
 
 func TestGrepSearchTool_ValidateArguments(t *testing.T) {
+	t.Parallel()
 	tool := &GrepSearchTool{}
 	v := &reflect.Validator{}
 
 	t.Run("no dir_path returns nil", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(v, map[string]interface{}{"pattern": "test"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -457,6 +496,7 @@ func TestGrepSearchTool_ValidateArguments(t *testing.T) {
 	})
 
 	t.Run("with dir_path validates it", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(v, map[string]interface{}{"pattern": "test", "dir_path": "src"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -465,6 +505,7 @@ func TestGrepSearchTool_ValidateArguments(t *testing.T) {
 }
 
 func TestAuditTool_ValidateArguments(t *testing.T) {
+	t.Parallel()
 	tool := &AuditTool{}
 	err := tool.ValidateArguments(nil, nil)
 	if err != nil {
@@ -473,6 +514,7 @@ func TestAuditTool_ValidateArguments(t *testing.T) {
 }
 
 func TestScanTool_ValidateArguments(t *testing.T) {
+	t.Parallel()
 	tool := &ScanTool{}
 	err := tool.ValidateArguments(nil, nil)
 	if err != nil {
@@ -481,9 +523,11 @@ func TestScanTool_ValidateArguments(t *testing.T) {
 }
 
 func TestADRTool_ValidateArguments(t *testing.T) {
+	t.Parallel()
 	tool := &ADRTool{}
 
 	t.Run("missing field", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(nil, map[string]interface{}{
 			"title": "Test", "context": "ctx", "decision": "dec",
 		})
@@ -493,6 +537,7 @@ func TestADRTool_ValidateArguments(t *testing.T) {
 	})
 
 	t.Run("all fields present", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(nil, map[string]interface{}{
 			"title": "Test", "context": "ctx", "decision": "dec",
 			"consequences": "cons", "verification_command": "go test",
@@ -503,6 +548,7 @@ func TestADRTool_ValidateArguments(t *testing.T) {
 	})
 
 	t.Run("empty field", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(nil, map[string]interface{}{
 			"title": "", "context": "ctx", "decision": "dec",
 			"consequences": "cons", "verification_command": "go test",
@@ -514,9 +560,11 @@ func TestADRTool_ValidateArguments(t *testing.T) {
 }
 
 func TestDecomposeTool_ValidateArguments_EdgeCases(t *testing.T) {
+	t.Parallel()
 	tool := &DecomposeTool{}
 
 	t.Run("missing subtasks key", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(nil, map[string]interface{}{})
 		if err == nil {
 			t.Fatal("expected error for missing subtasks")
@@ -524,6 +572,7 @@ func TestDecomposeTool_ValidateArguments_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("subtasks not an array", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(nil, map[string]interface{}{
 			"subtasks": "not-an-array",
 		})
@@ -533,6 +582,7 @@ func TestDecomposeTool_ValidateArguments_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("invalid subtask object", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(nil, map[string]interface{}{
 			"subtasks": []interface{}{"not-a-map"},
 		})
@@ -542,12 +592,13 @@ func TestDecomposeTool_ValidateArguments_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("non-string capability", func(t *testing.T) {
+		t.Parallel()
 		err := tool.ValidateArguments(nil, map[string]interface{}{
 			"subtasks": []interface{}{
 				map[string]interface{}{
-					"description":   "task",
-					"branch_name":   "b1",
-					"capabilities":  []interface{}{123},
+					"description":  "task",
+					"branch_name":  "b1",
+					"capabilities": []interface{}{123},
 				},
 			},
 		})
@@ -560,9 +611,11 @@ func TestDecomposeTool_ValidateArguments_EdgeCases(t *testing.T) {
 // --- ReadFileTool.Execute ---
 
 func TestReadFileTool_Execute(t *testing.T) {
+	t.Parallel()
 	tool := &ReadFileTool{}
 
 	t.Run("nonexistent file returns error", func(t *testing.T) {
+		t.Parallel()
 		_, err := tool.Execute(context.Background(), map[string]interface{}{
 			"path": "nonexistent_file_12345.go",
 		})
@@ -575,6 +628,7 @@ func TestReadFileTool_Execute(t *testing.T) {
 // --- WriteFileTool.Execute: AST validation ---
 
 func TestWriteFileTool_Execute_InvalidGo(t *testing.T) {
+	t.Parallel()
 	tool := &WriteFileTool{}
 	_, err := tool.Execute(context.Background(), map[string]interface{}{
 		"path":    "test_bad.go",
@@ -588,6 +642,7 @@ func TestWriteFileTool_Execute_InvalidGo(t *testing.T) {
 // --- ReplaceTool.Execute: old_string not found ---
 
 func TestReplaceTool_Execute_OldStringNotFound(t *testing.T) {
+	t.Parallel()
 	tool := &ReplaceTool{}
 	_, err := tool.Execute(context.Background(), map[string]interface{}{
 		"path":       "nonexistent_replace.go",

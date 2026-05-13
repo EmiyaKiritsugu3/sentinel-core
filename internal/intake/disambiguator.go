@@ -1,7 +1,10 @@
+// Package intake handles task disambiguation and intent analysis.
 // internal/intake/disambiguator.go
 package intake
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"math"
 	"strings"
@@ -39,6 +42,7 @@ type Disambiguator struct {
 	db *sqlite.DB // nil = skip graph phase (Phase 2)
 }
 
+// NewDisambiguator creates a Disambiguator with an optional DB.
 func NewDisambiguator(db *sqlite.DB) *Disambiguator {
 	// db is optional: nil = Phase 1 (lexical scoring) only.
 	// Non-nil DB is validated before use in Phase 2 (graph-anchored).
@@ -46,23 +50,23 @@ func NewDisambiguator(db *sqlite.DB) *Disambiguator {
 }
 
 // Analyze returns whether the description is vague and any graph suggestions.
-func (d *Disambiguator) Analyze(description string) (vague bool, suggestions []Suggestion) {
-	score := d.VaguenessScore(description)
+func (d *Disambiguator) Analyze(ctx context.Context, description string) (vague bool, suggestions []Suggestion) {
+	score := d.VaguenessScore(ctx, description)
 	if score <= scoreThreshold {
 		return false, nil
 	}
 	if d.db != nil {
-		suggestions = d.queryGraph(description)
+		suggestions = d.queryGraph(ctx, description)
 	}
 	return true, suggestions
 }
 
 // VaguenessScore returns a score in [0.0, 1.0]. Values > 0.50 trigger suggestion.
-func (d *Disambiguator) VaguenessScore(description string) float64 {
+func (d *Disambiguator) VaguenessScore(ctx context.Context, description string) float64 {
 	score := lengthSignal(description) +
 		verbSignal(description) +
 		pronounSignal(description) +
-		d.anchorSignal(description)
+		d.anchorSignal(ctx, description)
 	return math.Min(score, 1.0)
 }
 
@@ -115,41 +119,34 @@ func pronounSignal(description string) float64 {
 	return 0.00
 }
 
-func (d *Disambiguator) anchorSignal(description string) float64 {
-	lower := strings.ToLower(description)
-
-	// Phase 1: lexical anchors (zero DB)
+// hasCodeAnchor returns true if the description contains lexical anchors that
+// indicate a precise code reference (a file path, module path, or file extension).
+func hasCodeAnchor(lower string) bool {
 	if strings.Contains(lower, "internal/") ||
 		strings.Contains(lower, "pkg/") ||
 		strings.Contains(lower, ".go") {
-		return 0.00
+		return true
 	}
-	// line reference: colon followed by digit
+	return false
+}
+
+// hasLineReference returns true if the description contains a line reference
+// pattern (a colon followed by a digit), such as "main.go:42".
+func hasLineReference(description string) bool {
 	for i, ch := range description {
 		if ch == ':' && i+1 < len(description) && description[i+1] >= '0' && description[i+1] <= '9' {
-			return 0.00
+			return true
 		}
 	}
+	return false
+}
 
-	// Phase 2: graph-anchored (DB query)
-	if d.db == nil {
-		return weightAnchor // 0.40 — no graph available
-	}
-
-	var count int
-	if err := d.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes").Scan(&count); err != nil || count == 0 {
-		return weightAnchor // graph not indexed
-	}
-
-	keywords := extractKeywords(description)
-	if len(keywords) == 0 {
-		return weightAnchor
-	}
-
-	matched := 0
+// matchKeywordsInGraph queries the graph database for each keyword and returns
+// how many keywords matched at least one node.
+func matchKeywordsInGraph(ctx context.Context, db *sql.DB, keywords []string) (matched int, total int) {
 	for _, kw := range keywords {
 		var n int
-		err := d.db.Conn.QueryRow(
+		err := db.QueryRowContext(ctx,
 			"SELECT COUNT(*) FROM nodes WHERE LOWER(name) LIKE ?",
 			fmt.Sprintf("%%%s%%", kw),
 		).Scan(&n)
@@ -157,19 +154,48 @@ func (d *Disambiguator) anchorSignal(description string) float64 {
 			matched++
 		}
 	}
+	return matched, len(keywords)
+}
 
-	matchedRatio := float64(matched) / float64(len(keywords))
+func (d *Disambiguator) anchorSignal(ctx context.Context, description string) float64 {
+	lower := strings.ToLower(description)
+
+	// Phase 1: lexical anchors (zero DB)
+	if hasCodeAnchor(lower) {
+		return 0.00
+	}
+	if hasLineReference(description) {
+		return 0.00
+	}
+
+	// Phase 2: graph-anchored (DB query)
+	if d.db == nil {
+		return weightAnchor
+	}
+
+	var count int
+	if err := d.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM nodes").Scan(&count); err != nil || count == 0 {
+		return weightAnchor
+	}
+
+	keywords := extractKeywords(description)
+	if len(keywords) == 0 {
+		return weightAnchor
+	}
+
+	matched, total := matchKeywordsInGraph(ctx, d.db.Conn, keywords)
+	matchedRatio := float64(matched) / float64(total)
 	return weightAnchor * (1.0 - matchedRatio)
 }
 
-func (d *Disambiguator) queryGraph(description string) []Suggestion {
+func (d *Disambiguator) queryGraph(ctx context.Context, description string) []Suggestion {
 	keywords := extractKeywords(description)
 	var suggestions []Suggestion
 	seen := map[string]bool{}
 
 loop:
 	for _, kw := range keywords {
-		rows, err := d.db.Conn.Query(
+		rows, err := d.db.Conn.QueryContext(ctx,
 			"SELECT name, file_path FROM nodes WHERE LOWER(name) LIKE ? LIMIT 3",
 			fmt.Sprintf("%%%s%%", kw),
 		)
@@ -178,7 +204,7 @@ loop:
 		}
 		for rows.Next() {
 			if len(suggestions) >= 5 {
-				rows.Close()
+				_ = rows.Close()
 				break loop
 			}
 			var s Suggestion
@@ -187,7 +213,7 @@ loop:
 				seen[s.NodeName] = true
 			}
 		}
-		rows.Close()
+		_ = rows.Close()
 	}
 	return suggestions
 }

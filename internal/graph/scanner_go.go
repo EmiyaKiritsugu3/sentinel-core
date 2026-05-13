@@ -9,18 +9,22 @@ import (
 	"strings"
 )
 
+// GoScanner scans Go source files using the standard go/ast and go/parser packages.
 type GoScanner struct {
 	// Scanner Go não precisa mais do DB diretamente
 }
 
+// NewGoScanner creates a new GoScanner.
 func NewGoScanner() *GoScanner {
 	return &GoScanner{}
 }
 
+// SupportedExtensions returns the file extensions supported by GoScanner.
 func (s *GoScanner) SupportedExtensions() []string {
 	return []string{".go"}
 }
 
+// Scan parses a Go file and returns scanned nodes and edges.
 func (s *GoScanner) Scan(path string) ScanResult {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)

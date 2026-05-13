@@ -17,6 +17,8 @@ func init() {
 	registry.Register(NewPlanCmd)
 }
 
+// NewPlanCmd creates a cobra command that creates a new architectural plan
+// and task with optional disambiguation suggestions.
 func NewPlanCmd(db *sqlite.DB) *cobra.Command {
 	var planTier string
 	var flagRefine bool
@@ -34,59 +36,60 @@ func NewPlanCmd(db *sqlite.DB) *cobra.Command {
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-			description := args[0]
-			verifyCmd := args[1]
+		description := args[0]
+		verifyCmd := args[1]
 
-			// Flag conflict: --refine takes precedence
-			if flagRefine && flagNoSuggest {
-				flagNoSuggest = false
-			}
+		// Flag conflict: --refine takes precedence
+		if flagRefine && flagNoSuggest {
+			flagNoSuggest = false
+		}
 
-			if !flagNoSuggest {
-				disambiguator := intake.NewDisambiguator(db)
-				vague, suggestions := disambiguator.Analyze(description)
+		if !flagNoSuggest {
+			disambiguator := intake.NewDisambiguator(db)
+			vague, suggestions := disambiguator.Analyze(cmd.Context(), description)
 
-				if vague && len(suggestions) > 0 {
-					if flagRefine {
-						// Interactive mode: show options, prompt user
-						fmt.Println("[SUGGEST] Task description may be vague. Did you mean:")
-						for i, s := range suggestions {
-							fmt.Printf("  [%d] %s  (%s)\n", i+1, s.NodeName, s.FilePath)
-						}
-						fmt.Printf("  [0] Keep original: %q\n", description)
-						fmt.Print("Choice [0]: ")
-
-						scanner := bufio.NewScanner(os.Stdin)
-						if scanner.Scan() {
-							line := strings.TrimSpace(scanner.Text())
-							if idx := parseChoice(line, len(suggestions)); idx > 0 {
-								// Preserve action (first word) if possible
-								action := ""
-								if parts := strings.Fields(description); len(parts) > 0 {
-									action = parts[0]
-								}
-								description = fmt.Sprintf("%s (focus: %s in %s)",
-									action, suggestions[idx-1].NodeName, suggestions[idx-1].FilePath)
-							}						}
-					} else {
-						// Default mode: print suggestion, save original
-						fmt.Printf("[SUGGEST] did you mean: %s in %s?\n",
-							suggestions[0].NodeName, suggestions[0].FilePath)
+			if vague && len(suggestions) > 0 {
+				if flagRefine {
+					// Interactive mode: show options, prompt user
+					fmt.Println("[SUGGEST] Task description may be vague. Did you mean:")
+					for i, s := range suggestions {
+						fmt.Printf("  [%d] %s  (%s)\n", i+1, s.NodeName, s.FilePath)
 					}
+					fmt.Printf("  [0] Keep original: %q\n", description)
+					fmt.Print("Choice [0]: ")
+
+					scanner := bufio.NewScanner(os.Stdin)
+					if scanner.Scan() {
+						line := strings.TrimSpace(scanner.Text())
+						if idx := parseChoice(line, len(suggestions)); idx > 0 {
+							// Preserve action (first word) if possible
+							action := ""
+							if parts := strings.Fields(description); len(parts) > 0 {
+								action = parts[0]
+							}
+							description = fmt.Sprintf("%s (focus: %s in %s)",
+								action, suggestions[idx-1].NodeName, suggestions[idx-1].FilePath)
+						}
+					}
+				} else {
+					// Default mode: print suggestion, save original
+					fmt.Printf("[SUGGEST] did you mean: %s in %s?\n",
+						suggestions[0].NodeName, suggestions[0].FilePath)
 				}
 			}
+		}
 
-			mgr, err := state.NewManager(db)
-			if err != nil {
-				return fmt.Errorf("plan: failed to create manager: %w", err)
-			}
-			id, err := mgr.CreateTask(description, planTier, verifyCmd)
-			if err != nil {
-				return fmt.Errorf("plan: failed to create task: %w", err)
-			}
+		mgr, err := state.NewManager(db)
+		if err != nil {
+			return fmt.Errorf("plan: failed to create manager: %w", err)
+		}
+		id, err := mgr.CreateTask(cmd.Context(), description, planTier, verifyCmd)
+		if err != nil {
+			return fmt.Errorf("plan: failed to create task: %w", err)
+		}
 
-			fmt.Printf("✅ PLAN FORGED [ID: %s]: %s\n", id, description)
-			fmt.Printf("Tier: %s | Verification Gate: %s\n", planTier, verifyCmd)
+		fmt.Printf("✅ PLAN FORGED [ID: %s]: %s\n", id, description)
+		fmt.Printf("Tier: %s | Verification Gate: %s\n", planTier, verifyCmd)
 		return nil
 	}
 	cmd.Flags().StringVar(&planTier, "tier", "T2", "Task tier (T1, T2, T3)")
