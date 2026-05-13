@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,12 +23,12 @@ func NewVisualizer(db *sqlite.DB) (*Visualizer, error) {
 }
 
 // GenerateMasterDiagram gera o C4 holístico do projeto
-func (v *Visualizer) GenerateMasterDiagram() error {
-	nodes, err := v.getNodes("")
+func (v *Visualizer) GenerateMasterDiagram(ctx context.Context) error {
+	nodes, err := v.getNodes(ctx, "")
 	if err != nil {
 		return fmt.Errorf("viz: failed to fetch master nodes: %w", err)
 	}
-	edges, err := v.getEdges()
+	edges, err := v.getEdges(ctx)
 	if err != nil {
 		return fmt.Errorf("viz: failed to fetch master edges: %w", err)
 	}
@@ -39,27 +40,27 @@ func (v *Visualizer) GenerateMasterDiagram() error {
 	content += "```\n"
 
 	path := "docs/architecture/MASTER-GRAPH.md"
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
 		return fmt.Errorf("viz: failed to create architecture dir: %w", err)
 	}
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		return fmt.Errorf("viz: failed to write master graph: %w", err)
 	}
 	return nil
 }
 
 // GenerateTaskSnapshot gera um diagrama focado nos nós impactados por uma tarefa
-func (v *Visualizer) GenerateTaskSnapshot(taskID, description string, impactFiles []string) error {
+func (v *Visualizer) GenerateTaskSnapshot(ctx context.Context, taskID, description string, impactFiles []string) error {
 	var nodes []Node
 	for _, file := range impactFiles {
-		fileNodes, err := v.getNodes(file)
+		fileNodes, err := v.getNodes(ctx, file)
 		if err != nil {
 			return fmt.Errorf("viz: failed to fetch nodes for file %s: %w", file, err)
 		}
 		nodes = append(nodes, fileNodes...)
 	}
 
-	edges, err := v.getEdges()
+	edges, err := v.getEdges(ctx)
 	if err != nil {
 		return fmt.Errorf("viz: failed to fetch snapshot edges: %w", err)
 	}
@@ -71,16 +72,16 @@ func (v *Visualizer) GenerateTaskSnapshot(taskID, description string, impactFile
 	content += "```\n"
 
 	path := fmt.Sprintf("docs/architecture/tasks/%s-GRAPH.md", taskID)
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return fmt.Errorf("viz: failed to create task dir: %w", err)
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
+		return fmt.Errorf("visualizer: mkdir: %w", err)
 	}
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		return fmt.Errorf("viz: failed to write task snapshot: %w", err)
 	}
 	return nil
 }
 
-func (v *Visualizer) getNodes(filterFile string) ([]Node, error) {
+func (v *Visualizer) getNodes(ctx context.Context, filterFile string) ([]Node, error) {
 	query := "SELECT id, name, type, file_path FROM nodes"
 	var args []interface{}
 	if filterFile != "" {
@@ -88,11 +89,11 @@ func (v *Visualizer) getNodes(filterFile string) ([]Node, error) {
 		args = append(args, filterFile)
 	}
 
-	rows, err := v.db.Conn.Query(query, args...)
+	rows, err := v.db.Conn.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("viz: db query error (nodes): %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var nodes []Node
 	for rows.Next() {
@@ -111,31 +112,103 @@ func (v *Visualizer) getNodes(filterFile string) ([]Node, error) {
 }
 
 // GenerateC4ContainerDiagram gera um diagrama C4 de Nível 2 (Container)
-func (v *Visualizer) GenerateC4ContainerDiagram() error {
-	nodes, err := v.getNodes("")
+func (v *Visualizer) GenerateC4ContainerDiagram(ctx context.Context) error {
+	nodes, err := v.getNodes(ctx, "")
 	if err != nil {
 		return fmt.Errorf("viz: failed to fetch nodes: %w", err)
 	}
-	edges, err := v.getEdges()
+	edges, err := v.getEdges(ctx)
 	if err != nil {
 		return fmt.Errorf("viz: failed to fetch edges: %w", err)
 	}
 
 	content := "# System Container Architecture (C4 Level 2) [PID-SENTINEL]\n\n"
-	content += "Este diagrama mostra os containers lógicos do Sentinel e como eles se comunicam.\n\n"
+	content += "Este diagrama mostra os containers lógicos do Sentinel e como eels se comunicam.\n\n"
 	content += "```mermaid\nC4Container\n"
 	content += "    title Container diagram for Sentinel Core\n\n"
 	content += v.formatC4Mermaid(nodes, edges)
 	content += "```\n"
 
 	path := "docs/architecture/C4-CONTAINER-GRAPH.md"
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
 		return fmt.Errorf("viz: failed to create architecture dir: %w", err)
 	}
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		return fmt.Errorf("viz: failed to write C4 graph: %w", err)
 	}
 	return nil
+}
+
+// c4Container represents a C4 container in the architecture diagram.
+type c4Container struct {
+	id   string
+	name string
+	desc string
+	isDb bool
+}
+
+// c4RelKey identifies a unique relationship between two containers.
+type c4RelKey struct {
+	from, to string
+}
+
+// writeContainerDefs writes the C4 container definitions to the builder.
+func writeContainerDefs(sb *strings.Builder, containers []c4Container) {
+	for _, c := range containers {
+		if c.isDb {
+			fmt.Fprintf(sb, "    ContainerDb(%s, \"%s\", \"SQLite\", \"%s\")\n", c.id, c.name, c.desc)
+		} else {
+			fmt.Fprintf(sb, "    Container(%s, \"%s\", \"Go\", \"%s\")\n", c.id, c.name, c.desc)
+		}
+	}
+	sb.WriteString("\n")
+}
+
+// buildNodeToContainerMap classifies all nodes and edge endpoints into their
+// corresponding C4 containers based on file paths.
+func buildNodeToContainerMap(nodes []Node, edges []Edge) map[string]string {
+	nodeToContainer := make(map[string]string)
+
+	for _, n := range nodes {
+		cid := classifyContainer(n.FilePath)
+		if cid == "" && strings.HasPrefix(n.ID, "file:") {
+			cid = classifyContainer(strings.TrimPrefix(n.ID, "file:"))
+		}
+		if cid != "" {
+			nodeToContainer[n.ID] = cid
+		}
+	}
+
+	for _, e := range edges {
+		if _, ok := nodeToContainer[e.To]; !ok && strings.HasPrefix(e.To, "file:") {
+			path := strings.TrimPrefix(e.To, "file:")
+			if cid := classifyContainer(path); cid != "" {
+				nodeToContainer[e.To] = cid
+			}
+		}
+		if _, ok := nodeToContainer[e.From]; !ok && strings.HasPrefix(e.From, "file:") {
+			path := strings.TrimPrefix(e.From, "file:")
+			if cid := classifyContainer(path); cid != "" {
+				nodeToContainer[e.From] = cid
+			}
+		}
+	}
+
+	return nodeToContainer
+}
+
+// aggregateRelationships collects unique inter-container relationships from edges.
+func aggregateRelationships(edges []Edge, nodeToContainer map[string]string) map[c4RelKey]string {
+	rels := make(map[c4RelKey]string)
+	for _, e := range edges {
+		fromC, okF := nodeToContainer[e.From]
+		toC, okT := nodeToContainer[e.To]
+
+		if okF && okT && fromC != toC {
+			rels[c4RelKey{fromC, toC}] = e.Rel
+		}
+	}
+	return rels
 }
 
 func classifyContainer(path string) string {
@@ -158,78 +231,24 @@ func classifyContainer(path string) string {
 }
 
 func (v *Visualizer) formatC4Mermaid(nodes []Node, edges []Edge) string {
-	type container struct {
-		id   string
-		name string
-		desc string
-		isDb bool
-	}
-
-	containers := map[string]container{
-		"CLI":      {id: "cli", name: "CLI Application", desc: "Interface Go/Cobra para desenvolvedores"},
-		"Agents":   {id: "agents", name: "Agent Engine", desc: "Orquestração de loops cognitivos ReAct"},
-		"Graph":    {id: "graph", name: "Graph Engine", desc: "Análise AST e extração semântica"},
-		"Audit":    {id: "audit", name: "Compliance Guard", desc: "Validação de padrões e Hard Gates"},
-		"State":    {id: "state", name: "State Manager", desc: "Gerenciamento de tarefas e histórico"},
-		"Frontend": {id: "frontend", name: "Legacy Frontend", desc: "Componentes legados em TypeScript"},
-		"Database": {id: "db", name: "SQLite Graph", desc: "Persistência de nós, arestas e tarefas", isDb: true},
+	containers := []c4Container{
+		{id: "cli", name: "CLI Application", desc: "Interface Go/Cobra para desenvolvedores"},
+		{id: "agents", name: "Agent Engine", desc: "Orquestração de loops cognitivos ReAct"},
+		{id: "graph", name: "Graph Engine", desc: "Análise AST e extração semântica"},
+		{id: "audit", name: "Compliance Guard", desc: "Validação de padrões e Hard Gates"},
+		{id: "state", name: "State Manager", desc: "Gerenciamento de tarefas e histórico"},
+		{id: "frontend", name: "Legacy Frontend", desc: "Components legados em TypeScript"},
+		{id: "db", name: "SQLite Graph", desc: "Persistência de nós, arestas e tarefas", isDb: true},
 	}
 
 	var sb strings.Builder
-	for _, c := range containers {
-		if c.isDb {
-			sb.WriteString(fmt.Sprintf("    ContainerDb(%s, \"%s\", \"SQLite\", \"%s\")\n", c.id, c.name, c.desc))
-		} else {
-			sb.WriteString(fmt.Sprintf("    Container(%s, \"%s\", \"Go\", \"%s\")\n", c.id, c.name, c.desc))
-		}
-	}
-	sb.WriteString("\n")
+	writeContainerDefs(&sb, containers)
 
-	nodeToContainer := make(map[string]string)
-
-	for _, n := range nodes {
-		cid := classifyContainer(n.FilePath)
-		if cid == "" && strings.HasPrefix(n.ID, "file:") {
-			cid = classifyContainer(strings.TrimPrefix(n.ID, "file:"))
-		}
-
-		if cid != "" {
-			nodeToContainer[n.ID] = cid
-		}
-	}
-
-	for _, e := range edges {
-		if _, ok := nodeToContainer[e.To]; !ok && strings.HasPrefix(e.To, "file:") {
-			path := strings.TrimPrefix(e.To, "file:")
-			if cid := classifyContainer(path); cid != "" {
-				nodeToContainer[e.To] = cid
-			}
-		}
-		if _, ok := nodeToContainer[e.From]; !ok && strings.HasPrefix(e.From, "file:") {
-			path := strings.TrimPrefix(e.From, "file:")
-			if cid := classifyContainer(path); cid != "" {
-				nodeToContainer[e.From] = cid
-			}
-		}
-	}
-
-	// Agrega relações entre containers
-	type relKey struct {
-		from, to string
-	}
-	rels := make(map[relKey]string)
-	for _, e := range edges {
-		fromC, okF := nodeToContainer[e.From]
-		toC, okT := nodeToContainer[e.To]
-
-		if okF && okT && fromC != toC {
-			key := relKey{fromC, toC}
-			rels[key] = e.Rel
-		}
-	}
+	nodeToContainer := buildNodeToContainerMap(nodes, edges)
+	rels := aggregateRelationships(edges, nodeToContainer)
 
 	for k, rel := range rels {
-		sb.WriteString(fmt.Sprintf("    Rel(%s, %s, \"%s\")\n", k.from, k.to, rel))
+		fmt.Fprintf(&sb, "    Rel(%s, %s, \"%s\")\n", k.from, k.to, rel)
 	}
 
 	return sb.String()
@@ -242,14 +261,15 @@ func (v *Visualizer) formatMermaid(nodes []Node, edges []Edge) string {
 	for _, n := range nodes {
 		nodeMap[n.ID] = true
 		style := ""
-		if n.Type == "struct" {
+		switch n.Type {
+		case "struct":
 			style = ":::struct"
-		} else if n.Type == "function" {
+		case "function":
 			style = ":::func"
 		}
 
 		safeID := utils.SanitizeID(n.ID)
-		sb.WriteString(fmt.Sprintf("    %s[\"%s (%s)\"]%s\n", safeID, n.Name, n.Type, style))
+		fmt.Fprintf(&sb, "    %s[\"%s (%s)\"]%s\n", safeID, n.Name, n.Type, style)
 	}
 
 	for _, e := range edges {
@@ -257,7 +277,7 @@ func (v *Visualizer) formatMermaid(nodes []Node, edges []Edge) string {
 		safeTo := utils.SanitizeID(e.To)
 
 		if nodeMap[e.From] && nodeMap[e.To] {
-			sb.WriteString(fmt.Sprintf("    %s -->|%s| %s\n", safeFrom, e.Rel, safeTo))
+			fmt.Fprintf(&sb, "    %s -->|%s| %s\n", safeFrom, e.Rel, safeTo)
 		}
 	}
 
@@ -267,12 +287,12 @@ func (v *Visualizer) formatMermaid(nodes []Node, edges []Edge) string {
 	return sb.String()
 }
 
-func (v *Visualizer) getEdges() ([]Edge, error) {
-	rows, err := v.db.Conn.Query("SELECT from_node_id, to_node_id, relation_type FROM edges")
+func (v *Visualizer) getEdges(ctx context.Context) ([]Edge, error) {
+	rows, err := v.db.Conn.QueryContext(ctx, "SELECT from_node_id, to_node_id, relation_type FROM edges")
 	if err != nil {
 		return nil, fmt.Errorf("viz: db query error (edges): %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var edges []Edge
 	for rows.Next() {
