@@ -1,10 +1,11 @@
 package agents
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/math"
@@ -14,29 +15,29 @@ import (
 
 // readPriorTrust reads the agent's historical trust data from the DB.
 // Returns (successes, total, trustScore, error). If no row exists, returns (0, 0, 0.5, nil).
-func readPriorTrust(db *sqlite.DB, agentName string) (successes, total int, trust float64, err error) {
-	if err := db.Conn.QueryRow(
+func readPriorTrust(ctx context.Context, db *sqlite.DB, agentName string) (successes, total int, trust float64, err error) {
+	if err := db.Conn.QueryRowContext(ctx,
 		"SELECT successes, total FROM agent_trust WHERE agent_name = ?",
 		agentName,
 	).Scan(&successes, &total); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, 0, math.CalculateTrustScore(0, 0), nil
 		}
-		log.Printf("[SENTINEL] Warning: failed to read prior trust for '%s': %v", agentName, err)
+		slog.Warn("failed to read prior trust", "agent", agentName, "error", err)
 		return 0, 0, math.CalculateTrustScore(0, 0), err
 	}
 	return successes, total, math.CalculateTrustScore(successes, total), nil
 }
 
 // persistTrust updates the agent's trust record in the DB after execution completes.
-func persistTrust(db *sqlite.DB, agentName string, priorSuccesses, priorTotal int, success bool) error {
+func persistTrust(ctx context.Context, db *sqlite.DB, agentName string, priorSuccesses, priorTotal int, success bool) error {
 	newTotal := priorTotal + 1
 	newSuccesses := priorSuccesses
 	if success {
 		newSuccesses++
 	}
 	trustScore := math.CalculateTrustScore(newSuccesses, newTotal)
-	if _, err := db.Conn.Exec(
+	if _, err := db.Conn.ExecContext(ctx,
 		`INSERT INTO agent_trust (agent_name, successes, total, trust_score)
 		VALUES (?, ?, ?, ?)
 		ON CONFLICT(agent_name) DO UPDATE SET
@@ -46,7 +47,7 @@ func persistTrust(db *sqlite.DB, agentName string, priorSuccesses, priorTotal in
 		updated_at = CURRENT_TIMESTAMP`,
 		agentName, newSuccesses, newTotal, trustScore,
 	); err != nil {
-		log.Printf("[SENTINEL] Warning: failed to persist trust for '%s' (successes=%d total=%d trust=%.4f): %v", agentName, newSuccesses, newTotal, trustScore, err)
+		slog.Warn("failed to persist trust", "agent", agentName, "successes", newSuccesses, "total", newTotal, "trust", trustScore, "error", err)
 		return err
 	}
 	return nil
@@ -77,7 +78,7 @@ func countThoughtActionTokens(parts []genai.Part) (actionTokens, thoughtTokens i
 func checkGateA(lambda, effectiveMaxLambda float64) (intervene bool, message string) {
 	if lambda > effectiveMaxLambda {
 		msg := fmt.Sprintf("GATE A INTERVENTION: Your action-to-thought ratio is too high (%.2f). You are hallucinating excessive code without planning. Re-evaluate your strategy and output a detailed thought process before proceeding.", lambda)
-		log.Printf("[GATE A] Entropy threshold exceeded (λ=%.2f > EffectiveMax=%.2f). Interrupting execution.", lambda, effectiveMaxLambda)
+		slog.Warn("entropy threshold exceeded", "lambda", lambda, "max", effectiveMaxLambda)
 		return true, msg
 	}
 	return false, ""
@@ -100,7 +101,7 @@ func checkGateA5(stepLambda, previousLambda float64, divergenceCount int) (newCo
 				"GATE A.5 INTERVENTION: Logic Drift detected. Your reasoning trajectory is diverging (Δλ=%.2f). Stop and re-plan from scratch before generating more code.",
 				divergence,
 			)
-			log.Printf("[GATE A.5] Logic Drift detected (divergence=%.2f, consecutive=%d). Interrupting.", divergence, newCount)
+			slog.Warn("logic drift detected", "divergence", divergence, "consecutive", newCount)
 			return newCount, true, msg
 		}
 		return newCount, false, ""
@@ -111,19 +112,27 @@ func checkGateA5(stepLambda, previousLambda float64, divergenceCount int) (newCo
 }
 
 // persistMetrics writes the final execution metrics (latency, tokens, cost, delta) to the tasks table.
-func persistMetrics(db *sqlite.DB, stateID string, tokensUsed int, apiCost float64, latencyMs float64, priorTrust float64) error {
+func persistMetrics(ctx context.Context, db *sqlite.DB, stateID string, tokensUsed int, apiCost float64, latencyMs float64, priorTrust float64) error {
 	probHallucination := 1.0 - priorTrust
 	delta := math.CalculateDelta(probHallucination, 5.0, latencyMs, apiCost)
 
 	query := "UPDATE tasks SET latency_ms = ?, tokens_used = ?, api_cost = ?, math_delta = ? WHERE id = ?"
-	if _, err := db.Conn.Exec(query, latencyMs, tokensUsed, apiCost, delta, stateID); err != nil {
-		log.Printf("[SENTINEL] Warning: failed to persist math metrics for task %s: %v", stateID, err)
+	if _, err := db.Conn.ExecContext(ctx, query, latencyMs, tokensUsed, apiCost, delta, stateID); err != nil {
+		slog.Warn("failed to persist math metrics", "task", stateID, "error", err)
 		return err
 	}
 	return nil
 }
 
-// containsSovereignAudit checks whether any text response contains the Sovereign Audit Report marker.
-func containsSovereignAudit(textResponses []string) bool {
-	return strings.Contains(strings.Join(textResponses, ""), "Sovereign Audit Report")
+// shouldTerminate returns true when the model response contains a Sovereign Audit
+// report and no pending tool calls, indicating the agent has completed its task.
+func shouldTerminate(toolCalls []map[string]interface{}, textResponses []string) bool {
+	if len(toolCalls) == 0 {
+		for _, text := range textResponses {
+			if strings.Contains(strings.ToLower(text), "sovereign audit") {
+				return true
+			}
+		}
+	}
+	return false
 }
