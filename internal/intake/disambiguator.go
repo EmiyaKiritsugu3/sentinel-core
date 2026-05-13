@@ -1,7 +1,9 @@
+// Package intake handles task disambiguation and intent analysis.
 // internal/intake/disambiguator.go
 package intake
 
 import (
+	"database/sql"
 	"fmt"
 	"math"
 	"strings"
@@ -115,41 +117,34 @@ func pronounSignal(description string) float64 {
 	return 0.00
 }
 
-func (d *Disambiguator) anchorSignal(description string) float64 {
-	lower := strings.ToLower(description)
-
-	// Phase 1: lexical anchors (zero DB)
+// hasCodeAnchor returns true if the description contains lexical anchors that
+// indicate a precise code reference (a file path, module path, or file extension).
+func hasCodeAnchor(lower string) bool {
 	if strings.Contains(lower, "internal/") ||
 		strings.Contains(lower, "pkg/") ||
 		strings.Contains(lower, ".go") {
-		return 0.00
+		return true
 	}
-	// line reference: colon followed by digit
+	return false
+}
+
+// hasLineReference returns true if the description contains a line reference
+// pattern (a colon followed by a digit), such as "main.go:42".
+func hasLineReference(description string) bool {
 	for i, ch := range description {
 		if ch == ':' && i+1 < len(description) && description[i+1] >= '0' && description[i+1] <= '9' {
-			return 0.00
+			return true
 		}
 	}
+	return false
+}
 
-	// Phase 2: graph-anchored (DB query)
-	if d.db == nil {
-		return weightAnchor // 0.40 — no graph available
-	}
-
-	var count int
-	if err := d.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes").Scan(&count); err != nil || count == 0 {
-		return weightAnchor // graph not indexed
-	}
-
-	keywords := extractKeywords(description)
-	if len(keywords) == 0 {
-		return weightAnchor
-	}
-
-	matched := 0
+// matchKeywordsInGraph queries the graph database for each keyword and returns
+// how many keywords matched at least one node.
+func matchKeywordsInGraph(db *sql.DB, keywords []string) (matched int, total int) {
 	for _, kw := range keywords {
 		var n int
-		err := d.db.Conn.QueryRow(
+		err := db.QueryRow(
 			"SELECT COUNT(*) FROM nodes WHERE LOWER(name) LIKE ?",
 			fmt.Sprintf("%%%s%%", kw),
 		).Scan(&n)
@@ -157,8 +152,37 @@ func (d *Disambiguator) anchorSignal(description string) float64 {
 			matched++
 		}
 	}
+	return matched, len(keywords)
+}
 
-	matchedRatio := float64(matched) / float64(len(keywords))
+func (d *Disambiguator) anchorSignal(description string) float64 {
+	lower := strings.ToLower(description)
+
+	// Phase 1: lexical anchors (zero DB)
+	if hasCodeAnchor(lower) {
+		return 0.00
+	}
+	if hasLineReference(description) {
+		return 0.00
+	}
+
+	// Phase 2: graph-anchored (DB query)
+	if d.db == nil {
+		return weightAnchor
+	}
+
+	var count int
+	if err := d.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes").Scan(&count); err != nil || count == 0 {
+		return weightAnchor
+	}
+
+	keywords := extractKeywords(description)
+	if len(keywords) == 0 {
+		return weightAnchor
+	}
+
+	matched, total := matchKeywordsInGraph(d.db.Conn, keywords)
+	matchedRatio := float64(matched) / float64(total)
 	return weightAnchor * (1.0 - matchedRatio)
 }
 
@@ -178,7 +202,7 @@ loop:
 		}
 		for rows.Next() {
 			if len(suggestions) >= 5 {
-				rows.Close()
+				_ = rows.Close()
 				break loop
 			}
 			var s Suggestion
@@ -187,7 +211,7 @@ loop:
 				seen[s.NodeName] = true
 			}
 		}
-		rows.Close()
+		_ = rows.Close()
 	}
 	return suggestions
 }
