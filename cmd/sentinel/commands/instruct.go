@@ -166,7 +166,7 @@ func isVagueIntent(intent string) bool {
 }
 
 func performDiagnostic(ctx context.Context, db *sqlite.DB) string {
-	// Query real no banco para encontrar os 3 arquivos mais complexos (God Objects)
+	// Real database query to find the 3 most complex files (God Objects)
 	query := `
 		SELECT n.file_path, COUNT(e.from_node_id) as degree
 		FROM nodes n

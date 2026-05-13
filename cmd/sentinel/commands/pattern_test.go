@@ -352,7 +352,7 @@ func findProjectRoot() string {
 	}
 }
 
-// CG-02: NewPatternCmd com nil DB deve retornar ErrNilDB na execução
+// CG-02: NewPatternCmd with nil DB should return ErrNilDB on execution
 
 func TestNewPatternCmd_NilDB(t *testing.T) {
 	cmd := NewPatternCmd(nil)

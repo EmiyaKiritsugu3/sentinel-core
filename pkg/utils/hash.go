@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-// CalculateHash gera um hash SHA256 do conteúdo de um arquivo para detecção de mudanças
+// CalculateHash generates a SHA256 hash of file content for change detection
 func CalculateHash(path string) (string, error) {
 	f, err := os.Open(path) //nolint:gosec // path from caller
 	if err != nil {

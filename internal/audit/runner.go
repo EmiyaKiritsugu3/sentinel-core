@@ -27,7 +27,7 @@ func NewRunner(db *sqlite.DB) (*Runner, error) {
 	return &Runner{db: db}, nil
 }
 
-// ExecuteAudit roda o commando de verificação para uma tarefa específica com timeout e proteção de shell
+// ExecuteAudit runs the verification command for a specific task with timeout and shell protection
 func (r *Runner) ExecuteAudit(taskID string, command string) (bool, error) {
 	slog.Info("auditing task", "task", taskID)
 
@@ -58,7 +58,7 @@ func (r *Runner) ExecuteAudit(taskID string, command string) (bool, error) {
 			slog.Error("audit timeout exceeded")
 			exitCode = 124
 		} else {
-			// Uso do errors.As para detecção robusta de erro de saída
+			// Use errors.As for robust exit error detection
 			var exitError *exec.ExitError
 			if errors.As(err, &exitError) {
 				exitCode = exitError.ExitCode()

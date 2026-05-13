@@ -22,7 +22,7 @@ func NewRootCmd(db *sqlite.DB) *cobra.Command {
 		return root
 	}
 
-	// Agrega todos os subcomandos registrados dinamicamente
+	// Aggregates all dynamically registered subcommands
 	for _, factory := range registry.GetCommands() {
 		root.AddCommand(factory(db))
 	}

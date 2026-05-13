@@ -15,8 +15,8 @@ import (
 	"github.com/smacker/go-tree-sitter/typescript/typescript"
 )
 
-// TreeSitterScanner agora utiliza o motor real Tree-sitter com suporte a concorrência segura
-// e extração semântica via Queries.
+// TreeSitterScanner uses the real Tree-sitter engine with concurrency support
+// and semantic extraction via Queries.
 type TreeSitterScanner struct {
 	pool     *sync.Pool
 	tsQuery  *sitter.Query
@@ -180,7 +180,7 @@ func (s *TreeSitterScanner) Scan(path string) ScanResult {
 }
 
 func (s *TreeSitterScanner) processSymbol(n *sitter.Node, captureName, name, path, fileID string, res *ScanResult) {
-	// Determina o tipo real (Heurística de Componente React)
+	// Determines the actual type (React Component Heuristic)
 	symbolType := "symbol"
 	switch captureName {
 	case "interface":
@@ -195,7 +195,7 @@ func (s *TreeSitterScanner) processSymbol(n *sitter.Node, captureName, name, pat
 		}
 	}
 
-	// Encontra o nó pai para pegar o range real (ex: interface_declaration inteiro)
+	// Find the parent node to get the real range (e.g. full interface_declaration)
 	parent := n.Parent()
 	if parent == nil {
 		parent = n

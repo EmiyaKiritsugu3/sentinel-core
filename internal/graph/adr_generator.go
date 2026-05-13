@@ -10,7 +10,7 @@ import (
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/utils"
 )
 
-// ADRGenerator gerencia a criação física de Architectural Decision Records
+// ADRGenerator manages the physical creation of Architectural Decision Records
 type ADRGenerator struct {
 	basePath string
 }
@@ -22,7 +22,7 @@ func NewADRGenerator() *ADRGenerator {
 	}
 }
 
-// ADRData contém todas as informações necessárias para gerar um registro de decisão
+// ADRData contains all information needed to generate a decision record
 type ADRData struct {
 	TaskID              string
 	Title               string
@@ -33,10 +33,10 @@ type ADRData struct {
 	Status              string // Ex: PROPOSED, ACCEPTED, DRAFT
 }
 
-// Generate cria um novo arquivo de ADR baseado nos dados fornecidos
+// Generate creates a new ADR file based on the provided data
 func (g *ADRGenerator) Generate(data ADRData) (string, error) {
 	slug := utils.Slugify(data.Title)
-	// Limita o slug para não estourar o nome do arquivo
+	// Limits the slug to avoid overflowing the filename
 	if len(slug) > 50 {
 		slug = slug[:50]
 	}
@@ -44,7 +44,7 @@ func (g *ADRGenerator) Generate(data ADRData) (string, error) {
 	filename := fmt.Sprintf("ADR-%s-%s.md", data.TaskID, slug)
 	fullPath := filepath.Join(g.basePath, filename)
 
-	// Template Smart ADR com Frontmatter Blindado
+	// Smart ADR Template with Hardened Frontmatter
 	now := time.Now().Format("2006-01-02")
 	status := data.Status
 	if status == "" {
@@ -85,7 +85,7 @@ Este ADR é um contrato determinístico. Para ser validado, o commando abaixo de
 - Task ID: [%s]
 `, safeTaskID, safeTitle, now, safeStatus, data.TaskID, data.Title, data.Context, data.Decision, data.Consequences, data.VerificationCommand, data.TaskID)
 
-	// Garante que o diretório existe
+	// Ensures the directory exists
 	if err := os.MkdirAll(g.basePath, 0750); err != nil {
 		return "", fmt.Errorf("adr: failed to create base directory %s: %w", g.basePath, err)
 	}

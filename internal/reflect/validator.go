@@ -32,7 +32,7 @@ func NewValidator(db *sqlite.DB) (*Validator, error) {
 	return &Validator{db: db}, nil
 }
 
-// ValidateProject varre o projeto em busca de violações de Standards
+// ValidateProject scans the project for Standards violations
 func (v *Validator) ValidateProject(root string) ([]Violation, error) {
 	var violations []Violation
 
@@ -59,7 +59,7 @@ func (v *Validator) ValidateProject(root string) ([]Violation, error) {
 	return violations, nil
 }
 
-// ValidatePath garante que o caminho fornecido pelo agente é seguro (Standard #10).
+// ValidatePath ensures the agent-provided path is safe (Standard #10).
 func (v *Validator) ValidatePath(path string) error {
 	cleanPath := filepath.Clean(path)
 
@@ -68,7 +68,7 @@ func (v *Validator) ValidatePath(path string) error {
 		return fmt.Errorf("security: absolute paths are forbidden: %s", path)
 	}
 
-	// 2. Bloqueia tentativa de sair do diretório do projeto (Path Traversal)
+	// 2. Blocks attempts to escape the project directory (Path Traversal)
 	if strings.HasPrefix(cleanPath, "..") {
 		return fmt.Errorf("security: path traversal attempt detected: %s", path)
 	}
@@ -76,7 +76,7 @@ func (v *Validator) ValidatePath(path string) error {
 	return nil
 }
 
-// ValidateCommand valida se o commando shell é permitido e não contém injeções.
+// ValidateCommand validates whether the shell command is allowed and injection-free.
 func (v *Validator) ValidateCommand(cmd string) error {
 	forbidden := []string{"|", "&&", ";", ">", ">>", "<", "`", "$("}
 	for _, char := range forbidden {

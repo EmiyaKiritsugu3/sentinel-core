@@ -50,7 +50,7 @@ func NewFactory(db *sqlite.DB, classifier *IntentClassifier) (*Factory, error) {
 	return &Factory{db: db, classifier: classifier}, nil
 }
 
-// GeneratePayload constrói o payload estruturado para a Engine
+// GeneratePayload builds the structured payload for the Engine
 func (f *Factory) GeneratePayload(ctx context.Context, taskID string, personaPrompt string) (*ContextPayload, error) {
 	mgr, err := state.NewManager(f.db)
 	if err != nil {

@@ -187,12 +187,12 @@ func (s *Server) writePump(c *wsClient) {
 	}
 }
 
-// StartHTTP inicia o servidor HTTP bloqueante
+// StartHTTP starts the blocking HTTP server
 func (s *Server) StartHTTP(port int, db *sqlite.DB) error {
 	http.HandleFunc("/ws", s.serveWS)
 	http.HandleFunc("/api/graph", handleGetGraph(db))
 
-	// Servir o build do Vite
+	// Serve the Vite build
 	fs := http.FileServer(http.Dir("./web/dist"))
 	http.Handle("/", fs)
 

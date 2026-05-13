@@ -24,7 +24,7 @@ func NewVisualizer(db *sqlite.DB) (*Visualizer, error) {
 	return &Visualizer{db: db}, nil
 }
 
-// GenerateMasterDiagram gera o C4 holístico do projeto
+// GenerateMasterDiagram generates the holistic C4 of the project
 func (v *Visualizer) GenerateMasterDiagram(ctx context.Context) error {
 	nodes, err := v.getNodes(ctx, "")
 	if err != nil {
@@ -51,7 +51,7 @@ func (v *Visualizer) GenerateMasterDiagram(ctx context.Context) error {
 	return nil
 }
 
-// GenerateTaskSnapshot gera um diagrama focado nos nós impactados por uma tarefa
+// GenerateTaskSnapshot generates a diagram focused on nodes impacted by a task
 func (v *Visualizer) GenerateTaskSnapshot(ctx context.Context, taskID, description string, impactFiles []string) error {
 	var nodes []Node
 	for _, file := range impactFiles {
@@ -113,7 +113,7 @@ func (v *Visualizer) getNodes(ctx context.Context, filterFile string) ([]Node, e
 	return nodes, nil
 }
 
-// GenerateC4ContainerDiagram gera um diagrama C4 de Nível 2 (Container)
+// GenerateC4ContainerDiagram generates a C4 Level 2 (Container) diagram
 func (v *Visualizer) GenerateC4ContainerDiagram(ctx context.Context) error {
 	nodes, err := v.getNodes(ctx, "")
 	if err != nil {

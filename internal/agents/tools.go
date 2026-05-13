@@ -168,7 +168,7 @@ func (t *WriteFileTool) Execute(ctx context.Context, args map[string]interface{}
 		return "", err // Sentinel Protocol: Block writing syntactically invalid code
 	}
 
-	// Garante que o diretório pai exista
+	// Ensures the parent directory exists
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0750); err != nil {
 		return "", fmt.Errorf("write_file: failed to create directory %s: %w", dir, err)

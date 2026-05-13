@@ -45,11 +45,11 @@ func NewAggregator(db *sqlite.DB) (*Aggregator, error) {
 	return &Aggregator{db: db}, nil
 }
 
-// FetchStats consolida todos os dados do SQLite
+// FetchStats consolidates all SQLite data
 func (a *Aggregator) FetchStats(ctx context.Context) (*ProjectStats, error) {
 	stats := &ProjectStats{}
 
-	// 1. Contagem de Nós
+	// 1. Node count
 	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM nodes").Scan(&stats.TotalNodes); err != nil {
 		return nil, fmt.Errorf("aggregator: failed to count nodes: %w", err)
 	}
@@ -63,7 +63,7 @@ func (a *Aggregator) FetchStats(ctx context.Context) (*ProjectStats, error) {
 		return nil, fmt.Errorf("aggregator: failed to count structs: %w", err)
 	}
 
-	// 2. Contagem de Tasks
+	// 2. Task count
 	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM tasks").Scan(&stats.TotalTasks); err != nil {
 		return nil, fmt.Errorf("aggregator: failed to count tasks: %w", err)
 	}
@@ -74,7 +74,7 @@ func (a *Aggregator) FetchStats(ctx context.Context) (*ProjectStats, error) {
 		return nil, fmt.Errorf("aggregator: failed to count failed tasks: %w", err)
 	}
 
-	// 3. Cálculo de Success Rate e SME
+	// 3. Success Rate and SME calculation
 	if stats.TotalTasks > 0 {
 		stats.SuccessRate = float64(stats.CompletedTasks) / float64(stats.TotalTasks) * 100
 
@@ -87,7 +87,7 @@ func (a *Aggregator) FetchStats(ctx context.Context) (*ProjectStats, error) {
 		}
 	}
 
-	// 4. Listagem Detalhada de Tasks (Sovereign Link Discovery)
+	// 4. Detailed Task Listing (Sovereign Link Discovery)
 	mgr, err := state.NewManager(a.db)
 	if err != nil {
 		return nil, fmt.Errorf("aggregator: failed to create manager: %w", err)
@@ -99,7 +99,7 @@ func (a *Aggregator) FetchStats(ctx context.Context) (*ProjectStats, error) {
 
 	for _, t := range tasks {
 		info := TaskInfo{Task: t}
-		// Tenta encontrar o ADR via padrão no disco
+		// Attempts to find ADR via pattern on disk
 		pattern := filepath.Join("docs/architecture/adr", fmt.Sprintf("ADR-%s-*.md", t.ID))
 		matches, _ := filepath.Glob(pattern)
 		if len(matches) > 0 {
@@ -111,7 +111,7 @@ func (a *Aggregator) FetchStats(ctx context.Context) (*ProjectStats, error) {
 	return stats, nil
 }
 
-// GenerateMarkdown gera o arquivo de dashboard persistence
+// GenerateMarkdown generates the persistence dashboard file
 func (a *Aggregator) GenerateMarkdown(stats *ProjectStats) error {
 	content := "# Sentinel Compliance Dashboard 📊 [PID-SENTINEL]\n\n"
 	content += "> [!NOTE]\n> Este relatório é gerado automaticamente pelo Guardião.\n\n"

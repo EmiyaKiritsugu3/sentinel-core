@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	// 1. Inicializa o Cérebro (SQLite)
+	// 1. Initialize the Brain (SQLite)
 	db, err := sqlite.Init()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "❌ Failed to initialize sentinel brain: %v\n", err)
@@ -17,6 +17,6 @@ func main() {
 	}
 	defer func() { _ = db.Close() }()
 
-	// 2. Executa o CLI injetando o banco
+	// 2. Execute the CLI with injected database
 	commands.Execute(db)
 }

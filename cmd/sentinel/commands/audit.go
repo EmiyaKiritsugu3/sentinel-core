@@ -39,7 +39,7 @@ func NewAuditCmd(db *sqlite.DB) *cobra.Command {
 			return fmt.Errorf("audit: no active task found. Run 'sentinel start <id>' first: %w", err)
 		}
 
-		// 1. Sovereign Gate: Validação de Padrões
+		// 1. Sovereign Gate: Standards Validation
 		fmt.Println("🛡️  Sentinel: Running Sovereign Validator...")
 		validator, err := reflect.NewValidator(db)
 		if err != nil {

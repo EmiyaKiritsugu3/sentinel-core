@@ -16,14 +16,14 @@ var (
 	mu        sync.Mutex
 )
 
-// Register adiciona uma factory ao registry global de forma thread-safe.
+// Register adds a factory to the global registry in a thread-safe way.
 func Register(factory CommandFactory) {
 	mu.Lock()
 	defer mu.Unlock()
 	factories = append(factories, factory)
 }
 
-// GetCommands retorna uma cópia defensiva das factories registradas.
+// GetCommands returns a defensive copy of registered factories.
 func GetCommands() []CommandFactory {
 	mu.Lock()
 	defer mu.Unlock()
@@ -32,7 +32,7 @@ func GetCommands() []CommandFactory {
 	return result
 }
 
-// ResetForTesting limpa o registry global. Apenas para uso em testes.
+// ResetForTesting clears the global registry. Only for test use.
 func ResetForTesting() {
 	mu.Lock()
 	defer mu.Unlock()

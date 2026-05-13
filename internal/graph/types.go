@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// Node representa um símbolo ou arquivo no grafo
+// Node represents a symbol or file in the graph
 type Node struct {
 	ID          string
 	Name        string
@@ -23,14 +23,14 @@ type Edge struct {
 	Rel  string // contains, imports, calls, renders, etc.
 }
 
-// ScanResult contém os dados extraídos de um único arquivo
+// ScanResult contains data extracted from a single file
 type ScanResult struct {
 	Nodes []Node
 	Edges []Edge
 	Err   error
 }
 
-// FileScanner é a interface que cada driver de linguagem deve implementar
+// FileScanner is the interface each language driver must implement
 type FileScanner interface {
 	Scan(path string) ScanResult
 	SupportedExtensions() []string

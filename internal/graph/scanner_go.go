@@ -11,7 +11,7 @@ import (
 
 // GoScanner scans Go source files using the standard go/ast and go/parser packages.
 type GoScanner struct {
-	// Scanner Go não precisa mais do DB diretamente
+	// Go Scanner no longer needs the DB directly
 }
 
 // NewGoScanner creates a new GoScanner.
@@ -41,7 +41,7 @@ func (s *GoScanner) Scan(path string) ScanResult {
 		FilePath: path,
 	})
 
-	// Extrai Imports do arquivo Go
+	// Extracts imports from the Go file
 	for _, imp := range f.Imports {
 		importPath := strings.Trim(imp.Path.Value, "\"")
 		importID := fmt.Sprintf("import:%s:%s", path, importPath)

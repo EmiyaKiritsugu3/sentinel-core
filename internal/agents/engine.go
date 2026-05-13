@@ -26,6 +26,9 @@ const (
 	ModelPro   = "gemini-1.5-pro"
 )
 
+// pacAngleLogMsg is the log message key used for PAC angle analysis.
+const pacAngleLogMsg = "PAC angle analysis"
+
 // Tool defines the interface for agent capabilities.
 type Tool interface {
 	Name() string
@@ -543,17 +546,17 @@ func (e *Engine) runPACDeliberation(ctx *AgentContext) (string, error) {
 	// Phase 1: Angle A (Minimalist) - YAGNI check
 	// Analyzes whether the current approach is over-engineered.
 	result.AngleA = e.pacAngleMinimalist(ctx)
-	slog.Info("PAC angle analysis", "angle", "A", "approach", "minimalist", "recommendation", result.AngleA)
+	slog.Info(pacAngleLogMsg, "angle", "A", "approach", "minimalist", "recommendation", result.AngleA)
 
 	// Phase 2: Angle B (Structuralist) - Plan pivot check
 	// Analyzes whether the current technical approach is fundamentally flawed.
 	result.AngleB = e.pacAngleStructuralist(ctx)
-	slog.Info("PAC angle analysis", "angle", "B", "approach", "structural_pivot", "recommendation", result.AngleB)
+	slog.Info(pacAngleLogMsg, "angle", "B", "approach", "structural_pivot", "recommendation", result.AngleB)
 
 	// Phase 3: Angle C (Auditor) - Environment & compliance check
 	// Analyzes resource constraints and escalation state.
 	result.AngleC = e.pacAngleAuditor(ctx)
-	slog.Info("PAC angle analysis", "angle", "C", "approach", "compliance", "recommendation", result.AngleC)
+	slog.Info(pacAngleLogMsg, "angle", "C", "approach", "compliance", "recommendation", result.AngleC)
 
 	// Determine final recommendation: worst-case wins.
 	// Escalate > Pivot > Simplify > Proceed
