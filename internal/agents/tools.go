@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -77,11 +78,11 @@ func (t *ReadFileTool) Execute(ctx context.Context, args map[string]interface{})
 		end = int(e)
 	}
 
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // path from user input (validated)
 	if err != nil {
 		return "", fmt.Errorf("read_file: failed to open %s: %w", path, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var result []string
 	scanner := bufio.NewScanner(file)
@@ -154,11 +155,11 @@ func (t *WriteFileTool) Execute(ctx context.Context, args map[string]interface{}
 
 	// Garante que o diretório pai exista
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return "", fmt.Errorf("write_file: failed to create directory %s: %w", dir, err)
 	}
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		return "", fmt.Errorf("write_file: failed to write file %s: %w", path, err)
 	}
 
@@ -214,11 +215,11 @@ func (t *ReplaceTool) Execute(ctx context.Context, args map[string]interface{}) 
 	oldStr, _ := args["old_string"].(string)
 	newStr, _ := args["new_string"].(string)
 
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // path from user input (validated)
 	if err != nil {
 		return "", fmt.Errorf("replace: failed to open %s: %w", path, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var sb strings.Builder
 	scanner := bufio.NewScanner(file)
@@ -241,11 +242,63 @@ func (t *ReplaceTool) Execute(ctx context.Context, args map[string]interface{}) 
 		return "", err // Sentinel Protocol: Block writing syntactically invalid code
 	}
 
-	if err := os.WriteFile(path, []byte(newContent), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(newContent), 0600); err != nil {
 		return "", fmt.Errorf("replace: failed to write file %s: %w", path, err)
 	}
 
 	return fmt.Sprintf("Successfully replaced content in %s.", path), nil
+}
+
+// textFileExtensions defines file extensions that GrepSearchTool scans.
+var textFileExtensions = map[string]bool{
+	".go":   true,
+	".md":   true,
+	".json": true,
+	".yaml": true,
+	".yml":  true,
+	".sql":  true,
+}
+
+// skipDirs defines directory names that GrepSearchTool skips during traversal.
+var skipDirs = map[string]bool{
+	".git":          true,
+	"node_modules": true,
+	"vendor":       true,
+}
+
+// shouldSkipDir returns true if the directory should be skipped during file traversal.
+func shouldSkipDir(d fs.DirEntry) bool {
+	return skipDirs[d.Name()]
+}
+
+// isTextFile returns true if the file extension is one that GrepSearchTool scans.
+func isTextFile(ext string) bool {
+	return textFileExtensions[ext]
+}
+
+// scanFileMatches opens a file, scans each line for regex matches, and returns
+// formatted "path:line: text" entries. Returns an error if the file cannot be opened
+// or too many matches are found.
+func scanFileMatches(re *regexp.Regexp, path string) ([]string, error) {
+	file, err := os.Open(path) //nolint:gosec // path from user input (validated)
+	if err != nil {
+		return nil, nil //nolint:nilnil // skip files we can't open
+	}
+	defer func() { _ = file.Close() }()
+
+	var matches []string
+	scanner := bufio.NewScanner(file)
+	lineNum := 1
+	for scanner.Scan() {
+		if re.MatchString(scanner.Text()) {
+			matches = append(matches, fmt.Sprintf("%s:%d: %s", path, lineNum, scanner.Text()))
+		}
+		if len(matches) > 100 {
+			return matches, fmt.Errorf("too many matches found")
+		}
+		lineNum++
+	}
+	return matches, nil
 }
 
 // --- GrepSearchTool ---
@@ -305,35 +358,22 @@ func (t *GrepSearchTool) Execute(ctx context.Context, args map[string]interface{
 			return err
 		}
 		if d.IsDir() {
-			if d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == "vendor" {
+			if shouldSkipDir(d) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 
-		// Only scan text files (simple heuristic)
-		ext := filepath.Ext(path)
-		if ext != ".go" && ext != ".md" && ext != ".json" && ext != ".yaml" && ext != ".yml" && ext != ".sql" {
+		if !isTextFile(filepath.Ext(path)) {
 			return nil
 		}
 
-		file, err := os.Open(path)
-		if err != nil {
-			return nil // Skip files we can't open
+		fileMatches, scanErr := scanFileMatches(re, path)
+		if scanErr != nil && scanErr.Error() == "too many matches found" {
+			matches = append(matches, fileMatches...)
+			return scanErr
 		}
-		defer file.Close()
-
-		scanner := bufio.NewScanner(file)
-		lineNum := 1
-		for scanner.Scan() {
-			if re.MatchString(scanner.Text()) {
-				matches = append(matches, fmt.Sprintf("%s:%d: %s", path, lineNum, scanner.Text()))
-			}
-			if len(matches) > 100 {
-				return fmt.Errorf("too many matches found")
-			}
-			lineNum++
-		}
+		matches = append(matches, fileMatches...)
 		return nil
 	})
 
@@ -392,13 +432,13 @@ func (t *AuditTool) Execute(ctx context.Context, args map[string]interface{}) (s
 	}
 
 	var report strings.Builder
-	report.WriteString(fmt.Sprintf("Sovereign Audit Report: %d violation(s) found\n", len(violations)))
+	fmt.Fprintf(&report, "Sovereign Audit Report: %d violation(s) found\n", len(violations))
 	for i, v := range violations {
 		if i >= 30 {
 			report.WriteString("\n... [TRUNCATED] Please fix the above violations first.")
 			break
 		}
-		report.WriteString(fmt.Sprintf("- [%s] %s:%d: %s\n", v.StandardID, v.FilePath, v.Line, v.Reason))
+		fmt.Fprintf(&report, "- [%s] %s:%d: %s\n", v.StandardID, v.FilePath, v.Line, v.Reason)
 	}
 
 	return report.String(), nil
@@ -451,7 +491,7 @@ func (t *RunTool) Execute(ctx context.Context, args map[string]interface{}) (str
 		return "", fmt.Errorf("run: empty command")
 	}
 
-	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
+	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...) //nolint:gosec // intentional: command from trusted config
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -536,7 +576,7 @@ func (t *ADRTool) Execute(ctx context.Context, args map[string]interface{}) (str
 	if err != nil {
 		return "", fmt.Errorf("adr tool: failed to create manager: %w", err)
 	}
-	task, err := manager.GetActiveTask()
+	task, err := manager.GetActiveTask(ctx)
 	if err != nil {
 		return "", fmt.Errorf("adr tool: failed to get active task: %w", err)
 	}
@@ -597,7 +637,7 @@ func (t *ScanTool) Execute(ctx context.Context, args map[string]interface{}) (st
 	engine.RegisterScanner(graph.NewGoScanner())
 	engine.RegisterScanner(graph.NewTreeSitterScanner())
 
-	if err := engine.ScanProject("."); err != nil {
+	if err := engine.ScanProject(ctx, "."); err != nil {
 		return "", fmt.Errorf("scan: failed: %w", err)
 	}
 
@@ -708,7 +748,7 @@ func (t *DecomposeTool) Execute(ctx context.Context, args map[string]interface{}
 	if err != nil {
 		return "", fmt.Errorf("decompose: failed to create manager: %w", err)
 	}
-	parentTask, err := manager.GetActiveTask()
+	parentTask, err := manager.GetActiveTask(ctx)
 	if err != nil {
 		return "", fmt.Errorf("decompose: no active task: %w", err)
 	}
@@ -721,7 +761,7 @@ func (t *DecomposeTool) Execute(ctx context.Context, args map[string]interface{}
 	if err != nil {
 		return "", fmt.Errorf("decompose: failed to start transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	for _, stRaw := range subtasks {
 		st := stRaw.(map[string]interface{})
@@ -747,7 +787,7 @@ func (t *DecomposeTool) Execute(ctx context.Context, args map[string]interface{}
 	return fmt.Sprintf("Successfully decomposed task into %d sub-tasks: %s", len(results), strings.Join(results, ", ")), nil
 }
 
-// RegisterCoreTools adiciona as ferramentas fundamentais ao registro.
+// RegisterCoreTools registers the core tools in the agent registry.
 func RegisterCoreTools(r *Registry, db *sqlite.DB) {
 	r.Tools["read_file"] = &ReadFileTool{db: db}
 	r.Tools["write_file"] = &WriteFileTool{db: db}
