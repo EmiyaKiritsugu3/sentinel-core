@@ -51,7 +51,7 @@ func readIntent(message string, quick bool) (string, error) {
 }
 
 // collectADRDetails fills an ADRData based on the user's menu choice.
-func collectADRDetails(choice string, intent string, evidence string) graph.ADRData {
+func collectADRDetails(choice, intent, evidence string) graph.ADRData {
 	adrData := graph.ADRData{
 		Title:  intent,
 		Status: "PROPOSED",
