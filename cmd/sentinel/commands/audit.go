@@ -16,6 +16,8 @@ func init() {
 	registry.Register(NewAuditCmd)
 }
 
+// NewAuditCmd creates a cobra command that runs the verification gate
+// for the currently active task, including sovereign and technical validation.
 func NewAuditCmd(db *sqlite.DB) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "audit",
@@ -28,59 +30,59 @@ func NewAuditCmd(db *sqlite.DB) *cobra.Command {
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-			mgr, err := state.NewManager(db)
-			if err != nil {
-				return fmt.Errorf("audit: failed to create manager: %w", err)
-			}
-			task, err := mgr.GetActiveTask()
-			if err != nil {
-				return fmt.Errorf("audit: no active task found. Run 'sentinel start <id>' first: %w", err)
-			}
+		mgr, err := state.NewManager(db)
+		if err != nil {
+			return fmt.Errorf("audit: failed to create manager: %w", err)
+		}
+		task, err := mgr.GetActiveTask(cmd.Context())
+		if err != nil {
+			return fmt.Errorf("audit: no active task found. Run 'sentinel start <id>' first: %w", err)
+		}
 
-			// 1. Sovereign Gate: Validação de Padrões
-			fmt.Println("🛡️  Sentinel: Running Sovereign Validator...")
-			validator, err := reflect.NewValidator(db)
-			if err != nil {
-				return fmt.Errorf("audit: failed to create validator: %w", err)
-			}
-			violations, err := validator.ValidateProject(".")
-			if err != nil {
-				return fmt.Errorf("audit: validator internal error: %w", err)
-			}
+		// 1. Sovereign Gate: Validação de Padrões
+		fmt.Println("🛡️  Sentinel: Running Sovereign Validator...")
+		validator, err := reflect.NewValidator(db)
+		if err != nil {
+			return fmt.Errorf("audit: failed to create validator: %w", err)
+		}
+		violations, err := validator.ValidateProject(".")
+		if err != nil {
+			return fmt.Errorf("audit: validator internal error: %w", err)
+		}
 
-			if len(violations) > 0 {
-				fmt.Printf("🛑 ARCHITECTURAL VIOLATIONS DETECTED (%d):\n", len(violations))
-				for _, v := range violations {
-					fmt.Printf("   - [%s] %s:%d: %s\n", v.StandardID, v.FilePath, v.Line, v.Reason)
-				}
-				_ = mgr.UpdateStatus(task.ID, "FAILED")
-				return errors.New("task rejected by Sovereign Validator. Fix the standards and try again")
+		if len(violations) > 0 {
+			fmt.Printf("🛑 ARCHITECTURAL VIOLATIONS DETECTED (%d):\n", len(violations))
+			for _, v := range violations {
+				fmt.Printf("   - [%s] %s:%d: %s\n", v.StandardID, v.FilePath, v.Line, v.Reason)
 			}
+			_ = mgr.UpdateStatus(cmd.Context(), task.ID, "FAILED")
+			return errors.New("task rejected by Sovereign Validator. Fix the standards and try again")
+		}
 
-			// 2. Technical Gate: Build & Tests
-			_, verifyCmd, err := mgr.GetTaskByID(task.ID)
-			if err != nil {
-				return fmt.Errorf("audit: task record corrupted: %w", err)
-			}
+		// 2. Technical Gate: Build & Tests
+		_, verifyCmd, err := mgr.GetTaskByID(cmd.Context(), task.ID)
+		if err != nil {
+			return fmt.Errorf("audit: task record corrupted: %w", err)
+		}
 
-			runner, err := audit.NewRunner(db)
-			if err != nil {
-				return fmt.Errorf("audit: failed to create runner: %w", err)
-			}
-			success, err := runner.ExecuteAudit(task.ID, verifyCmd)
-			if err != nil {
-				return fmt.Errorf("audit: execution error: %w", err)
-			}
+		runner, err := audit.NewRunner(db)
+		if err != nil {
+			return fmt.Errorf("audit: failed to create runner: %w", err)
+		}
+		success, err := runner.ExecuteAudit(task.ID, verifyCmd)
+		if err != nil {
+			return fmt.Errorf("audit: execution error: %w", err)
+		}
 
-			if success {
-				if err := mgr.UpdateStatus(task.ID, "DONE"); err != nil {
-					return fmt.Errorf("audit: failed to mark task as DONE: %w", err)
-				}
-				fmt.Println("🏆 Task marked as DONE. Commit authorized.")
-			} else {
-				_ = mgr.UpdateStatus(task.ID, "FAILED")
-				return errors.New("audit failed. Fix the code and try again")
+		if success {
+			if err := mgr.UpdateStatus(cmd.Context(), task.ID, "DONE"); err != nil {
+				return fmt.Errorf("audit: failed to mark task as DONE: %w", err)
 			}
+			fmt.Println("🏆 Task marked as DONE. Commit authorized.")
+		} else {
+			_ = mgr.UpdateStatus(cmd.Context(), task.ID, "FAILED")
+			return errors.New("audit failed. Fix the code and try again")
+		}
 		return nil
 	}
 

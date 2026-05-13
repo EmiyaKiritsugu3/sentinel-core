@@ -11,10 +11,12 @@ import (
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/utils"
 )
 
+// Visualizer generates architectural diagrams from the graph database.
 type Visualizer struct {
 	db *sqlite.DB
 }
 
+// NewVisualizer creates a new Visualizer with the given database connection.
 func NewVisualizer(db *sqlite.DB) (*Visualizer, error) {
 	if err := sqlite.ValidateDB(db, "graph-visualizer"); err != nil {
 		return nil, err

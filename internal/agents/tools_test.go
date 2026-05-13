@@ -10,6 +10,7 @@ import (
 )
 
 func TestReadFileTool_Metadata(t *testing.T) {
+	t.Parallel()
 	tool := &ReadFileTool{}
 
 	if tool.Name() != "read_file" {
@@ -34,6 +35,7 @@ func TestReadFileTool_Metadata(t *testing.T) {
 }
 
 func TestWriteFileTool_Metadata(t *testing.T) {
+	t.Parallel()
 	tool := &WriteFileTool{}
 
 	if tool.Name() != "write_file" {
@@ -58,6 +60,7 @@ func TestWriteFileTool_Metadata(t *testing.T) {
 }
 
 func TestReplaceTool_Metadata(t *testing.T) {
+	t.Parallel()
 	tool := &ReplaceTool{}
 
 	if tool.Name() != "replace" {
@@ -85,6 +88,7 @@ func TestReplaceTool_Metadata(t *testing.T) {
 }
 
 func TestGrepSearchTool_Metadata(t *testing.T) {
+	t.Parallel()
 	tool := &GrepSearchTool{}
 
 	if tool.Name() != "grep_search" {
@@ -97,6 +101,7 @@ func TestGrepSearchTool_Metadata(t *testing.T) {
 }
 
 func TestAuditTool_Metadata(t *testing.T) {
+	t.Parallel()
 	tool := &AuditTool{}
 
 	if tool.Name() != "sentinel:audit" {
@@ -109,6 +114,7 @@ func TestAuditTool_Metadata(t *testing.T) {
 }
 
 func TestRunTool_Metadata(t *testing.T) {
+	t.Parallel()
 	tool := &RunTool{}
 
 	if tool.Name() != "sentinel:run" {
@@ -121,6 +127,7 @@ func TestRunTool_Metadata(t *testing.T) {
 }
 
 func TestADRTool_Metadata(t *testing.T) {
+	t.Parallel()
 	tool := &ADRTool{}
 
 	if tool.Name() != "sentinel:adr" {
@@ -133,6 +140,7 @@ func TestADRTool_Metadata(t *testing.T) {
 }
 
 func TestScanTool_Metadata(t *testing.T) {
+	t.Parallel()
 	tool := &ScanTool{}
 
 	if tool.Name() != "sentinel_scan" {
@@ -145,6 +153,7 @@ func TestScanTool_Metadata(t *testing.T) {
 }
 
 func TestDecomposeTool_Metadata(t *testing.T) {
+	t.Parallel()
 	tool := &DecomposeTool{}
 
 	if tool.Name() != "sentinel:decompose" {
@@ -157,6 +166,7 @@ func TestDecomposeTool_Metadata(t *testing.T) {
 }
 
 func TestDecomposeTool_ValidateArguments_MaxSubtasks(t *testing.T) {
+	t.Parallel()
 	tool := &DecomposeTool{}
 	args := map[string]interface{}{
 		"subtasks": []interface{}{
@@ -175,6 +185,7 @@ func TestDecomposeTool_ValidateArguments_MaxSubtasks(t *testing.T) {
 }
 
 func TestDecomposeTool_ValidateArguments_MissingDescription(t *testing.T) {
+	t.Parallel()
 	tool := &DecomposeTool{}
 	args := map[string]interface{}{
 		"subtasks": []interface{}{
@@ -188,6 +199,7 @@ func TestDecomposeTool_ValidateArguments_MissingDescription(t *testing.T) {
 }
 
 func TestDecomposeTool_ValidateArguments_MissingBranch(t *testing.T) {
+	t.Parallel()
 	tool := &DecomposeTool{}
 	args := map[string]interface{}{
 		"subtasks": []interface{}{
@@ -201,6 +213,7 @@ func TestDecomposeTool_ValidateArguments_MissingBranch(t *testing.T) {
 }
 
 func TestDecomposeTool_ValidateArguments_MissingCapabilities(t *testing.T) {
+	t.Parallel()
 	tool := &DecomposeTool{}
 	args := map[string]interface{}{
 		"subtasks": []interface{}{
@@ -214,6 +227,7 @@ func TestDecomposeTool_ValidateArguments_MissingCapabilities(t *testing.T) {
 }
 
 func TestDecomposeTool_ValidateArguments_Valid(t *testing.T) {
+	t.Parallel()
 	tool := &DecomposeTool{}
 	args := map[string]interface{}{
 		"subtasks": []interface{}{
@@ -226,6 +240,7 @@ func TestDecomposeTool_ValidateArguments_Valid(t *testing.T) {
 }
 
 func TestDecomposeTool_ValidateArguments_InvalidSubtaskType(t *testing.T) {
+	t.Parallel()
 	tool := &DecomposeTool{}
 	args := map[string]interface{}{
 		"subtasks": []interface{}{
@@ -239,6 +254,7 @@ func TestDecomposeTool_ValidateArguments_InvalidSubtaskType(t *testing.T) {
 }
 
 func TestDecomposeTool_ValidateArguments_NonStringCapability(t *testing.T) {
+	t.Parallel()
 	tool := &DecomposeTool{}
 	args := map[string]interface{}{
 		"subtasks": []interface{}{
@@ -252,6 +268,7 @@ func TestDecomposeTool_ValidateArguments_NonStringCapability(t *testing.T) {
 }
 
 func TestDecomposeTool_ValidateArguments_MissingSubtasksKey(t *testing.T) {
+	t.Parallel()
 	tool := &DecomposeTool{}
 	err := tool.ValidateArguments(nil, map[string]interface{}{})
 	if err == nil {
@@ -260,6 +277,7 @@ func TestDecomposeTool_ValidateArguments_MissingSubtasksKey(t *testing.T) {
 }
 
 func TestDecomposeTool_ValidateArguments_SubtasksNotArray(t *testing.T) {
+	t.Parallel()
 	tool := &DecomposeTool{}
 	args := map[string]interface{}{
 		"subtasks": "not-an-array",
@@ -271,10 +289,11 @@ func TestDecomposeTool_ValidateArguments_SubtasksNotArray(t *testing.T) {
 }
 
 func TestReadFileTool_Execute_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "hello.txt")
 	content := "line1\nline2\nline3\n"
-	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil { //nolint:gosec // test fixture
 		t.Fatalf("write temp file: %v", err)
 	}
 
@@ -291,9 +310,10 @@ func TestReadFileTool_Execute_Success(t *testing.T) {
 }
 
 func TestReadFileTool_Execute_LineRange(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "ranged.txt")
-	if err := os.WriteFile(tmpFile, []byte("a\nb\nc\nd\ne\n"), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte("a\nb\nc\nd\ne\n"), 0644); err != nil { //nolint:gosec // test fixture
 		t.Fatalf("write temp file: %v", err)
 	}
 
@@ -312,6 +332,7 @@ func TestReadFileTool_Execute_LineRange(t *testing.T) {
 }
 
 func TestRunTool_Execute(t *testing.T) {
+	t.Parallel()
 	tool := &RunTool{}
 	result, err := tool.Execute(context.Background(), map[string]interface{}{
 		"command": "echo hello",
@@ -325,6 +346,7 @@ func TestRunTool_Execute(t *testing.T) {
 }
 
 func TestRunTool_Execute_EmptyCommand(t *testing.T) {
+	t.Parallel()
 	tool := &RunTool{}
 	_, err := tool.Execute(context.Background(), map[string]interface{}{
 		"command": "",
@@ -335,6 +357,7 @@ func TestRunTool_Execute_EmptyCommand(t *testing.T) {
 }
 
 func TestGrepSearchTool_ValidateArguments_DefaultDir(t *testing.T) {
+	t.Parallel()
 	tool := &GrepSearchTool{}
 	err := tool.ValidateArguments(nil, map[string]interface{}{})
 	if err != nil {
@@ -343,6 +366,7 @@ func TestGrepSearchTool_ValidateArguments_DefaultDir(t *testing.T) {
 }
 
 func TestADRTool_ValidateArguments_MissingField(t *testing.T) {
+	t.Parallel()
 	tool := &ADRTool{}
 	err := tool.ValidateArguments(nil, map[string]interface{}{
 		"title":   "test",
@@ -354,6 +378,7 @@ func TestADRTool_ValidateArguments_MissingField(t *testing.T) {
 }
 
 func TestWriteFileTool_Execute_InvalidGoCode(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "bad.go")
 
@@ -368,10 +393,11 @@ func TestWriteFileTool_Execute_InvalidGoCode(t *testing.T) {
 }
 
 func TestReplaceTool_Execute_InvalidGoCode(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "replace.go")
 	initialContent := "package main\n\nfunc hello() {}\n"
-	if err := os.WriteFile(tmpFile, []byte(initialContent), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte(initialContent), 0644); err != nil { //nolint:gosec // test fixture
 		t.Fatalf("setup: %v", err)
 	}
 

@@ -1,6 +1,8 @@
+// Package report generates compliance dashboards and project statistics.
 package report
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -10,11 +12,13 @@ import (
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 )
 
+// TaskInfo wraps a state.Task with its ADR path.
 type TaskInfo struct {
 	state.Task
 	ADRPath string
 }
 
+// ProjectStats aggregates project compliance statistics.
 type ProjectStats struct {
 	TotalNodes     int
 	TotalFiles     int
@@ -28,10 +32,12 @@ type ProjectStats struct {
 	Tasks          []TaskInfo
 }
 
+// Aggregator collects and reports project statistics.
 type Aggregator struct {
 	db *sqlite.DB
 }
 
+// NewAggregator creates a new Aggregator with the given DB.
 func NewAggregator(db *sqlite.DB) (*Aggregator, error) {
 	if err := sqlite.ValidateDB(db, "report-aggregator"); err != nil {
 		return nil, err
@@ -40,31 +46,31 @@ func NewAggregator(db *sqlite.DB) (*Aggregator, error) {
 }
 
 // FetchStats consolida todos os dados do SQLite
-func (a *Aggregator) FetchStats() (*ProjectStats, error) {
+func (a *Aggregator) FetchStats(ctx context.Context) (*ProjectStats, error) {
 	stats := &ProjectStats{}
 
 	// 1. Contagem de Nós
-	if err := a.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes").Scan(&stats.TotalNodes); err != nil {
+	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM nodes").Scan(&stats.TotalNodes); err != nil {
 		return nil, fmt.Errorf("aggregator: failed to count nodes: %w", err)
 	}
-	if err := a.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes WHERE type = 'file'").Scan(&stats.TotalFiles); err != nil {
+	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM nodes WHERE type = 'file'").Scan(&stats.TotalFiles); err != nil {
 		return nil, fmt.Errorf("aggregator: failed to count files: %w", err)
 	}
-	if err := a.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes WHERE type = 'function'").Scan(&stats.TotalFunctions); err != nil {
+	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM nodes WHERE type = 'function'").Scan(&stats.TotalFunctions); err != nil {
 		return nil, fmt.Errorf("aggregator: failed to count functions: %w", err)
 	}
-	if err := a.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes WHERE type = 'struct'").Scan(&stats.TotalStructs); err != nil {
+	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM nodes WHERE type = 'struct'").Scan(&stats.TotalStructs); err != nil {
 		return nil, fmt.Errorf("aggregator: failed to count structs: %w", err)
 	}
 
 	// 2. Contagem de Tasks
-	if err := a.db.Conn.QueryRow("SELECT COUNT(*) FROM tasks").Scan(&stats.TotalTasks); err != nil {
+	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM tasks").Scan(&stats.TotalTasks); err != nil {
 		return nil, fmt.Errorf("aggregator: failed to count tasks: %w", err)
 	}
-	if err := a.db.Conn.QueryRow("SELECT COUNT(*) FROM tasks WHERE status = 'DONE'").Scan(&stats.CompletedTasks); err != nil {
+	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM tasks WHERE status = 'DONE'").Scan(&stats.CompletedTasks); err != nil {
 		return nil, fmt.Errorf("aggregator: failed to count completed tasks: %w", err)
 	}
-	if err := a.db.Conn.QueryRow("SELECT COUNT(*) FROM tasks WHERE status = 'FAILED'").Scan(&stats.FailedTasks); err != nil {
+	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM tasks WHERE status = 'FAILED'").Scan(&stats.FailedTasks); err != nil {
 		return nil, fmt.Errorf("aggregator: failed to count failed tasks: %w", err)
 	}
 
@@ -73,7 +79,7 @@ func (a *Aggregator) FetchStats() (*ProjectStats, error) {
 		stats.SuccessRate = float64(stats.CompletedTasks) / float64(stats.TotalTasks) * 100
 
 		var avgDelta sql.NullFloat64
-		if err := a.db.Conn.QueryRow("SELECT AVG(math_delta) FROM tasks WHERE status = 'DONE'").Scan(&avgDelta); err != nil {
+		if err := a.db.Conn.QueryRowContext(ctx, "SELECT AVG(math_delta) FROM tasks WHERE status = 'DONE'").Scan(&avgDelta); err != nil {
 			return nil, fmt.Errorf("aggregator: failed to calculate avg math delta: %w", err)
 		}
 		if avgDelta.Valid {
@@ -86,7 +92,7 @@ func (a *Aggregator) FetchStats() (*ProjectStats, error) {
 	if err != nil {
 		return nil, fmt.Errorf("aggregator: failed to create manager: %w", err)
 	}
-	tasks, err := mgr.ListTasks()
+	tasks, err := mgr.ListTasks(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("aggregator: failed to list tasks: %w", err)
 	}
@@ -105,7 +111,7 @@ func (a *Aggregator) FetchStats() (*ProjectStats, error) {
 	return stats, nil
 }
 
-// GenerateMarkdown gera o arquivo de dashboard persistente
+// GenerateMarkdown gera o arquivo de dashboard persistence
 func (a *Aggregator) GenerateMarkdown(stats *ProjectStats) error {
 	content := "# Sentinel Compliance Dashboard 📊 [PID-SENTINEL]\n\n"
 	content += "> [!NOTE]\n> Este relatório é gerado automaticamente pelo Guardião.\n\n"
@@ -137,6 +143,8 @@ func (a *Aggregator) GenerateMarkdown(stats *ProjectStats) error {
 	}
 
 	path := "docs/process/COMPLIANCE-DASHBOARD.md"
-	os.MkdirAll(filepath.Dir(path), 0755)
-	return os.WriteFile(path, []byte(content), 0644)
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
+		return fmt.Errorf("aggregate: failed to create directory: %w", err)
+	}
+	return os.WriteFile(path, []byte(content), 0600)
 }

@@ -16,7 +16,7 @@ type Node struct {
 	LastIndexed time.Time
 }
 
-// Edge representa uma relação entre dois nós
+// Edge represents a directed relationship between two nodes in the dependency graph.
 type Edge struct {
 	From string
 	To   string

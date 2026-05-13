@@ -15,10 +15,11 @@ import (
 )
 
 func TestServer_Broadcast(t *testing.T) {
+	t.Parallel()
 	server := NewServer()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go server.Run(ctx)
+	go func() { _ = server.Run(ctx) }()
 
 	// Start test HTTP server
 	ts := httptest.NewServer(http.HandlerFunc(server.serveWS))
@@ -27,11 +28,12 @@ func TestServer_Broadcast(t *testing.T) {
 	// Connect a WebSocket client
 	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http")
 	dialer := websocket.Dialer{}
-	conn, _, err := dialer.Dial(wsURL, nil)
+	conn, resp, err := dialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = resp.Body.Close() }()
+	defer func() { _ = conn.Close() }()
 
 	// Poll until the hub has registered the client instead of sleeping a fixed duration.
 	deadline := time.After(2 * time.Second)
@@ -58,7 +60,7 @@ func TestServer_Broadcast(t *testing.T) {
 	server.Notify(event)
 
 	// Read event from client
-	conn.SetReadDeadline(time.Now().Add(time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(time.Second))
 	_, msg, err := conn.ReadMessage()
 	if err != nil {
 		t.Fatalf("failed to read message: %v", err)
@@ -76,10 +78,11 @@ func TestServer_Broadcast(t *testing.T) {
 }
 
 func TestServer_ConcurrentNotify(t *testing.T) {
+	t.Parallel()
 	server := NewServer()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go server.Run(ctx)
+	go func() { _ = server.Run(ctx) }()
 
 	var wg sync.WaitGroup
 

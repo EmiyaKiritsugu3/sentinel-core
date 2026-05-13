@@ -1,3 +1,4 @@
+// Package graph provides AST analysis, dependency resolution, and visualization.
 package graph
 
 import (
@@ -14,6 +15,7 @@ type ADRGenerator struct {
 	basePath string
 }
 
+// NewADRGenerator creates a new ADR generator instance.
 func NewADRGenerator() *ADRGenerator {
 	return &ADRGenerator{
 		basePath: "docs/architecture/adr",
@@ -74,7 +76,7 @@ author: "Sentinel Auto-ADR"
 %s
 
 ## Protocolo de Verificação
-Este ADR é um contrato determinístico. Para ser validado, o comando abaixo deve passar:
+Este ADR é um contrato determinístico. Para ser validado, o commando abaixo deve passar:
 `+"```bash"+`
 %s
 `+"```"+`
@@ -84,12 +86,10 @@ Este ADR é um contrato determinístico. Para ser validado, o comando abaixo dev
 `, safeTaskID, safeTitle, now, safeStatus, data.TaskID, data.Title, data.Context, data.Decision, data.Consequences, data.VerificationCommand, data.TaskID)
 
 	// Garante que o diretório existe
-	if err := os.MkdirAll(g.basePath, 0755); err != nil {
-		return "", fmt.Errorf("adr: failed to create directory: %w", err)
+	if err := os.MkdirAll(g.basePath, 0750); err != nil {
+		return "", fmt.Errorf("adr: failed to create base directory %s: %w", g.basePath, err)
 	}
-
-	// Escreve o arquivo
-	if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(fullPath, []byte(content), 0600); err != nil {
 		return "", fmt.Errorf("adr: failed to write file %s: %w", filename, err)
 	}
 

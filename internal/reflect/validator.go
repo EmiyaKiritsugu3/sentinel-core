@@ -1,3 +1,4 @@
+// Package reflect provides structural validation and compliance checking.
 package reflect
 
 import (
@@ -10,6 +11,7 @@ import (
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 )
 
+// Violation represents a standard violation found during validation.
 type Violation struct {
 	StandardID string
 	FilePath   string
@@ -17,10 +19,12 @@ type Violation struct {
 	Reason     string
 }
 
+// Validator checks project files against Sentinel standards.
 type Validator struct {
 	db *sqlite.DB
 }
 
+// NewValidator creates a new Validator with the given DB.
 func NewValidator(db *sqlite.DB) (*Validator, error) {
 	if err := sqlite.ValidateDB(db, "reflect-validator"); err != nil {
 		return nil, err
@@ -72,7 +76,7 @@ func (v *Validator) ValidatePath(path string) error {
 	return nil
 }
 
-// ValidateCommand valida se o comando shell é permitido e não contém injeções.
+// ValidateCommand valida se o commando shell é permitido e não contém injeções.
 func (v *Validator) ValidateCommand(cmd string) error {
 	forbidden := []string{"|", "&&", ";", ">", ">>", "<", "`", "$("}
 	for _, char := range forbidden {
@@ -84,11 +88,11 @@ func (v *Validator) ValidateCommand(cmd string) error {
 }
 
 func (v *Validator) checkFile(path string) ([]Violation, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // path from caller
 	if err != nil {
 		return nil, fmt.Errorf("validator: failed to open file %s: %w", path, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Quis custodiet ipsos custodes?
 	isValidatorItself := strings.Contains(path, "internal/reflect/validator.go")

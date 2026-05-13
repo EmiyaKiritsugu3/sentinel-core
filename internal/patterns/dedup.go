@@ -1,6 +1,7 @@
 package patterns
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -78,15 +79,16 @@ func parseTags(s string) []string {
 }
 
 const (
-	levenshteinThreshold  = 3
-	tagOverlapThreshold   = 0.5
+	levenshteinThreshold = 3
+	tagOverlapThreshold  = 0.5
 )
 
-func (s *PatternStore) FindSimilar(title string, tags []string) ([]Pattern, error) {
+// FindSimilar searches for patterns similar to the given title and tags using Levenshtein distance and tag overlap.
+func (s *PatternStore) FindSimilar(ctx context.Context, title string, tags []string) ([]Pattern, error) {
 	if err := sqlite.ValidateDB(s.db, "pattern-store.FindSimilar"); err != nil {
 		return nil, err
 	}
-	all, err := s.List(ListFilters{})
+	all, err := s.List(ctx, ListFilters{})
 	if err != nil {
 		return nil, fmt.Errorf("patterns: find similar: %w", err)
 	}

@@ -1,7 +1,9 @@
+// Package patterns manages architectural pattern extraction and storage.
 package patterns
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +12,7 @@ import (
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 )
 
+// BackfillResult holds the outcome of a backfill operation.
 type BackfillResult struct {
 	Extracted  int
 	Inserted   int
@@ -18,6 +21,7 @@ type BackfillResult struct {
 	Candidates []BackfillCandidate
 }
 
+// BackfillCandidate represents a single pattern extracted from a source document.
 type BackfillCandidate struct {
 	Title       string
 	Description string
@@ -28,8 +32,8 @@ type BackfillCandidate struct {
 	Impact      string
 }
 
-func (s *PatternStore) insertIfNew(c BackfillCandidate, source string, result *BackfillResult) {
-	existing, _ := s.List(ListFilters{})
+func (s *PatternStore) insertIfNew(ctx context.Context, c BackfillCandidate, source string, result *BackfillResult) {
+	existing, _ := s.List(ctx, ListFilters{})
 	for _, p := range existing {
 		if strings.EqualFold(p.Title, c.Title) {
 			result.Skipped++
@@ -37,7 +41,7 @@ func (s *PatternStore) insertIfNew(c BackfillCandidate, source string, result *B
 		}
 	}
 
-	_, err := s.Create(&Pattern{
+	_, err := s.Create(ctx, &Pattern{
 		Title:       c.Title,
 		Description: c.Description,
 		Category:    c.Category,
@@ -53,7 +57,8 @@ func (s *PatternStore) insertIfNew(c BackfillCandidate, source string, result *B
 	result.Inserted++
 }
 
-func (s *PatternStore) BackfillFromCognitiveDNA(baseDir string) (BackfillResult, error) {
+// BackfillFromCognitiveDNA extracts patterns from the COGNITIVE-DNA.md file and inserts them.
+func (s *PatternStore) BackfillFromCognitiveDNA(ctx context.Context, baseDir string) (BackfillResult, error) {
 	if err := sqlite.ValidateDB(s.db, "pattern-store.BackfillFromCognitiveDNA"); err != nil {
 		return BackfillResult{}, err
 	}
@@ -65,12 +70,13 @@ func (s *PatternStore) BackfillFromCognitiveDNA(baseDir string) (BackfillResult,
 	result.Extracted = len(candidates)
 
 	for _, c := range candidates {
-		s.insertIfNew(c, SourceCognitiveDNA, &result)
+		s.insertIfNew(ctx, c, SourceCognitiveDNA, &result)
 	}
 	return result, nil
 }
 
-func (s *PatternStore) BackfillFromEvolutionInsights(baseDir string) (BackfillResult, error) {
+// BackfillFromEvolutionInsights extracts patterns from the EVOLUTION-INSIGHTS.md file and inserts them.
+func (s *PatternStore) BackfillFromEvolutionInsights(ctx context.Context, baseDir string) (BackfillResult, error) {
 	if err := sqlite.ValidateDB(s.db, "pattern-store.BackfillFromEvolutionInsights"); err != nil {
 		return BackfillResult{}, err
 	}
@@ -82,12 +88,13 @@ func (s *PatternStore) BackfillFromEvolutionInsights(baseDir string) (BackfillRe
 	result.Extracted = len(candidates)
 
 	for _, c := range candidates {
-		s.insertIfNew(c, SourceEvolutionInsights, &result)
+		s.insertIfNew(ctx, c, SourceEvolutionInsights, &result)
 	}
 	return result, nil
 }
 
-func (s *PatternStore) BackfillFromSentinelLog(baseDir string, dryRun bool) (BackfillResult, error) {
+// BackfillFromSentinelLog extracts patterns from the sentinel-log.md file and inserts them.
+func (s *PatternStore) BackfillFromSentinelLog(ctx context.Context, baseDir string, dryRun bool) (BackfillResult, error) {
 	if err := sqlite.ValidateDB(s.db, "pattern-store.BackfillFromSentinelLog"); err != nil {
 		return BackfillResult{}, err
 	}
@@ -104,7 +111,7 @@ func (s *PatternStore) BackfillFromSentinelLog(baseDir string, dryRun bool) (Bac
 		return result, nil
 	}
 	for _, c := range candidates {
-		s.insertIfNew(c, SourceSentinelLog, &result)
+		s.insertIfNew(ctx, c, SourceSentinelLog, &result)
 	}
 	return result, nil
 }
@@ -153,11 +160,11 @@ func flushPMO(currentPMO BackfillCandidate, pmoBody *strings.Builder, candidates
 }
 
 func parseCognitiveDNA(path string) ([]BackfillCandidate, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // path from caller
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var candidates []BackfillCandidate
 	scanner := bufio.NewScanner(f)
@@ -179,11 +186,11 @@ func parseCognitiveDNA(path string) ([]BackfillCandidate, error) {
 			}
 			title := strings.TrimPrefix(line, "### ")
 			currentPMO = BackfillCandidate{
-				Title:    title,
-				Category: CategoryStructuralPrinciple,
+				Title:     title,
+				Category:  CategoryStructuralPrinciple,
 				SourceRef: fmt.Sprintf("COGNITIVE-DNA.md:%s", title),
-				Tags:     "modus-operandi,cognitive-dna",
-				Impact:   ImpactMedium,
+				Tags:      "modus-operandi,cognitive-dna",
+				Impact:    ImpactMedium,
 			}
 			inPMO = true
 			pmoBody.Reset()
@@ -246,11 +253,11 @@ func parseEvolutionLine(line string, inGaps, inCognitive bool) (BackfillCandidat
 }
 
 func parseEvolutionInsights(path string) ([]BackfillCandidate, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // path from caller
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var candidates []BackfillCandidate
 	scanner := bufio.NewScanner(f)
@@ -318,11 +325,11 @@ func parseSentinelLine(line string) (BackfillCandidate, bool) {
 }
 
 func parseSentinelLog(path string) ([]BackfillCandidate, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // path from caller
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var candidates []BackfillCandidate
 	scanner := bufio.NewScanner(f)

@@ -8,6 +8,7 @@ import (
 )
 
 func TestHeuristic_Diagnose(t *testing.T) {
+	t.Parallel()
 	c := bridge.NewIntentClassifier(nil, 0.60)
 	got := c.Classify(context.Background(), "t1", "fix the broken JWT validation")
 	if got != bridge.IntentDiagnose {
@@ -16,6 +17,7 @@ func TestHeuristic_Diagnose(t *testing.T) {
 }
 
 func TestHeuristic_Implement(t *testing.T) {
+	t.Parallel()
 	c := bridge.NewIntentClassifier(nil, 0.60)
 	got := c.Classify(context.Background(), "t2", "add OAuth2 support to auth module")
 	if got != bridge.IntentImplement {
@@ -24,8 +26,10 @@ func TestHeuristic_Implement(t *testing.T) {
 }
 
 func TestHeuristic_Ambiguous_ReturnsUnknown(t *testing.T) {
+	t.Parallel()
 	// "fix" (diagnose) + "review" (review) = 2 categories = confidence 0.30 < 0.60
 	// AI is nil → IntentUnknown
+
 	c := bridge.NewIntentClassifier(nil, 0.60)
 	got := c.Classify(context.Background(), "t3", "fix and review the auth module")
 	if got != bridge.IntentUnknown {
@@ -34,6 +38,7 @@ func TestHeuristic_Ambiguous_ReturnsUnknown(t *testing.T) {
 }
 
 func TestHeuristic_NoMatch_ReturnsUnknown(t *testing.T) {
+	t.Parallel()
 	c := bridge.NewIntentClassifier(nil, 0.60)
 	got := c.Classify(context.Background(), "t4", "the JWT module")
 	if got != bridge.IntentUnknown {
@@ -42,6 +47,7 @@ func TestHeuristic_NoMatch_ReturnsUnknown(t *testing.T) {
 }
 
 func TestCache_ReturnsCachedOnSecondCall(t *testing.T) {
+	t.Parallel()
 	c := bridge.NewIntentClassifier(nil, 0.60)
 	first := c.Classify(context.Background(), "t5", "fix the bug")
 	second := c.Classify(context.Background(), "t5", "completely different description")
@@ -51,6 +57,7 @@ func TestCache_ReturnsCachedOnSecondCall(t *testing.T) {
 }
 
 func TestNilClassifier_ReturnsUnknown(t *testing.T) {
+	t.Parallel()
 	n := bridge.NewNilClassifier()
 	got, err := n.Classify(context.Background(), "anything")
 	if err != nil {

@@ -78,6 +78,7 @@ func collectADRDetails(choice string, intent string, evidence string) graph.ADRD
 	return adrData
 }
 
+// NewInstructCmd creates a cobra command that captures user intent and generates ADR tasks.
 func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 	var message string
 	var quick bool

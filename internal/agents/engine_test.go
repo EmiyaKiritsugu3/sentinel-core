@@ -26,11 +26,12 @@ func (m *mockAuthProvider) GetAPIKey() (string, error) {
 // --- NewEngine / Close ---
 
 func TestNewEngine(t *testing.T) {
+	t.Parallel()
 	registry := NewRegistry()
 	auth := &mockAuthProvider{key: "fake-key"}
 	_ = bridge.NewIntentClassifier(bridge.NewNilClassifier(), 0.60)
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	validator, err := reflect.NewValidator(db)
 	if err != nil {
@@ -41,7 +42,7 @@ func TestNewEngine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}
-	defer engine.Close()
+	defer func() { _ = engine.Close() }()
 
 	if engine.genaiClient == nil {
 		t.Fatal("genaiClient should not be nil")
@@ -49,7 +50,8 @@ func TestNewEngine(t *testing.T) {
 }
 
 func TestEngine_Close_NilClient(t *testing.T) {
-	e := &Engine{Registry: NewRegistry()}
+	t.Parallel()
+	e := &Engine{registry: NewRegistry()}
 	if err := e.Close(); err != nil {
 		t.Fatalf("Close on nil client should return nil, got: %v", err)
 	}
@@ -58,9 +60,10 @@ func TestEngine_Close_NilClient(t *testing.T) {
 // --- isExplicitThoughtBlock ---
 
 func TestIsExplicitThoughtBlock(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
-		name string
-		input string
+		name     string
+		input    string
 		expected bool
 	}{
 		{"thought tag prefix", "<think>this is my reasoning", true},
@@ -76,6 +79,7 @@ func TestIsExplicitThoughtBlock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := isExplicitThoughtBlock(tt.input)
 			if result != tt.expected {
 				t.Errorf("isExplicitThoughtBlock(%q) = %v, want %v", tt.input, result, tt.expected)
@@ -87,31 +91,36 @@ func TestIsExplicitThoughtBlock(t *testing.T) {
 // --- shouldEscalate ---
 
 func TestShouldEscalate(t *testing.T) {
+	t.Parallel()
 	e := &Engine{}
 
 	t.Run("escalates when 3 failures on flash model", func(t *testing.T) {
-		ctx := &AgentContext{FailureCount: 3, ActiveModel: "gemini-1.5-flash"}
+		t.Parallel()
+		ctx := &AgentContext{FailureCount: 3, ActiveModel: ModelFlash}
 		if !e.shouldEscalate(ctx) {
 			t.Error("expected shouldEscalate=true for 3 failures on flash")
 		}
 	})
 
 	t.Run("does not escalate when failures < 3", func(t *testing.T) {
-		ctx := &AgentContext{FailureCount: 2, ActiveModel: "gemini-1.5-flash"}
+		t.Parallel()
+		ctx := &AgentContext{FailureCount: 2, ActiveModel: ModelFlash}
 		if e.shouldEscalate(ctx) {
 			t.Error("expected shouldEscalate=false for 2 failures")
 		}
 	})
 
 	t.Run("does not escalate when model is not flash", func(t *testing.T) {
-		ctx := &AgentContext{FailureCount: 3, ActiveModel: "gemini-1.5-pro"}
+		t.Parallel()
+		ctx := &AgentContext{FailureCount: 3, ActiveModel: ModelPro}
 		if e.shouldEscalate(ctx) {
 			t.Error("expected shouldEscalate=false for pro model")
 		}
 	})
 
 	t.Run("does not escalate with zero failures", func(t *testing.T) {
-		ctx := &AgentContext{FailureCount: 0, ActiveModel: "gemini-1.5-flash"}
+		t.Parallel()
+		ctx := &AgentContext{FailureCount: 0, ActiveModel: ModelFlash}
 		if e.shouldEscalate(ctx) {
 			t.Error("expected shouldEscalate=false for 0 failures")
 		}
@@ -121,13 +130,14 @@ func TestShouldEscalate(t *testing.T) {
 // --- escalate ---
 
 func TestEscalate(t *testing.T) {
+	t.Parallel()
 	e := &Engine{}
-	ctx := &AgentContext{FailureCount: 5, ActiveModel: "gemini-1.5-flash"}
+	ctx := &AgentContext{FailureCount: 5, ActiveModel: ModelFlash}
 
 	e.escalate(ctx)
 
-	if ctx.ActiveModel != "gemini-1.5-pro" {
-		t.Errorf("expected ActiveModel=gemini-1.5-pro, got %s", ctx.ActiveModel)
+	if ctx.ActiveModel != ModelPro {
+		t.Errorf("expected ActiveModel=%s, got %s", ModelPro, ctx.ActiveModel)
 	}
 	if ctx.FailureCount != 0 {
 		t.Errorf("expected FailureCount=0 after escalation, got %d", ctx.FailureCount)
@@ -137,8 +147,10 @@ func TestEscalate(t *testing.T) {
 // --- getGenaiTools ---
 
 func TestGetGenaiTools(t *testing.T) {
+	t.Parallel()
 	t.Run("empty registry returns nil", func(t *testing.T) {
-		e := &Engine{Registry: NewRegistry()}
+		t.Parallel()
+		e := &Engine{registry: NewRegistry()}
 		result := e.getGenaiTools()
 		if result != nil {
 			t.Error("expected nil for empty registry")
@@ -146,10 +158,11 @@ func TestGetGenaiTools(t *testing.T) {
 	})
 
 	t.Run("registry with tools returns declarations", func(t *testing.T) {
+		t.Parallel()
 		registry := NewRegistry()
-		registry.Tools["read_file"] = &ReadFileTool{}
-		registry.Tools["write_file"] = &WriteFileTool{}
-		e := &Engine{Registry: registry}
+		registry.SetTool("read_file", &ReadFileTool{})
+		registry.SetTool("write_file", &WriteFileTool{})
+		e := &Engine{registry: registry}
 
 		result := e.getGenaiTools()
 		if result == nil {
@@ -167,10 +180,11 @@ func TestGetGenaiTools(t *testing.T) {
 // --- Execute (DB validation guard) ---
 
 func TestExecute_NilDB(t *testing.T) {
-	e := &Engine{DB: nil}
+	t.Parallel()
+	e := &Engine{db: nil}
 	ctx := NewAgentContext(context.Background(), "test-task", &AgentDefinition{
-		Name: "test",
-		ModelID: "gemini-1.5-flash",
+		Name:     "test",
+		ModelID:  ModelFlash,
 		MaxSteps: 5,
 	})
 
@@ -186,15 +200,16 @@ func TestExecute_NilDB(t *testing.T) {
 // --- processSubTasks ---
 
 func TestProcessSubTasks(t *testing.T) {
+	// Not parallel at parent level: parent sets up DB shared by subtests.
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	t.Cleanup(func() { _ = db.Close() })
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
 	// Insert a parent task first
 	parentID := "parent-task-1"
-	_, err := db.Conn.Exec(
+	_, err := db.Conn.ExecContext(context.Background(),
 		"INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
 		parentID, "parent task", "IN_PROGRESS", "T2",
 	)
@@ -202,12 +217,13 @@ func TestProcessSubTasks(t *testing.T) {
 		t.Fatalf("failed to insert parent task: %v", err)
 	}
 
-	e := &Engine{DB: db, Registry: NewRegistry()}
+	e := &Engine{db: db, registry: NewRegistry()}
 
 	t.Run("no pending sub-tasks returns nil", func(t *testing.T) {
+		t.Parallel()
 		ctx := NewAgentContext(context.Background(), parentID, &AgentDefinition{
 			Name:     "test",
-			ModelID:  "gemini-1.5-flash",
+			ModelID:  ModelFlash,
 			MaxSteps: 5,
 		})
 		err := e.processSubTasks(ctx)
@@ -217,10 +233,12 @@ func TestProcessSubTasks(t *testing.T) {
 	})
 
 	t.Run("pending sub-tasks with nil dispatcher panics (skip — not a valid call path)", func(t *testing.T) {
-		t.Skip("processSubTasks is only called when e.Dispatcher != nil, so nil Dispatcher is not a valid call path")
+		t.Parallel()
+		t.Skip("processSubTasks is only called when e.dispatcher != nil, so nil Dispatcher is not a valid call path")
 	})
 
 	t.Run("pending sub-tasks with dispatcher (skip — requires GitShield)", func(t *testing.T) {
+		t.Parallel()
 		t.Skip("Dispatcher.Dispatch requires non-nil GitShield, which needs a real git repo")
 	})
 }
@@ -228,22 +246,24 @@ func TestProcessSubTasks(t *testing.T) {
 // --- executeToolsWithResults ---
 
 func TestExecuteToolsWithResults(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	registry := NewRegistry()
 	validator, err := reflect.NewValidator(db)
 	if err != nil {
 		t.Fatalf("failed to create validator: %v", err)
 	}
-	e := &Engine{Registry: registry, validator: validator, DB: db}
+	e := &Engine{registry: registry, validator: validator, db: db}
 
 	t.Run("unknown tool returns error", func(t *testing.T) {
+		t.Parallel()
 		toolCalls := []map[string]interface{}{
 			{"name": "nonexistent_tool", "args": map[string]interface{}{}},
 		}
 		ctx := NewAgentContext(context.Background(), "test", &AgentDefinition{
-			Name: "test", ModelID: "gemini-1.5-flash", MaxSteps: 5,
+			Name: "test", ModelID: ModelFlash, MaxSteps: 5,
 		})
 
 		_, err := e.executeToolsWithResults(ctx, toolCalls)
@@ -256,7 +276,8 @@ func TestExecuteToolsWithResults(t *testing.T) {
 	})
 
 	t.Run("path validation rejects absolute paths", func(t *testing.T) {
-		registry.Tools["read_file"] = &ReadFileTool{db: db}
+		t.Parallel()
+		registry.SetTool("read_file", &ReadFileTool{db: db})
 		toolCalls := []map[string]interface{}{
 			{
 				"name": "read_file",
@@ -264,7 +285,7 @@ func TestExecuteToolsWithResults(t *testing.T) {
 			},
 		}
 		ctx := NewAgentContext(context.Background(), "test", &AgentDefinition{
-			Name: "test", ModelID: "gemini-1.5-flash", MaxSteps: 5,
+			Name: "test", ModelID: ModelFlash, MaxSteps: 5,
 		})
 
 		_, err := e.executeToolsWithResults(ctx, toolCalls)
@@ -280,40 +301,255 @@ func TestExecuteToolsWithResults(t *testing.T) {
 // --- runPACDeliberation ---
 
 func TestRunPACDeliberation(t *testing.T) {
+	t.Parallel()
 	e := &Engine{}
-	ctx := NewAgentContext(context.Background(), "test", &AgentDefinition{
-		Name: "test", ModelID: "gemini-1.5-flash", MaxSteps: 5,
+
+	t.Run("proceeds when all angles green", func(t *testing.T) {
+		t.Parallel()
+		ctx := NewAgentContext(context.Background(), "test", &AgentDefinition{
+			Name: "test", ModelID: ModelFlash, MaxSteps: 100,
+		})
+		ctx.Budget.StepsTaken = 5
+
+		result, err := e.runPACDeliberation(ctx)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if !strings.Contains(result, "proceed") {
+			t.Errorf("expected 'proceed' in result, got: %s", result)
+		}
+		if ctx.Strategy != "" {
+			t.Errorf("expected empty strategy on proceed, got: %s", ctx.Strategy)
+		}
 	})
 
-	result, err := e.runPACDeliberation(ctx)
-	if err != nil {
-		t.Fatalf("expected no error, got: %v", err)
+	t.Run("simplifies when thought/action ratio is high", func(t *testing.T) {
+		t.Parallel()
+		ctx := NewAgentContext(context.Background(), "test", &AgentDefinition{
+			Name: "test", ModelID: ModelFlash, MaxSteps: 100,
+		})
+		ctx.ThoughtTokens = 300
+		ctx.ActionTokens = 100 // ratio = 3.0 > 2.0
+
+		result, err := e.runPACDeliberation(ctx)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if !strings.Contains(result, "simplif") {
+			t.Errorf("expected 'simplify' in result, got: %s", result)
+		}
+		if ctx.Strategy != "simplify" {
+			t.Errorf("expected strategy='simplify', got: %s", ctx.Strategy)
+		}
+	})
+
+	t.Run("pivots when divergence count is high", func(t *testing.T) {
+		t.Parallel()
+		ctx := NewAgentContext(context.Background(), "test", &AgentDefinition{
+			Name: "test", ModelID: ModelFlash, MaxSteps: 100,
+		})
+		ctx.DivergenceCount = 3
+
+		result, err := e.runPACDeliberation(ctx)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if !strings.Contains(result, "pivot") {
+			t.Errorf("expected 'pivot' in result, got: %s", result)
+		}
+		if ctx.Strategy != "sovereign-pivot" {
+			t.Errorf("expected strategy='sovereign-pivot', got: %s", ctx.Strategy)
+		}
+	})
+
+	t.Run("escalates when pro model still failing", func(t *testing.T) {
+		t.Parallel()
+		ctx := NewAgentContext(context.Background(), "test", &AgentDefinition{
+			Name: "test", ModelID: ModelPro, MaxSteps: 100,
+		})
+		ctx.ActiveModel = ModelPro
+		ctx.FailureCount = 1
+
+		result, err := e.runPACDeliberation(ctx)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if !strings.Contains(result, "escalat") {
+			t.Errorf("expected 'escalate' in result, got: %s", result)
+		}
+	})
+}
+
+// --- PAC individual angles ---
+
+func TestPacAngleMinimalist(t *testing.T) {
+	t.Parallel()
+	e := &Engine{}
+
+	t.Run("proceeds with fresh budget", func(t *testing.T) {
+		t.Parallel()
+		ctx := NewAgentContext(context.Background(), "test", &AgentDefinition{
+			Name: "test", ModelID: ModelFlash, MaxSteps: 100,
+		})
+		ctx.Budget.StepsTaken = 5
+		if got := e.pacAngleMinimalist(ctx); got != PACProceed {
+			t.Errorf("expected PACProceed, got %v", got)
+		}
+	})
+
+	t.Run("simplifies when thought/action ratio > 2.0", func(t *testing.T) {
+		t.Parallel()
+		ctx := NewAgentContext(context.Background(), "test", &AgentDefinition{
+			Name: "test", ModelID: ModelFlash, MaxSteps: 100,
+		})
+		ctx.ThoughtTokens = 250
+		ctx.ActionTokens = 100
+		if got := e.pacAngleMinimalist(ctx); got != PACSimplify {
+			t.Errorf("expected PACSimplify, got %v", got)
+		}
+	})
+
+	t.Run("simplifies when budget > 70% consumed", func(t *testing.T) {
+		t.Parallel()
+		ctx := NewAgentContext(context.Background(), "test", &AgentDefinition{
+			Name: "test", ModelID: ModelFlash, MaxSteps: 10,
+		})
+		ctx.Budget.StepsTaken = 8
+		if got := e.pacAngleMinimalist(ctx); got != PACSimplify {
+			t.Errorf("expected PACSimplify, got %v", got)
+		}
+	})
+
+	t.Run("proceeds with nil budget", func(t *testing.T) {
+		t.Parallel()
+		ctx := &AgentContext{}
+		if got := e.pacAngleMinimalist(ctx); got != PACProceed {
+			t.Errorf("expected PACProceed with nil budget, got %v", got)
+		}
+	})
+}
+
+func TestPacAngleStructuralist(t *testing.T) {
+	t.Parallel()
+	e := &Engine{}
+
+	t.Run("pivots on divergence count >= 2", func(t *testing.T) {
+		t.Parallel()
+		ctx := &AgentContext{DivergenceCount: 2}
+		if got := e.pacAngleStructuralist(ctx); got != PACPivot {
+			t.Errorf("expected PACPivot, got %v", got)
+		}
+	})
+
+	t.Run("pivots on failure count >= 2", func(t *testing.T) {
+		t.Parallel()
+		ctx := &AgentContext{FailureCount: 2}
+		if got := e.pacAngleStructuralist(ctx); got != PACPivot {
+			t.Errorf("expected PACPivot, got %v", got)
+		}
+	})
+
+	t.Run("proceeds when metrics are healthy", func(t *testing.T) {
+		t.Parallel()
+		ctx := &AgentContext{FailureCount: 0, DivergenceCount: 0}
+		if got := e.pacAngleStructuralist(ctx); got != PACProceed {
+			t.Errorf("expected PACProceed, got %v", got)
+		}
+	})
+}
+
+func TestPacAngleAuditor(t *testing.T) {
+	t.Parallel()
+	e := &Engine{}
+
+	t.Run("escalates when pro model failing", func(t *testing.T) {
+		t.Parallel()
+		ctx := &AgentContext{ActiveModel: ModelPro, FailureCount: 1}
+		if got := e.pacAngleAuditor(ctx); got != PACEscalate {
+			t.Errorf("expected PACEscalate, got %v", got)
+		}
+	})
+
+	t.Run("escalates when budget > 90% consumed", func(t *testing.T) {
+		t.Parallel()
+		ctx := NewAgentContext(context.Background(), "test", &AgentDefinition{
+			Name: "test", ModelID: ModelFlash, MaxSteps: 10,
+		})
+		ctx.Budget.StepsTaken = 10
+		if got := e.pacAngleAuditor(ctx); got != PACEscalate {
+			t.Errorf("expected PACEscalate, got %v", got)
+		}
+	})
+
+	t.Run("proceeds on flash model with no failures", func(t *testing.T) {
+		t.Parallel()
+		ctx := &AgentContext{ActiveModel: ModelFlash, FailureCount: 0}
+		if got := e.pacAngleAuditor(ctx); got != PACProceed {
+			t.Errorf("expected PACProceed, got %v", got)
+		}
+	})
+}
+
+func TestPacWorstCase(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		a, b, c PACRecommendation
+		want    PACRecommendation
+	}{
+		{"all proceed", PACProceed, PACProceed, PACProceed, PACProceed},
+		{"one simplify wins", PACProceed, PACSimplify, PACProceed, PACSimplify},
+		{"pivot beats simplify", PACSimplify, PACPivot, PACProceed, PACPivot},
+		{"escalate beats all", PACSimplify, PACPivot, PACEscalate, PACEscalate},
+		{"multiple same", PACPivot, PACPivot, PACProceed, PACPivot},
 	}
-	if result == "" {
-		t.Error("expected non-empty deliberation result")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := pacWorstCase(tt.a, tt.b, tt.c); got != tt.want {
+				t.Errorf("pacWorstCase(%v,%v,%v) = %v, want %v", tt.a, tt.b, tt.c, got, tt.want)
+			}
+		})
 	}
-	if !strings.Contains(result, "Sovereign Pivot") {
-		t.Errorf("expected 'Sovereign Pivot' in result, got: %s", result)
+}
+
+func TestPACRecommendationString(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		r    PACRecommendation
+		want string
+	}{
+		{PACProceed, "proceed"},
+		{PACSimplify, "simplify"},
+		{PACPivot, "pivot"},
+		{PACEscalate, "escalate"},
+		{PACRecommendation(99), "unknown"},
+	}
+	for _, tt := range tests {
+		if got := tt.r.String(); got != tt.want {
+			t.Errorf("PACRecommendation(%d).String() = %q, want %q", tt.r, got, tt.want)
+		}
 	}
 }
 
 // --- Execute with valid DB but no genai client (error path) ---
 
 func TestExecute_NilPromptFactory(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
 	e := &Engine{
-		DB:       db,
-		Registry: NewRegistry(),
+		db:       db,
+		registry: NewRegistry(),
 	}
 
 	ctx := NewAgentContext(context.Background(), "test-task", &AgentDefinition{
-		Name:    "test-agent",
-		ModelID: "gemini-1.5-flash",
+		Name:     "test-agent",
+		ModelID:  ModelFlash,
 		MaxSteps: 5,
 	})
 
@@ -327,22 +563,23 @@ func TestExecute_NilPromptFactory(t *testing.T) {
 }
 
 func TestExecute_NilGenaiClient(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
 	pf, _ := bridge.NewFactory(db, nil)
 	e := &Engine{
-		DB:            db,
-		Registry:      NewRegistry(),
+		db:            db,
+		registry:      NewRegistry(),
 		promptFactory: pf,
 	}
 
 	ctx := NewAgentContext(context.Background(), "test-task", &AgentDefinition{
-		Name:    "test-agent",
-		ModelID: "gemini-1.5-flash",
+		Name:     "test-agent",
+		ModelID:  ModelFlash,
 		MaxSteps: 5,
 	})
 
@@ -358,10 +595,11 @@ func TestExecute_NilGenaiClient(t *testing.T) {
 // --- NewEngine with empty API key ---
 
 func TestNewEngine_EmptyAPIKey(t *testing.T) {
+	t.Parallel()
 	registry := NewRegistry()
 	auth := &mockAuthProvider{key: ""}
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	validator, err := reflect.NewValidator(db)
 	if err != nil {
@@ -377,17 +615,18 @@ func TestNewEngine_EmptyAPIKey(t *testing.T) {
 // --- Execute: budget exceeded on first step ---
 
 func TestExecute_BudgetExceeded(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
 	pf, _ := bridge.NewFactory(db, nil)
-	e := &Engine{DB: db, Registry: NewRegistry(), promptFactory: pf}
+	e := &Engine{db: db, registry: NewRegistry(), promptFactory: pf}
 	ctx := NewAgentContext(context.Background(), "task-1", &AgentDefinition{
-		Name:    "test",
-		ModelID: "gemini-1.5-flash",
+		Name:     "test",
+		ModelID:  ModelFlash,
 		MaxSteps: 0,
 	})
 
@@ -403,15 +642,16 @@ func TestExecute_BudgetExceeded(t *testing.T) {
 // --- Full Execute with DB + genai client (integration-like, tests the trust path) ---
 
 func TestExecute_WithDBAndClient(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
 	// Insert a task for the StateID
 	taskID := "exec-test-task"
-	_, err := db.Conn.Exec(
+	_, err := db.Conn.ExecContext(context.Background(),
 		"INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
 		taskID, "test task", "IN_PROGRESS", "T2",
 	)
@@ -429,13 +669,13 @@ func TestExecute_WithDBAndClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create engine: %v", err)
 	}
-	defer engine.Close()
+	defer func() { _ = engine.Close() }()
 
 	ctx := NewAgentContext(context.Background(), taskID, &AgentDefinition{
-		Name:        "test-agent",
-		ModelID:     "gemini-1.5-flash",
-		MaxSteps:    2,
-		Temperature: 0.7,
+		Name:         "test-agent",
+		ModelID:      ModelFlash,
+		MaxSteps:     2,
+		Temperature:  0.7,
 		SystemPrompt: "You are a test agent.",
 	})
 
@@ -459,15 +699,16 @@ func TestExecute_WithDBAndClient(t *testing.T) {
 // --- Execute trust persistence with prior trust data ---
 
 func TestExecute_TrustPersistence(t *testing.T) {
+	t.Parallel()
 	t.Skip("requires real Gemini API key — full Execute flow cannot be tested with fake credentials")
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
 	taskID := "trust-test-task"
-	_, err := db.Conn.Exec(
+	_, err := db.Conn.ExecContext(context.Background(),
 		"INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
 		taskID, "trust test task", "IN_PROGRESS", "T2",
 	)
@@ -476,7 +717,7 @@ func TestExecute_TrustPersistence(t *testing.T) {
 	}
 
 	// Pre-seed trust data
-	_, err = db.Conn.Exec(
+	_, err = db.Conn.ExecContext(context.Background(),
 		"INSERT INTO agent_trust (agent_name, successes, total, trust_score) VALUES (?, ?, ?, ?)",
 		"trust-agent", 5, 10, 0.5455,
 	)
@@ -494,13 +735,13 @@ func TestExecute_TrustPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create engine: %v", err)
 	}
-	defer engine.Close()
+	defer func() { _ = engine.Close() }()
 
 	ctx := NewAgentContext(context.Background(), taskID, &AgentDefinition{
-		Name:        "trust-agent",
-		ModelID:     "gemini-1.5-flash",
-		MaxSteps:    1,
-		Temperature: 0.5,
+		Name:         "trust-agent",
+		ModelID:      ModelFlash,
+		MaxSteps:     1,
+		Temperature:  0.5,
 		SystemPrompt: "You are a test agent.",
 	})
 
@@ -534,14 +775,15 @@ func TestExecute_TrustPersistence(t *testing.T) {
 // --- context cancellation in Execute ---
 
 func TestExecute_ContextCancelled(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
 	taskID := "cancel-test-task"
-	_, err := db.Conn.Exec(
+	_, err := db.Conn.ExecContext(context.Background(),
 		"INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
 		taskID, "cancel test", "IN_PROGRESS", "T2",
 	)
@@ -559,7 +801,7 @@ func TestExecute_ContextCancelled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create engine: %v", err)
 	}
-	defer engine.Close()
+	defer func() { _ = engine.Close() }()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	// Cancel immediately
@@ -569,14 +811,14 @@ func TestExecute_ContextCancelled(t *testing.T) {
 		StateID: taskID,
 		Definition: &AgentDefinition{
 			Name:        "cancel-agent",
-			ModelID:     "gemini-1.5-flash",
+			ModelID:     ModelFlash,
 			MaxSteps:    5,
 			Temperature: 0.5,
 		},
 		Budget:      &TokenBudget{MaxSteps: 5},
 		Context:     ctx,
 		Cancel:      func() {},
-		ActiveModel: "gemini-1.5-flash",
+		ActiveModel: ModelFlash,
 	}
 
 	err = engine.Execute(agentCtx)
@@ -590,6 +832,7 @@ func TestExecute_ContextCancelled(t *testing.T) {
 // --- Helper: TestNewRegistry ---
 
 func TestNewRegistry_ReturnsInitializedMaps(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry()
 	if r.Agents == nil {
 		t.Error("Agents map should be initialized")
@@ -602,9 +845,10 @@ func TestNewRegistry_ReturnsInitializedMaps(t *testing.T) {
 // --- RegisterCoreTools coverage ---
 
 func TestRegisterCoreTools(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	RegisterCoreTools(r, db)
 
@@ -625,6 +869,7 @@ func TestRegisterCoreTools(t *testing.T) {
 // --- TokenBudget edge cases for coverage ---
 
 func TestTokenBudget_IncSteps_TokenExceeded(t *testing.T) {
+	t.Parallel()
 	b := &TokenBudget{MaxTokens: 100, MaxSteps: 10}
 	b.UsedTokens = 150 // Already exceeded
 
@@ -634,6 +879,7 @@ func TestTokenBudget_IncSteps_TokenExceeded(t *testing.T) {
 }
 
 func TestTokenBudget_AddTokens(t *testing.T) {
+	t.Parallel()
 	b := &TokenBudget{MaxTokens: 1000, MaxSteps: 10}
 	b.AddTokens(50)
 	if b.UsedTokens != 50 {
@@ -644,14 +890,15 @@ func TestTokenBudget_AddTokens(t *testing.T) {
 // --- SQL row error coverage in processSubTasks ---
 
 func TestProcessSubTasks_InvalidCapsJSON(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
 	parentID := "bad-caps-parent"
-	_, err := db.Conn.Exec(
+	_, err := db.Conn.ExecContext(context.Background(),
 		"INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
 		parentID, "bad caps parent", "IN_PROGRESS", "T2",
 	)
@@ -660,7 +907,7 @@ func TestProcessSubTasks_InvalidCapsJSON(t *testing.T) {
 	}
 
 	// Insert sub-task with invalid JSON capabilities
-	_, err = db.Conn.Exec(
+	_, err = db.Conn.ExecContext(context.Background(),
 		`INSERT INTO sub_tasks (id, parent_task_id, description, status, branch_name, required_capabilities)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
 		"bad-caps-sub", parentID, "bad caps sub", "PENDING", "branch-bad", "{invalid json}",
@@ -669,9 +916,9 @@ func TestProcessSubTasks_InvalidCapsJSON(t *testing.T) {
 		t.Fatalf("failed to insert sub-task: %v", err)
 	}
 
-	e := &Engine{DB: db, Registry: NewRegistry()}
+	e := &Engine{db: db, registry: NewRegistry()}
 	ctx := NewAgentContext(context.Background(), parentID, &AgentDefinition{
-		Name: "test", ModelID: "gemini-1.5-flash", MaxSteps: 5,
+		Name: "test", ModelID: ModelFlash, MaxSteps: 5,
 	})
 
 	err = e.processSubTasks(ctx)
@@ -686,15 +933,16 @@ func TestProcessSubTasks_InvalidCapsJSON(t *testing.T) {
 // --- Execute: comprehensive integration test for trust + metrics persistence ---
 
 func TestExecute_MetricsPersistence(t *testing.T) {
+	t.Parallel()
 	t.Skip("requires real Gemini API key — full Execute flow cannot be tested with fake credentials")
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
 	taskID := "metrics-task"
-	_, err := db.Conn.Exec(
+	_, err := db.Conn.ExecContext(context.Background(),
 		"INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
 		taskID, "metrics test", "IN_PROGRESS", "T2",
 	)
@@ -712,13 +960,13 @@ func TestExecute_MetricsPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create engine: %v", err)
 	}
-	defer engine.Close()
+	defer func() { _ = engine.Close() }()
 
 	ctx := NewAgentContext(context.Background(), taskID, &AgentDefinition{
-		Name:        "metrics-agent",
-		ModelID:     "gemini-1.5-flash",
-		MaxSteps:    1,
-		Temperature: 0.5,
+		Name:         "metrics-agent",
+		ModelID:      ModelFlash,
+		MaxSteps:     1,
+		Temperature:  0.5,
 		SystemPrompt: "Test",
 	})
 
@@ -738,10 +986,11 @@ func TestExecute_MetricsPersistence(t *testing.T) {
 // --- ValidateDB via engine path ---
 
 func TestExecute_ValidateDBError(t *testing.T) {
-	e := &Engine{DB: nil}
+	t.Parallel()
+	e := &Engine{db: nil}
 	ctx := NewAgentContext(context.Background(), "test", &AgentDefinition{
-		Name:    "test",
-		ModelID: "gemini-1.5-flash",
+		Name:     "test",
+		ModelID:  ModelFlash,
 		MaxSteps: 5,
 	})
 
@@ -757,14 +1006,15 @@ func TestExecute_ValidateDBError(t *testing.T) {
 // --- processSubTasks: row iteration error ---
 
 func TestProcessSubTasks_NoRowsButValidDB(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
 	parentID := fmt.Sprintf("empty-parent-%d", time.Now().UnixNano())
-	_, err := db.Conn.Exec(
+	_, err := db.Conn.ExecContext(context.Background(),
 		"INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
 		parentID, "empty parent", "IN_PROGRESS", "T2",
 	)
@@ -772,9 +1022,9 @@ func TestProcessSubTasks_NoRowsButValidDB(t *testing.T) {
 		t.Fatalf("failed to insert parent task: %v", err)
 	}
 
-	e := &Engine{DB: db, Registry: NewRegistry()}
+	e := &Engine{db: db, registry: NewRegistry()}
 	ctx := NewAgentContext(context.Background(), parentID, &AgentDefinition{
-		Name: "test", ModelID: "gemini-1.5-flash", MaxSteps: 5,
+		Name: "test", ModelID: ModelFlash, MaxSteps: 5,
 	})
 
 	err = e.processSubTasks(ctx)
@@ -786,16 +1036,18 @@ func TestProcessSubTasks_NoRowsButValidDB(t *testing.T) {
 // --- SQL error in processSubTasks query ---
 
 func TestProcessSubTasks_DBError(t *testing.T) {
+	t.Parallel()
 	// Create a DB and close it to force query errors
+
 	db := testutil.SetupTestDB(t)
-	if err := graph.Migrate(db); err != nil {
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
-	db.Close() // Close to force errors
+	_ = db.Close() // Close to force errors
 
-	e := &Engine{DB: db, Registry: NewRegistry()}
+	e := &Engine{db: db, registry: NewRegistry()}
 	ctx := NewAgentContext(context.Background(), "test", &AgentDefinition{
-		Name: "test", ModelID: "gemini-1.5-flash", MaxSteps: 5,
+		Name: "test", ModelID: ModelFlash, MaxSteps: 5,
 	})
 
 	err := e.processSubTasks(ctx)

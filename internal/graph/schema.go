@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -33,7 +34,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 	description TEXT NOT NULL,
 	status TEXT NOT NULL, -- PENDING, IN_PROGRESS, AUDITING, DONE, FAILED
 	tier TEXT, -- T1, T2, T3
-	verification_command TEXT, -- O comando que o Audit Runner deve executar
+	verification_command TEXT, -- O commando que o Audit Runner deve executar
 	commit_hash TEXT,
 	latency_ms REAL DEFAULT 0,
 	tokens_used INTEGER DEFAULT 0,
@@ -165,23 +166,24 @@ CREATE TRIGGER IF NOT EXISTS patterns_au AFTER UPDATE ON patterns BEGIN
 END;
 `
 
-func Migrate(db *sqlite.DB) (err error) {
+// Migrate runs database schema migrations for the graph engine.
+func Migrate(ctx context.Context, db *sqlite.DB) (err error) {
 	if err := sqlite.ValidateDB(db, "migrate"); err != nil {
 		return err
 	}
 
-	tx, err := db.Conn.Begin()
+	tx, err := db.Conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("migrate: could not begin transaction: %w", err)
 	}
 
 	defer func() {
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 		}
 	}()
 
-	_, err = tx.Exec(schema)
+	_, err = tx.ExecContext(ctx, schema)
 	if err != nil {
 		return fmt.Errorf("could not run migration schema: %w", err)
 	}
@@ -197,24 +199,24 @@ func Migrate(db *sqlite.DB) (err error) {
 		{"tasks", "api_cost", "ALTER TABLE tasks ADD COLUMN api_cost REAL DEFAULT 0;"},
 		{"tasks", "math_delta", "ALTER TABLE tasks ADD COLUMN math_delta REAL DEFAULT 0;"},
 	} {
-	exists, err := columnExistsInTx(tx, m.table, m.column)
-	if err != nil {
-		return fmt.Errorf("migrate: checking %s.%s: %w", m.table, m.column, err)
-	}
+		exists, err := columnExistsInTx(ctx, tx, m.table, m.column)
+		if err != nil {
+			return fmt.Errorf("migrate: checking %s.%s: %w", m.table, m.column, err)
+		}
 		if !exists {
-			if _, err = tx.Exec(m.sql); err != nil {
+			if _, err = tx.ExecContext(ctx, m.sql); err != nil {
 				return fmt.Errorf("migrate: %s: %w", m.sql, err)
 			}
 		}
 	}
 
 	// Rename specialist_id → agent_name if the old column name still exists.
-oldExists, err := columnExistsInTx(tx, "agent_trust", "specialist_id")
-if err != nil {
-	return fmt.Errorf("migrate: checking agent_trust.specialist_id: %w", err)
-}
+	oldExists, err := columnExistsInTx(ctx, tx, "agent_trust", "specialist_id")
+	if err != nil {
+		return fmt.Errorf("migrate: checking agent_trust.specialist_id: %w", err)
+	}
 	if oldExists {
-		if _, err = tx.Exec("ALTER TABLE agent_trust RENAME COLUMN specialist_id TO agent_name;"); err != nil {
+		if _, err = tx.ExecContext(ctx, "ALTER TABLE agent_trust RENAME COLUMN specialist_id TO agent_name;"); err != nil {
 			return fmt.Errorf("migrate: rename specialist_id: %w", err)
 		}
 	}
@@ -232,7 +234,7 @@ if err != nil {
 
 	for _, s := range seeds {
 		query := "INSERT OR IGNORE INTO specialist_registry (id, name, base_persona, current_persona_path, capabilities) VALUES (?, ?, ?, ?, ?)"
-		if _, err = tx.Exec(query, s.id, s.name, "Base", "internal/agents/definitions/architect.md", s.caps); err != nil {
+		if _, err = tx.ExecContext(ctx, query, s.id, s.name, "Base", "internal/agents/definitions/architect.md", s.caps); err != nil {
 			return fmt.Errorf("migrate: failed to seed specialist %s: %w", s.id, err)
 		}
 	}
@@ -255,20 +257,20 @@ var pragmaTableInfo = map[string]string{
 	"edges":               "PRAGMA table_info(edges)",
 	"audit_logs":          "PRAGMA table_info(audit_logs)",
 	"standards":           "PRAGMA table_info(standards)",
-	"performance_logs": "PRAGMA table_info(performance_logs)",
-	"patterns":          "PRAGMA table_info(patterns)",
+	"performance_logs":    "PRAGMA table_info(performance_logs)",
+	"patterns":            "PRAGMA table_info(patterns)",
 }
 
-func columnExistsInTx(tx *sql.Tx, table, column string) (bool, error) {
+func columnExistsInTx(ctx context.Context, tx *sql.Tx, table, column string) (bool, error) {
 	query, ok := pragmaTableInfo[table]
 	if !ok {
 		return false, fmt.Errorf("migrate: unknown table %q", table)
 	}
-	rows, err := tx.Query(query)
+	rows, err := tx.QueryContext(ctx, query)
 	if err != nil {
 		return false, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var cid int
 		var name, colType string

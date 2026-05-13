@@ -31,6 +31,7 @@ const semanticQuery = `
 (variable_declarator) @variable
 `
 
+// NewTreeSitterScanner creates a new TreeSitterScanner with prepared queries and a parser pool.
 func NewTreeSitterScanner() *TreeSitterScanner {
 	tsQ, err := sitter.NewQuery([]byte(semanticQuery), typescript.GetLanguage())
 	if err != nil {
@@ -52,6 +53,7 @@ func NewTreeSitterScanner() *TreeSitterScanner {
 	}
 }
 
+// SupportedExtensions returns the file extensions supported by TreeSitterScanner.
 func (s *TreeSitterScanner) SupportedExtensions() []string {
 	return []string{".tsx", ".ts"}
 }
@@ -134,6 +136,7 @@ func (s *TreeSitterScanner) executeQuery(query *sitter.Query, tree *sitter.Tree,
 	return res
 }
 
+// Scan parses a file using Tree-sitter and returns scanned nodes and edges.
 func (s *TreeSitterScanner) Scan(path string) ScanResult {
 	file, err := os.Open(path) //nolint:gosec // path from scanner input
 	if err != nil {

@@ -15,6 +15,8 @@ func init() {
 	registry.Register(NewLiveCmd)
 }
 
+// NewLiveCmd creates a cobra command that starts the Sentinel Live View
+// WebSocket server and bootstraps a background project scan.
 func NewLiveCmd(db *sqlite.DB) *cobra.Command {
 	var port int
 
@@ -29,47 +31,47 @@ func NewLiveCmd(db *sqlite.DB) *cobra.Command {
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-			// 1. Instantiates LiveView Server
-			server := liveview.NewServer()
+		// 1. Instantiates LiveView Server
+		server := liveview.NewServer()
 
-			errChan := make(chan error, 1)
-			go func() {
-				errChan <- server.Run(cmd.Context())
-			}()
+		errChan := make(chan error, 1)
+		go func() {
+			errChan <- server.Run(cmd.Context())
+		}()
 
-			// 2. Registers Server as an Observer to the Engine
-			if err := graph.Migrate(db); err != nil {
-				return fmt.Errorf("live: migration failed: %w", err)
-			}
+		// 2. Registers Server as an Observer to the Engine
+		if err := graph.Migrate(cmd.Context(), db); err != nil {
+			return fmt.Errorf("live: migration failed: %w", err)
+		}
 
-			engine, err := graph.NewEngine(db)
+		engine, err := graph.NewEngine(db)
+		if err != nil {
+			return fmt.Errorf("live: failed to create engine: %w", err)
+		}
+		engine.RegisterObserver(server)
+
+		// Start a background scan (for demonstration/bootstrapping)
+		fmt.Println("🚀 Sentinel: Bootstrapping initial background scan for Live View...")
+		go func() {
+			err := engine.ScanProject(cmd.Context(), ".")
 			if err != nil {
-				return fmt.Errorf("live: failed to create engine: %w", err)
+				log.Printf("liveview: background scan error: %v\n", err)
 			}
-			engine.RegisterObserver(server)
+		}()
 
-			// Start a background scan (for demonstration/bootstrapping)
-			fmt.Println("🚀 Sentinel: Bootstrapping initial background scan for Live View...")
-			go func() {
-				err := engine.ScanProject(".")
-				if err != nil {
-					log.Printf("liveview: background scan error: %v\n", err)
-				}
-			}()
+		// 3. Starts the HTTP server
+		go func() {
+			errChan <- server.StartHTTP(port, db)
+		}()
 
-			// 3. Starts the HTTP server
-			go func() {
-				errChan <- server.StartHTTP(port, db)
-			}()
-
-			select {
-			case err := <-errChan:
-				if err != nil {
-					return err
-				}
-			case <-cmd.Context().Done():
-				return cmd.Context().Err()
+		select {
+		case err := <-errChan:
+			if err != nil {
+				return err
 			}
+		case <-cmd.Context().Done():
+			return cmd.Context().Err()
+		}
 		return nil
 	}
 

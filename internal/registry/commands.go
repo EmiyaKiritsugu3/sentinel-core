@@ -1,3 +1,4 @@
+// Package registry manages command registration and lifecycle.
 package registry
 
 import (

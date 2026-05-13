@@ -7,6 +7,7 @@ import (
 )
 
 func TestLoader_MaxLambdaValidation(t *testing.T) {
+	t.Parallel()
 	loader := NewLoader()
 
 	tests := []struct {
@@ -50,9 +51,11 @@ System prompt body`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create a temporary file for the test
+
 			tempFile := filepath.Join(t.TempDir(), "agent.md")
-			err := os.WriteFile(tempFile, []byte(tt.yamlContent), 0644)
+			err := os.WriteFile(tempFile, []byte(tt.yamlContent), 0644) //nolint:gosec // test fixture
 			if err != nil {
 				t.Fatalf("Failed to write temp file: %v", err)
 			}

@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,18 +18,18 @@ func TestGitShield_CreateWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Init a git repo and initial commit
 	runCmd := func(args ...string) {
-		c := exec.Command("git", args...)
+		c := exec.CommandContext(context.Background(), "git", args...) //nolint:gosec // test fixture
 		c.Dir = tmpDir
 		if out, err := c.CombinedOutput(); err != nil {
 			t.Fatalf("git %v failed: %v (output: %s)", args, err, out)
 		}
 	}
 	runCmd("init")
-	os.WriteFile(filepath.Join(tmpDir, "dummy"), []byte("data"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "dummy"), []byte("data"), 0644) //nolint:gosec // test fixture
 	runCmd("add", ".")
 	runCmd("commit", "-m", "initial")
 
@@ -36,7 +37,7 @@ func TestGitShield_CreateWorktree(t *testing.T) {
 	runCmd("branch", "subtask-branch")
 
 	gs := NewGitShield(tmpDir, &mockValidator{})
-	os.Mkdir(filepath.Join(tmpDir, ".worktrees"), 0755)
+	_ = os.Mkdir(filepath.Join(tmpDir, ".worktrees"), 0755) //nolint:gosec // test fixture
 
 	t.Run("Create Worktree Success", func(t *testing.T) {
 		path, err := gs.CreateWorktree("task-123", "subtask-branch")

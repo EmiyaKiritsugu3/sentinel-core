@@ -15,7 +15,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "❌ Failed to initialize sentinel brain: %v\n", err)
 		os.Exit(1)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// 2. Executa o CLI injetando o banco
 	commands.Execute(db)

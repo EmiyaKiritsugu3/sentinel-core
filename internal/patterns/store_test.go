@@ -1,6 +1,7 @@
 package patterns
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -12,8 +13,8 @@ import (
 func setupStore(t *testing.T) *PatternStore {
 	t.Helper()
 	db := testutil.SetupTestDB(t)
-	t.Cleanup(func() { db.Close() })
-	if err := graph.Migrate(db); err != nil {
+	t.Cleanup(func() { _ = db.Close() })
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
 	store, err := NewPatternStore(db)
@@ -24,6 +25,7 @@ func setupStore(t *testing.T) *PatternStore {
 }
 
 func TestNewPatternStore_NilDB(t *testing.T) {
+	t.Parallel()
 	_, err := NewPatternStore(nil)
 	if err == nil {
 		t.Fatal("expected error for nil db")
@@ -31,52 +33,58 @@ func TestNewPatternStore_NilDB(t *testing.T) {
 }
 
 // CG-02: Validação nil-DB em métodos exportados — cada método deve
-// retornar ErrNilDB independente do wiring do construtor.
+// retornar ErrNilDB independence do wiring do construtor.
 
 func TestCreate_NilDB(t *testing.T) {
+	t.Parallel()
 	s := &PatternStore{}
-	_, err := s.Create(&Pattern{Title: "x", Description: "x", Category: "anti-pattern", Source: "manual", Tags: "x", Impact: "high"})
+	_, err := s.Create(context.Background(), &Pattern{Title: "x", Description: "x", Category: "anti-pattern", Source: "manual", Tags: "x", Impact: "high"})
 	if !errors.Is(err, sqlite.ErrNilDB) {
 		t.Fatalf("expected ErrNilDB, got %v", err)
 	}
 }
 
 func TestCreate_NilPattern(t *testing.T) {
+	t.Parallel()
 	store := setupStore(t)
-	_, err := store.Create(nil)
+	_, err := store.Create(context.Background(), nil)
 	if err == nil {
 		t.Fatal("expected error for nil pattern")
 	}
 }
 
 func TestList_NilDB(t *testing.T) {
+	t.Parallel()
 	s := &PatternStore{}
-	_, err := s.List(ListFilters{})
+	_, err := s.List(context.Background(), ListFilters{})
 	if !errors.Is(err, sqlite.ErrNilDB) {
 		t.Fatalf("expected ErrNilDB, got %v", err)
 	}
 }
 
 func TestSearch_NilDB(t *testing.T) {
+	t.Parallel()
 	s := &PatternStore{}
-	_, err := s.Search("test")
+	_, err := s.Search(context.Background(), "test")
 	if !errors.Is(err, sqlite.ErrNilDB) {
 		t.Fatalf("expected ErrNilDB, got %v", err)
 	}
 }
 
 func TestGet_NilDB(t *testing.T) {
+	t.Parallel()
 	s := &PatternStore{}
-	_, err := s.Get("id")
+	_, err := s.Get(context.Background(), "id")
 	if !errors.Is(err, sqlite.ErrNilDB) {
 		t.Fatalf("expected ErrNilDB, got %v", err)
 	}
 }
 
 func TestCreate(t *testing.T) {
+	t.Parallel()
 	store := setupStore(t)
 
-	id, err := store.Create(&Pattern{
+	id, err := store.Create(context.Background(), &Pattern{
 		Title:       "Diagnóstico sem dado empírico = loop",
 		Description: "Quando o agente diagnostica sem dados empíricos, entra em loop de hipóteses",
 		Category:    "anti-pattern",
@@ -93,9 +101,10 @@ func TestCreate(t *testing.T) {
 }
 
 func TestCreate_InvalidCategory(t *testing.T) {
+	t.Parallel()
 	store := setupStore(t)
 
-	_, err := store.Create(&Pattern{
+	_, err := store.Create(context.Background(), &Pattern{
 		Title:       "Test",
 		Description: "Test",
 		Category:    "invalid-category",
@@ -109,9 +118,10 @@ func TestCreate_InvalidCategory(t *testing.T) {
 }
 
 func TestCreate_InvalidSource(t *testing.T) {
+	t.Parallel()
 	store := setupStore(t)
 
-	_, err := store.Create(&Pattern{
+	_, err := store.Create(context.Background(), &Pattern{
 		Title:       "Test",
 		Description: "Test",
 		Category:    "anti-pattern",
@@ -125,16 +135,17 @@ func TestCreate_InvalidSource(t *testing.T) {
 }
 
 func TestList_NoFilters(t *testing.T) {
+	t.Parallel()
 	store := setupStore(t)
 
-	_, err := store.Create(&Pattern{
+	_, err := store.Create(context.Background(), &Pattern{
 		Title: "P1", Description: "D1", Category: "anti-pattern",
 		Source: "manual", Tags: "a", Impact: "high",
 	})
 	if err != nil {
 		t.Fatalf("seed Create P1 failed: %v", err)
 	}
-	_, err = store.Create(&Pattern{
+	_, err = store.Create(context.Background(), &Pattern{
 		Title: "P2", Description: "D2", Category: "cognitive-pattern",
 		Source: "epiphany", Tags: "b", Impact: "low",
 	})
@@ -142,7 +153,7 @@ func TestList_NoFilters(t *testing.T) {
 		t.Fatalf("seed Create P2 failed: %v", err)
 	}
 
-	patterns, err := store.List(ListFilters{})
+	patterns, err := store.List(context.Background(), ListFilters{})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -152,16 +163,17 @@ func TestList_NoFilters(t *testing.T) {
 }
 
 func TestList_FilterByCategory(t *testing.T) {
+	t.Parallel()
 	store := setupStore(t)
 
-	_, err := store.Create(&Pattern{
+	_, err := store.Create(context.Background(), &Pattern{
 		Title: "P1", Description: "D1", Category: "anti-pattern",
 		Source: "manual", Tags: "a", Impact: "high",
 	})
 	if err != nil {
 		t.Fatalf("seed Create P1 failed: %v", err)
 	}
-	_, err = store.Create(&Pattern{
+	_, err = store.Create(context.Background(), &Pattern{
 		Title: "P2", Description: "D2", Category: "cognitive-pattern",
 		Source: "epiphany", Tags: "b", Impact: "low",
 	})
@@ -169,7 +181,7 @@ func TestList_FilterByCategory(t *testing.T) {
 		t.Fatalf("seed Create P2 failed: %v", err)
 	}
 
-	patterns, err := store.List(ListFilters{Category: "anti-pattern"})
+	patterns, err := store.List(context.Background(), ListFilters{Category: "anti-pattern"})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -182,9 +194,10 @@ func TestList_FilterByCategory(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
+	t.Parallel()
 	store := setupStore(t)
 
-	id, err := store.Create(&Pattern{
+	id, err := store.Create(context.Background(), &Pattern{
 		Title: "Test Pattern", Description: "Full description here",
 		Category: "anti-pattern", Source: "cognitive-dna",
 		SourceRef: "COGNITIVE-DNA.md:AP-01", Tags: "test", Impact: "medium",
@@ -193,7 +206,7 @@ func TestGet(t *testing.T) {
 		t.Fatalf("seed Create failed: %v", err)
 	}
 
-	p, err := store.Get(id)
+	p, err := store.Get(context.Background(), id)
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
 	}
@@ -206,25 +219,27 @@ func TestGet(t *testing.T) {
 }
 
 func TestGet_NotFound(t *testing.T) {
+	t.Parallel()
 	store := setupStore(t)
 
-	_, err := store.Get("nonexistent-id")
+	_, err := store.Get(context.Background(), "nonexistent-id")
 	if err == nil {
 		t.Fatal("expected error for nonexistent pattern")
 	}
 }
 
 func TestSearch(t *testing.T) {
+	t.Parallel()
 	store := setupStore(t)
 
-	_, err := store.Create(&Pattern{
+	_, err := store.Create(context.Background(), &Pattern{
 		Title: "Empirical diagnosis loop", Description: "Agent loops without empirical data",
 		Category: "anti-pattern", Source: "manual", Tags: "loop,diagnosis", Impact: "high",
 	})
 	if err != nil {
 		t.Fatalf("seed Create P1 failed: %v", err)
 	}
-	_, err = store.Create(&Pattern{
+	_, err = store.Create(context.Background(), &Pattern{
 		Title: "Cognitive mode switching", Description: "Audit changes constructive to destructive",
 		Category: "cognitive-pattern", Source: "manual", Tags: "audit,cognitive", Impact: "medium",
 	})
@@ -232,7 +247,7 @@ func TestSearch(t *testing.T) {
 		t.Fatalf("seed Create P2 failed: %v", err)
 	}
 
-	results, err := store.Search("empirical")
+	results, err := store.Search(context.Background(), "empirical")
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
 	}
@@ -245,9 +260,10 @@ func TestSearch(t *testing.T) {
 }
 
 func TestSearch_NoResults(t *testing.T) {
+	t.Parallel()
 	store := setupStore(t)
 
-	results, err := store.Search("xyznonexistent")
+	results, err := store.Search(context.Background(), "xyznonexistent")
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
 	}
@@ -259,23 +275,24 @@ func TestSearch_NoResults(t *testing.T) {
 // Cobertura: List — ramo LIMIT
 
 func TestList_WithLimit(t *testing.T) {
+	t.Parallel()
 	store := setupStore(t)
 
-	_, err := store.Create(&Pattern{
+	_, err := store.Create(context.Background(), &Pattern{
 		Title: "P1", Description: "D1", Category: "anti-pattern",
 		Source: "manual", Tags: "a", Impact: "high",
 	})
 	if err != nil {
 		t.Fatalf("seed Create P1 failed: %v", err)
 	}
-	_, err = store.Create(&Pattern{
+	_, err = store.Create(context.Background(), &Pattern{
 		Title: "P2", Description: "D2", Category: "cognitive-pattern",
 		Source: "epiphany", Tags: "b", Impact: "low",
 	})
 	if err != nil {
 		t.Fatalf("seed Create P2 failed: %v", err)
 	}
-	_, err = store.Create(&Pattern{
+	_, err = store.Create(context.Background(), &Pattern{
 		Title: "P3", Description: "D3", Category: "structural-principle",
 		Source: "cognitive-dna", Tags: "c", Impact: "medium",
 	})
@@ -283,7 +300,7 @@ func TestList_WithLimit(t *testing.T) {
 		t.Fatalf("seed Create P3 failed: %v", err)
 	}
 
-	patterns, err := store.List(ListFilters{Limit: 2})
+	patterns, err := store.List(context.Background(), ListFilters{Limit: 2})
 	if err != nil {
 		t.Fatalf("List with limit failed: %v", err)
 	}
@@ -297,9 +314,10 @@ func TestList_WithLimit(t *testing.T) {
 // CG-01: bm25 ASC retorna melhor match primeiro (FP: DESC retornaria pior primeiro)
 
 func TestSearch_Ranking(t *testing.T) {
+	t.Parallel()
 	store := setupStore(t)
 
-	store.Create(&Pattern{
+	_, _ = store.Create(context.Background(), &Pattern{
 		Title:       "Loop diagnosis empirical",
 		Description: "Diagnosis loop repeated diagnosis pattern with empirical data",
 		Category:    "anti-pattern",
@@ -307,7 +325,7 @@ func TestSearch_Ranking(t *testing.T) {
 		Tags:        "diagnosis,loop,empirical",
 		Impact:      "high",
 	})
-	store.Create(&Pattern{
+	_, _ = store.Create(context.Background(), &Pattern{
 		Title:       "Side observation",
 		Description: "A diagnosis mention in passing",
 		Category:    "cognitive-pattern",
@@ -316,7 +334,7 @@ func TestSearch_Ranking(t *testing.T) {
 		Impact:      "low",
 	})
 
-	results, err := store.Search("diagnosis")
+	results, err := store.Search(context.Background(), "diagnosis")
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
 	}
@@ -330,18 +348,19 @@ func TestSearch_Ranking(t *testing.T) {
 }
 
 func TestList_FilterByImpact(t *testing.T) {
+	t.Parallel()
 	store := setupStore(t)
 
-	store.Create(&Pattern{
+	_, _ = store.Create(context.Background(), &Pattern{
 		Title: "P1", Description: "D1", Category: "anti-pattern",
 		Source: "manual", Tags: "a", Impact: "high",
 	})
-	store.Create(&Pattern{
+	_, _ = store.Create(context.Background(), &Pattern{
 		Title: "P2", Description: "D2", Category: "cognitive-pattern",
 		Source: "epiphany", Tags: "b", Impact: "low",
 	})
 
-	patterns, err := store.List(ListFilters{Impact: "high"})
+	patterns, err := store.List(context.Background(), ListFilters{Impact: "high"})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}

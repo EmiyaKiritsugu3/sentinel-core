@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
@@ -8,9 +9,10 @@ import (
 )
 
 func TestMigrate(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate test db: %v", err)
 	}
 
@@ -26,31 +28,32 @@ func TestMigrate(t *testing.T) {
 
 	for _, table := range tables {
 		var name string
-		err := sqlDB.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name)
+		err := sqlDB.QueryRowContext(context.Background(), "SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				t.Errorf("table %s was not created", table)
 			} else {
 				t.Errorf("failed to query sqlite_master for table %s: %v", table, err)
+			}
+		}
+
+		var ftsName string
+		err = sqlDB.QueryRowContext(context.Background(), "SELECT name FROM sqlite_master WHERE type='table' AND name='patterns_fts'").Scan(&ftsName)
+		if err != nil {
+			t.Errorf("patterns_fts virtual table was not created: %v", err)
 		}
 	}
-
-	var ftsName string
-	err = sqlDB.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='patterns_fts'").Scan(&ftsName)
-	if err != nil {
-		t.Errorf("patterns_fts virtual table was not created: %v", err)
-	}
-}
 }
 
 // TestMigrate_ColumnMigration covers the ALTER TABLE migration path.
 // It creates a legacy schema (tasks table without metric columns, agent_trust with specialist_id)
 // then runs Migrate to exercise the column-add and column-rename code paths.
 func TestMigrate_ColumnMigration(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
-	_, err := db.Conn.Exec(`CREATE TABLE IF NOT EXISTS tasks (
+	_, err := db.Conn.ExecContext(context.Background(), `CREATE TABLE IF NOT EXISTS tasks (
 		id TEXT PRIMARY KEY,
 		description TEXT NOT NULL,
 		status TEXT NOT NULL,
@@ -64,7 +67,7 @@ func TestMigrate_ColumnMigration(t *testing.T) {
 		t.Fatalf("failed to create legacy tasks table: %v", err)
 	}
 
-	_, err = db.Conn.Exec(`CREATE TABLE IF NOT EXISTS agent_trust (
+	_, err = db.Conn.ExecContext(context.Background(), `CREATE TABLE IF NOT EXISTS agent_trust (
 		specialist_id TEXT PRIMARY KEY,
 		successes INTEGER NOT NULL DEFAULT 0,
 		total INTEGER NOT NULL DEFAULT 0,
@@ -75,17 +78,17 @@ func TestMigrate_ColumnMigration(t *testing.T) {
 		t.Fatalf("failed to create legacy agent_trust table: %v", err)
 	}
 
-	_, err = db.Conn.Exec(`INSERT INTO agent_trust (specialist_id, successes, total, trust_score) VALUES ('test-agent', 5, 10, 0.5)`)
+	_, err = db.Conn.ExecContext(context.Background(), `INSERT INTO agent_trust (specialist_id, successes, total, trust_score) VALUES ('test-agent', 5, 10, 0.5)`)
 	if err != nil {
 		t.Fatalf("failed to seed legacy agent_trust: %v", err)
 	}
 
-	if err := Migrate(db); err != nil {
+	if err := Migrate(context.Background(), db); err != nil {
 		t.Fatalf("Migrate failed on legacy schema: %v", err)
 	}
 
 	var count int
-	err = db.Conn.QueryRow("SELECT COUNT(*) FROM pragma_table_info('tasks') WHERE name IN ('latency_ms', 'tokens_used', 'api_cost', 'math_delta')").Scan(&count)
+	err = db.Conn.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM pragma_table_info('tasks') WHERE name IN ('latency_ms', 'tokens_used', 'api_cost', 'math_delta')").Scan(&count)
 	if err != nil {
 		t.Fatalf("failed to query pragma_table_info: %v", err)
 	}
@@ -94,55 +97,59 @@ func TestMigrate_ColumnMigration(t *testing.T) {
 	}
 
 	var agentName string
-	err = db.Conn.QueryRow("SELECT agent_name FROM agent_trust WHERE agent_name = 'test-agent'").Scan(&agentName)
+	err = db.Conn.QueryRowContext(context.Background(), "SELECT agent_name FROM agent_trust WHERE agent_name = 'test-agent'").Scan(&agentName)
 	if err != nil {
 		t.Errorf("expected agent_name column to exist after rename, got error: %v", err)
 	}
 }
 
 func TestMigrate_Idempotent(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	for i := 0; i < 2; i++ {
-		if err := Migrate(db); err != nil {
+		if err := Migrate(context.Background(), db); err != nil {
 			t.Fatalf("Migrate pass %d failed: %v", i+1, err)
 		}
 	}
 }
 
 func TestMigrate_NilDB(t *testing.T) {
-	err := Migrate(nil)
+	t.Parallel()
+	err := Migrate(context.Background(), nil)
 	if err == nil {
 		t.Fatal("expected error for nil db")
 	}
 }
 
 func TestMigrate_ClosedDB(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	db.Conn.Close()
+	_ = db.Conn.Close()
 
-	err := Migrate(db)
+	err := Migrate(context.Background(), db)
 	if err == nil {
 		t.Fatal("expected error for closed db connection")
 	}
 }
 
 func TestColumnExistsInTx_UnknownTable(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
-	if err := Migrate(db); err != nil {
+	if err := Migrate(context.Background(), db); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
 	}
 
-	tx, err := db.Conn.Begin()
+	tx, err := db.Conn.BeginTx(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
-	_, err = columnExistsInTx(tx, "nonexistent_table", "col")
+	_, err = columnExistsInTx(context.Background(), tx, "nonexistent_table", "col")
 	if err == nil {
 		t.Fatal("expected error for unknown table")
 	}
@@ -153,14 +160,15 @@ func TestColumnExistsInTx_UnknownTable(t *testing.T) {
 // any subsequent operation on it returns sql.ErrTxDone, which exercises
 // the error-return branch that is otherwise unreachable in normal flow.
 func TestColumnExistsInTx_CommittedTx(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
-	if err := Migrate(db); err != nil {
+	if err := Migrate(context.Background(), db); err != nil {
 		t.Fatalf("Migrate failed: %v", err)
 	}
 
-	tx, err := db.Conn.Begin()
+	tx, err := db.Conn.BeginTx(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
@@ -169,7 +177,7 @@ func TestColumnExistsInTx_CommittedTx(t *testing.T) {
 		t.Fatalf("Commit: %v", err)
 	}
 
-	_, err = columnExistsInTx(tx, "tasks", "latency_ms")
+	_, err = columnExistsInTx(context.Background(), tx, "tasks", "latency_ms")
 	if err == nil {
 		t.Fatal("expected error when querying with committed transaction")
 	}
@@ -180,15 +188,16 @@ func TestColumnExistsInTx_CommittedTx(t *testing.T) {
 // NOT EXISTS is silently skipped, then ALTER TABLE fails because the target
 // is a view, not a table.
 func TestMigrate_AlterView(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
-	_, err := db.Conn.Exec("CREATE VIEW tasks AS SELECT 1 AS id, 'x' AS description, 'PENDING' AS status")
+	_, err := db.Conn.ExecContext(context.Background(), "CREATE VIEW tasks AS SELECT 1 AS id, 'x' AS description, 'PENDING' AS status")
 	if err != nil {
 		t.Fatalf("failed to create tasks view: %v", err)
 	}
 
-	err = Migrate(db)
+	err = Migrate(context.Background(), db)
 	if err == nil {
 		t.Fatal("expected error when Migrate tries to ALTER a view")
 	}

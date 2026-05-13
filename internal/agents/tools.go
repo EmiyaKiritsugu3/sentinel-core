@@ -31,6 +31,7 @@ type ReadFileTool struct {
 
 // Name returns the tool identifier "read_file".
 func (t *ReadFileTool) Name() string { return "read_file" }
+
 // Description returns a human-readable description of the tool.
 func (t *ReadFileTool) Description() string {
 	return "Reads a file from the project directory. Supports line range."
@@ -120,6 +121,7 @@ type WriteFileTool struct {
 
 // Name returns the tool identifier "write_file".
 func (t *WriteFileTool) Name() string { return "write_file" }
+
 // Description returns a human-readable description of the tool.
 func (t *WriteFileTool) Description() string {
 	return "Writes content to a file. Overwrites existing files."
@@ -188,6 +190,7 @@ type ReplaceTool struct {
 
 // Name returns the tool identifier "replace".
 func (t *ReplaceTool) Name() string { return "replace" }
+
 // Description returns a human-readable description of the tool.
 func (t *ReplaceTool) Description() string {
 	return "Replaces a specific string in a file with new content."
@@ -280,7 +283,7 @@ var textFileExtensions = map[string]bool{
 
 // skipDirs defines directory names that GrepSearchTool skips during traversal.
 var skipDirs = map[string]bool{
-	".git":          true,
+	".git":         true,
 	"node_modules": true,
 	"vendor":       true,
 }
@@ -329,6 +332,7 @@ type GrepSearchTool struct {
 
 // Name returns the tool identifier "grep_search".
 func (t *GrepSearchTool) Name() string { return "grep_search" }
+
 // Description returns a human-readable description of the tool.
 func (t *GrepSearchTool) Description() string {
 	return "Searches for a regular expression pattern within file contents across the project."
@@ -426,6 +430,7 @@ type AuditTool struct {
 
 // Name returns the tool identifier "sentinel:audit".
 func (t *AuditTool) Name() string { return "sentinel:audit" }
+
 // Description returns a human-readable description of the tool.
 func (t *AuditTool) Description() string {
 	return "Runs the Sovereign Validator across the project to detect Standard violations."
@@ -484,6 +489,7 @@ type RunTool struct {
 
 // Name returns the tool identifier "sentinel:run".
 func (t *RunTool) Name() string { return "sentinel:run" }
+
 // Description returns a human-readable description of the tool.
 func (t *RunTool) Description() string {
 	return "Runs a safe, approved shell command (e.g., 'go build ./...', 'go test -v ./...'). Does not support pipes or redirection."
@@ -563,6 +569,7 @@ type ADRTool struct {
 
 // Name returns the tool identifier "sentinel:adr".
 func (t *ADRTool) Name() string { return "sentinel:adr" }
+
 // Description returns a human-readable description of the tool.
 func (t *ADRTool) Description() string {
 	return "Generates a formal Architectural Decision Record (ADR) file for the current task."
@@ -657,6 +664,7 @@ type ScanTool struct {
 
 // Name returns the tool identifier "sentinel_scan".
 func (t *ScanTool) Name() string { return "sentinel_scan" }
+
 // Description returns a human-readable description of the tool.
 func (t *ScanTool) Description() string {
 	return "Updates the architectural graph by scanning the project's source code."
@@ -703,6 +711,7 @@ type DecomposeTool struct {
 
 // Name returns the tool identifier "sentinel:decompose".
 func (t *DecomposeTool) Name() string { return "sentinel:decompose" }
+
 // Description returns a human-readable description of the tool.
 func (t *DecomposeTool) Description() string {
 	return "Decomposes a complex task into multiple atomic sub-tasks for parallel execution."

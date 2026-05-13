@@ -1,6 +1,7 @@
 package intake_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
@@ -9,9 +10,10 @@ import (
 )
 
 func TestVaguenessScore_AnchorPhase2(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate test db: %v", err)
 	}
 
@@ -23,8 +25,8 @@ func TestVaguenessScore_AnchorPhase2(t *testing.T) {
 
 	d := intake.NewDisambiguator(db)
 
-	scoreVague := d.VaguenessScore("improve performance")
-	scoreAnchored := d.VaguenessScore("improve AuthService performance")
+	scoreVague := d.VaguenessScore(context.Background(), "improve performance")
+	scoreAnchored := d.VaguenessScore(context.Background(), "improve AuthService performance")
 
 	if scoreAnchored >= scoreVague {
 		t.Errorf("want scoreAnchored < scoreVague, got anchored=%.2f vague=%.2f", scoreAnchored, scoreVague)
@@ -32,9 +34,10 @@ func TestVaguenessScore_AnchorPhase2(t *testing.T) {
 }
 
 func TestAnalyze_GraphSuggestions(t *testing.T) {
+	t.Parallel()
 	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	if err := graph.Migrate(db); err != nil {
+	defer func() { _ = db.Close() }()
+	if err := graph.Migrate(context.Background(), db); err != nil {
 		t.Fatalf("failed to migrate test db: %v", err)
 	}
 
@@ -58,7 +61,7 @@ func TestAnalyze_GraphSuggestions(t *testing.T) {
 	}
 
 	d := intake.NewDisambiguator(db)
-	vague, suggestions := d.Analyze("fix it for auth")
+	vague, suggestions := d.Analyze(context.Background(), "fix it for auth")
 
 	if !vague {
 		t.Error("want vague=true for 'fix it for auth'")

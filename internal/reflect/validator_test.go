@@ -8,6 +8,7 @@ import (
 )
 
 func TestNewValidator_NilDB(t *testing.T) {
+	t.Parallel()
 	v, err := NewValidator(nil)
 	if err == nil {
 		t.Fatal("expected error for nil db, got nil")

@@ -1,6 +1,7 @@
 package report
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -18,22 +19,23 @@ func setupAggregatorDB(t *testing.T) *sqlite.DB {
 	if err != nil {
 		t.Fatalf("failed to init test db: %v", err)
 	}
-	if err := graph.Migrate(db); err != nil {
-		db.Close()
+	if err := graph.Migrate(context.Background(), db); err != nil {
+		_ = db.Close()
 		t.Fatalf("failed to migrate: %v", err)
 	}
 	return db
 }
 
 func TestFetchStats_EmptyDB(t *testing.T) {
+	t.Parallel()
 	db := setupAggregatorDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	agg, err := NewAggregator(db)
 	if err != nil {
 		t.Fatalf("NewAggregator() error: %v", err)
 	}
-	stats, err := agg.FetchStats()
+	stats, err := agg.FetchStats(context.Background())
 	if err != nil {
 		t.Fatalf("FetchStats() error: %v", err)
 	}
@@ -49,15 +51,16 @@ func TestFetchStats_EmptyDB(t *testing.T) {
 }
 
 func TestFetchStats_WithNodes(t *testing.T) {
+	t.Parallel()
 	db := setupAggregatorDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
-	_, err := db.Conn.Exec("INSERT INTO nodes (id, name, type, file_path) VALUES (?, ?, ?, ?)",
+	_, err := db.Conn.ExecContext(context.Background(), "INSERT INTO nodes (id, name, type, file_path) VALUES (?, ?, ?, ?)",
 		"n1", "main.go", "file", "cmd/main.go")
 	if err != nil {
 		t.Fatalf("insert node: %v", err)
 	}
-	_, err = db.Conn.Exec("INSERT INTO nodes (id, name, type, file_path) VALUES (?, ?, ?, ?)",
+	_, err = db.Conn.ExecContext(context.Background(), "INSERT INTO nodes (id, name, type, file_path) VALUES (?, ?, ?, ?)",
 		"n2", "Handler", "struct", "internal/handler.go")
 	if err != nil {
 		t.Fatalf("insert node: %v", err)
@@ -67,7 +70,7 @@ func TestFetchStats_WithNodes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAggregator() error: %v", err)
 	}
-	stats, err := agg.FetchStats()
+	stats, err := agg.FetchStats(context.Background())
 	if err != nil {
 		t.Fatalf("FetchStats() error: %v", err)
 	}
@@ -83,20 +86,21 @@ func TestFetchStats_WithNodes(t *testing.T) {
 }
 
 func TestFetchStats_WithTasks(t *testing.T) {
+	t.Parallel()
 	db := setupAggregatorDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
-	_, err := db.Conn.Exec("INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
+	_, err := db.Conn.ExecContext(context.Background(), "INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
 		"t1", "Add auth", "DONE", "T1")
 	if err != nil {
 		t.Fatalf("insert task: %v", err)
 	}
-	_, err = db.Conn.Exec("INSERT INTO tasks (id, description, status, tier, math_delta) VALUES (?, ?, ?, ?, ?)",
+	_, err = db.Conn.ExecContext(context.Background(), "INSERT INTO tasks (id, description, status, tier, math_delta) VALUES (?, ?, ?, ?, ?)",
 		"t2", "Add logging", "DONE", "T2", 5.5)
 	if err != nil {
 		t.Fatalf("insert task: %v", err)
 	}
-	_, err = db.Conn.Exec("INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
+	_, err = db.Conn.ExecContext(context.Background(), "INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
 		"t3", "Fix bug", "FAILED", "T3")
 	if err != nil {
 		t.Fatalf("insert task: %v", err)
@@ -106,7 +110,7 @@ func TestFetchStats_WithTasks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAggregator() error: %v", err)
 	}
-	stats, err := agg.FetchStats()
+	stats, err := agg.FetchStats(context.Background())
 	if err != nil {
 		t.Fatalf("FetchStats() error: %v", err)
 	}
@@ -131,14 +135,15 @@ func TestFetchStats_WithTasks(t *testing.T) {
 }
 
 func TestFetchStats_ZeroTasks_SuccessRateZero(t *testing.T) {
+	t.Parallel()
 	db := setupAggregatorDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	agg, err := NewAggregator(db)
 	if err != nil {
 		t.Fatalf("NewAggregator() error: %v", err)
 	}
-	stats, err := agg.FetchStats()
+	stats, err := agg.FetchStats(context.Background())
 	if err != nil {
 		t.Fatalf("FetchStats() error: %v", err)
 	}
@@ -151,8 +156,9 @@ func TestFetchStats_ZeroTasks_SuccessRateZero(t *testing.T) {
 }
 
 func TestNewAggregator(t *testing.T) {
+	t.Parallel()
 	db := setupAggregatorDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	agg, err := NewAggregator(db)
 	if err != nil {
@@ -167,6 +173,7 @@ func TestNewAggregator(t *testing.T) {
 }
 
 func TestNewAggregator_NilDB(t *testing.T) {
+	t.Parallel()
 	agg, err := NewAggregator(nil)
 	if err == nil {
 		t.Fatal("expected error for nil db, got nil")
@@ -180,16 +187,17 @@ func TestNewAggregator_NilDB(t *testing.T) {
 }
 
 func TestGenerateMarkdown(t *testing.T) {
+	t.Parallel()
 	db := setupAggregatorDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Insert nodes and tasks so FetchStats returns non-zero stats.
-	_, err := db.Conn.Exec("INSERT INTO nodes (id, name, type, file_path) VALUES (?, ?, ?, ?)",
+	_, err := db.Conn.ExecContext(context.Background(), "INSERT INTO nodes (id, name, type, file_path) VALUES (?, ?, ?, ?)",
 		"n1", "main.go", "file", "cmd/main.go")
 	if err != nil {
 		t.Fatalf("insert node: %v", err)
 	}
-	_, err = db.Conn.Exec("INSERT INTO tasks (id, description, status, tier, math_delta) VALUES (?, ?, ?, ?, ?)",
+	_, err = db.Conn.ExecContext(context.Background(), "INSERT INTO tasks (id, description, status, tier, math_delta) VALUES (?, ?, ?, ?, ?)",
 		"t1", "Add auth", "DONE", "T1", 3.14)
 	if err != nil {
 		t.Fatalf("insert task: %v", err)
@@ -199,7 +207,7 @@ func TestGenerateMarkdown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAggregator() error: %v", err)
 	}
-	stats, err := agg.FetchStats()
+	stats, err := agg.FetchStats(context.Background())
 	if err != nil {
 		t.Fatalf("FetchStats() error: %v", err)
 	}
@@ -210,7 +218,7 @@ func TestGenerateMarkdown(t *testing.T) {
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("chdir to tmpDir: %v", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() { _ = os.Chdir(originalDir) }()
 
 	if err := agg.GenerateMarkdown(stats); err != nil {
 		t.Fatalf("GenerateMarkdown() error: %v", err)
@@ -238,11 +246,12 @@ func TestGenerateMarkdown(t *testing.T) {
 }
 
 func TestFetchStats_WithADRMatch(t *testing.T) {
+	t.Parallel()
 	db := setupAggregatorDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	taskID := "test-adr-task"
-	_, err := db.Conn.Exec("INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
+	_, err := db.Conn.ExecContext(context.Background(), "INSERT INTO tasks (id, description, status, tier) VALUES (?, ?, ?, ?)",
 		taskID, "ADR test task", "DONE", "T1")
 	if err != nil {
 		t.Fatalf("insert task: %v", err)
@@ -250,11 +259,11 @@ func TestFetchStats_WithADRMatch(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	adrDir := filepath.Join(tmpDir, "docs", "architecture", "adr")
-	if err := os.MkdirAll(adrDir, 0755); err != nil {
+	if err := os.MkdirAll(adrDir, 0755); err != nil { //nolint:gosec // test fixture
 		t.Fatalf("mkdir adr: %v", err)
 	}
 	adrFile := filepath.Join(adrDir, "ADR-"+taskID+"-auth-decision.md")
-	if err := os.WriteFile(adrFile, []byte("# ADR"), 0644); err != nil {
+	if err := os.WriteFile(adrFile, []byte("# ADR"), 0644); err != nil { //nolint:gosec // test fixture
 		t.Fatalf("write adr file: %v", err)
 	}
 
@@ -262,13 +271,13 @@ func TestFetchStats_WithADRMatch(t *testing.T) {
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("chdir: %v", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() { _ = os.Chdir(originalDir) }()
 
 	agg, err := NewAggregator(db)
 	if err != nil {
 		t.Fatalf("NewAggregator() error: %v", err)
 	}
-	stats, err := agg.FetchStats()
+	stats, err := agg.FetchStats(context.Background())
 	if err != nil {
 		t.Fatalf("FetchStats() error: %v", err)
 	}

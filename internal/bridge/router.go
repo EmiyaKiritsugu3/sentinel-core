@@ -1,4 +1,4 @@
-// internal/bridge/router.go
+// Package bridge connects the agent engine to external AI providers.
 package bridge
 
 // ContextStrategy defines what context to inject into the AI payload

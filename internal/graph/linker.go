@@ -1,20 +1,22 @@
 package graph
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 // LinkDependencies resolve imports temporários para referências reais entre arquivos.
-func (e *Engine) LinkDependencies() error {
+func (e *Engine) LinkDependencies(ctx context.Context) error {
 	// 1. Busca todos os imports pendentes
-	rows, err := e.db.Conn.Query("SELECT id, name, file_path FROM nodes WHERE type = 'unresolved_import'")
+	rows, err := e.db.Conn.QueryContext(ctx, "SELECT id, name, file_path FROM nodes WHERE type = 'unresolved_import'")
 	if err != nil {
 		return fmt.Errorf("linker: failed to query pending imports: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	type pendingLink struct {
 		id         string
@@ -30,18 +32,18 @@ func (e *Engine) LinkDependencies() error {
 		}
 	}
 
-	fmt.Printf("🔗 Sentinel: Linking %d dependencies...\n", len(pending))
+	slog.Info("linking dependencies", "count", len(pending))
 
 	for _, p := range pending {
 		targetFile, resolved := e.resolveImport(p.sourceFile, p.importPath)
 		if resolved {
-			err := e.createRealEdge(p.sourceFile, targetFile)
+			err := e.createRealEdge(ctx, p.sourceFile, targetFile)
 			if err != nil {
-				fmt.Printf("⚠️  Linker: failed to link %s -> %s: %v\n", p.sourceFile, targetFile, err)
+				slog.Warn("failed to link dependency", "source", p.sourceFile, "target", targetFile, "error", err)
 				continue
 			}
 			// Remove o nó temporário após resolução bem sucedida
-			_, _ = e.db.Conn.Exec("DELETE FROM nodes WHERE id = ?", p.id)
+			_, _ = e.db.Conn.ExecContext(ctx, "DELETE FROM nodes WHERE id = ?", p.id)
 		}
 	}
 
@@ -86,8 +88,8 @@ func (e *Engine) resolveImport(sourceFile, importPath string) (string, bool) {
 	return "", false
 }
 
-func (e *Engine) createRealEdge(sourceFile, targetFile string) error {
-	tx, err := e.db.Conn.Begin()
+func (e *Engine) createRealEdge(ctx context.Context, sourceFile, targetFile string) error {
+	tx, err := e.db.Conn.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -96,9 +98,9 @@ func (e *Engine) createRealEdge(sourceFile, targetFile string) error {
 	toID := "file:" + targetFile
 
 	query := `INSERT OR IGNORE INTO edges (from_node_id, to_node_id, relation_type) VALUES (?, ?, ?)`
-	_, err = tx.Exec(query, fromID, toID, "imports")
+	_, err = tx.ExecContext(ctx, query, fromID, toID, "imports")
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return err
 	}
 

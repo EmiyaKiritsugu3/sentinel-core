@@ -7,6 +7,7 @@ import (
 )
 
 func TestValidateDB_NilDB(t *testing.T) {
+	t.Parallel()
 	err := ValidateDB(nil, "caller")
 	if err == nil {
 		t.Fatal("expected error for nil db")
@@ -17,6 +18,7 @@ func TestValidateDB_NilDB(t *testing.T) {
 }
 
 func TestValidateDB_NilConn(t *testing.T) {
+	t.Parallel()
 	db := &DB{Conn: nil}
 	err := ValidateDB(db, "engine")
 	if err == nil {
@@ -28,8 +30,9 @@ func TestValidateDB_NilConn(t *testing.T) {
 }
 
 func TestValidateDB_ValidDB(t *testing.T) {
+	t.Parallel()
 	db := SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := ValidateDB(db, "engine"); err != nil {
 		t.Errorf("expected nil error for valid db, got: %v", err)

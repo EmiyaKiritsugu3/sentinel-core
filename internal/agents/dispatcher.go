@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -95,7 +96,7 @@ func (d *Dispatcher) ReconcileEvents(ctx context.Context) error {
 		}
 
 		path := filepath.Join(eventDir, entry.Name())
-		file, err := os.Open(path)
+		file, err := os.Open(path) //nolint:gosec // path from trusted event directory
 		if err != nil {
 			continue
 		}
@@ -103,7 +104,7 @@ func (d *Dispatcher) ReconcileEvents(ctx context.Context) error {
 		// Standard #01: Use buffered reader (bufio) to read the event file
 		reader := bufio.NewReader(file)
 		data, err := io.ReadAll(reader)
-		file.Close()
+		_ = file.Close()
 		if err != nil {
 			continue
 		}
@@ -125,7 +126,7 @@ func (d *Dispatcher) ReconcileEvents(ctx context.Context) error {
 		}
 
 		if err := os.Remove(path); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: dispatcher: could not remove event file %s: %v\n", path, err)
+			slog.Warn("failed to remove event file", "path", path, "error", err)
 		}
 	}
 

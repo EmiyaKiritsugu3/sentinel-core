@@ -13,6 +13,8 @@ func init() {
 	registry.Register(NewScanCmd)
 }
 
+// NewScanCmd creates a cobra command that scans the project codebase to
+// update the graph database with current AST information.
 func NewScanCmd(db *sqlite.DB) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "scan",
@@ -25,29 +27,29 @@ func NewScanCmd(db *sqlite.DB) *cobra.Command {
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-			var err error
-			// Auto-Migração: garante que o banco esteja pronto
-			err = graph.Migrate(db)
-			if err != nil {
-				return fmt.Errorf("scan: migration failed: %w", err)
-			}
+		var err error
+		// Auto-Migração: garante que o banco esteja pronto
+		err = graph.Migrate(cmd.Context(), db)
+		if err != nil {
+			return fmt.Errorf("scan: migration failed: %w", err)
+		}
 
-			fmt.Println("🔍 Sentinel: Scanning project AST...")
+		fmt.Println("🔍 Sentinel: Scanning project AST...")
 
-			// Inicializa o Engine Multi-Linguagem
-			engine, err := graph.NewEngine(db)
-			if err != nil {
-				return fmt.Errorf("scan: failed to create engine: %w", err)
-			}
+		// Inicializa o Engine Multi-Linguagem
+		engine, err := graph.NewEngine(db)
+		if err != nil {
+			return fmt.Errorf("scan: failed to create engine: %w", err)
+		}
 
-			// Registra os Scanners
-			engine.RegisterScanner(graph.NewGoScanner())
-			engine.RegisterScanner(graph.NewTreeSitterScanner())
+		// Registra os Scanners
+		engine.RegisterScanner(graph.NewGoScanner())
+		engine.RegisterScanner(graph.NewTreeSitterScanner())
 
-			err = engine.ScanProject(".")
-			if err != nil {
-				return fmt.Errorf("scan: failed: %w", err)
-			}
+		err = engine.ScanProject(cmd.Context(), ".")
+		if err != nil {
+			return fmt.Errorf("scan: failed: %w", err)
+		}
 
 		fmt.Println("✅ Scan complete. Graph database updated.")
 		return nil

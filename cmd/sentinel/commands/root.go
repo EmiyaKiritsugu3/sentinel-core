@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewRootCmd creates the root cobra command for the sentinel CLI and
+// dynamically registers all subcommands from the command registry.
 func NewRootCmd(db *sqlite.DB) *cobra.Command {
 	root := &cobra.Command{
 		Use:   "sentinel",
@@ -28,6 +30,7 @@ func NewRootCmd(db *sqlite.DB) *cobra.Command {
 	return root
 }
 
+// Execute builds the root command and runs it, exiting the process on error.
 func Execute(db *sqlite.DB) {
 	if err := NewRootCmd(db).Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

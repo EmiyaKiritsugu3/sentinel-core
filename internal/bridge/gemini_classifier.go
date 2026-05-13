@@ -1,10 +1,10 @@
-// internal/bridge/gemini_classifier.go
+// Package bridge connects the agent engine to external AI providers.
 package bridge
 
 import (
 	"context"
 	"fmt"
-	"os"
+	"log/slog"
 	"strings"
 
 	"github.com/google/generative-ai-go/genai"
@@ -15,6 +15,10 @@ type GeminiClassifier struct {
 	client *genai.Client
 }
 
+// defaultModelID is the Gemini model used for intent classification.
+const defaultModelID = "gemini-1.5-flash"
+
+// NewGeminiClassifier creates a new GeminiClassifier with the given genai client.
 func NewGeminiClassifier(client *genai.Client) (*GeminiClassifier, error) {
 	if client == nil {
 		return nil, fmt.Errorf("gemini-classifier: nil genai client")
@@ -22,11 +26,12 @@ func NewGeminiClassifier(client *genai.Client) (*GeminiClassifier, error) {
 	return &GeminiClassifier{client: client}, nil
 }
 
+// Classify uses the Gemini API to classify the task description into an Intent.
 func (g *GeminiClassifier) Classify(ctx context.Context, description string) (Intent, error) {
 	if g == nil || g.client == nil {
 		return IntentUnknown, nil
 	}
-	model := g.client.GenerativeModel("gemini-1.5-flash")
+	model := g.client.GenerativeModel(defaultModelID)
 	model.SystemInstruction = &genai.Content{
 		Parts: []genai.Part{genai.Text("You are a task classifier. Respond with exactly one word.")},
 	}
@@ -56,7 +61,7 @@ func (g *GeminiClassifier) Classify(ctx context.Context, description string) (In
 	case IntentDiagnose, IntentImplement, IntentRefactor, IntentReview:
 		return parsed, nil
 	default:
-		fmt.Fprintf(os.Stderr, "warning: classifier: unrecognized ai intent: %q\n", parsed)
+		slog.Warn("unrecognized AI intent", "intent", parsed)
 		return IntentUnknown, nil
 	}
 }

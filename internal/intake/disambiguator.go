@@ -3,6 +3,7 @@
 package intake
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"math"
@@ -41,6 +42,7 @@ type Disambiguator struct {
 	db *sqlite.DB // nil = skip graph phase (Phase 2)
 }
 
+// NewDisambiguator creates a Disambiguator with an optional DB.
 func NewDisambiguator(db *sqlite.DB) *Disambiguator {
 	// db is optional: nil = Phase 1 (lexical scoring) only.
 	// Non-nil DB is validated before use in Phase 2 (graph-anchored).
@@ -48,23 +50,23 @@ func NewDisambiguator(db *sqlite.DB) *Disambiguator {
 }
 
 // Analyze returns whether the description is vague and any graph suggestions.
-func (d *Disambiguator) Analyze(description string) (vague bool, suggestions []Suggestion) {
-	score := d.VaguenessScore(description)
+func (d *Disambiguator) Analyze(ctx context.Context, description string) (vague bool, suggestions []Suggestion) {
+	score := d.VaguenessScore(ctx, description)
 	if score <= scoreThreshold {
 		return false, nil
 	}
 	if d.db != nil {
-		suggestions = d.queryGraph(description)
+		suggestions = d.queryGraph(ctx, description)
 	}
 	return true, suggestions
 }
 
 // VaguenessScore returns a score in [0.0, 1.0]. Values > 0.50 trigger suggestion.
-func (d *Disambiguator) VaguenessScore(description string) float64 {
+func (d *Disambiguator) VaguenessScore(ctx context.Context, description string) float64 {
 	score := lengthSignal(description) +
 		verbSignal(description) +
 		pronounSignal(description) +
-		d.anchorSignal(description)
+		d.anchorSignal(ctx, description)
 	return math.Min(score, 1.0)
 }
 
@@ -141,10 +143,10 @@ func hasLineReference(description string) bool {
 
 // matchKeywordsInGraph queries the graph database for each keyword and returns
 // how many keywords matched at least one node.
-func matchKeywordsInGraph(db *sql.DB, keywords []string) (matched int, total int) {
+func matchKeywordsInGraph(ctx context.Context, db *sql.DB, keywords []string) (matched int, total int) {
 	for _, kw := range keywords {
 		var n int
-		err := db.QueryRow(
+		err := db.QueryRowContext(ctx,
 			"SELECT COUNT(*) FROM nodes WHERE LOWER(name) LIKE ?",
 			fmt.Sprintf("%%%s%%", kw),
 		).Scan(&n)
@@ -155,7 +157,7 @@ func matchKeywordsInGraph(db *sql.DB, keywords []string) (matched int, total int
 	return matched, len(keywords)
 }
 
-func (d *Disambiguator) anchorSignal(description string) float64 {
+func (d *Disambiguator) anchorSignal(ctx context.Context, description string) float64 {
 	lower := strings.ToLower(description)
 
 	// Phase 1: lexical anchors (zero DB)
@@ -172,7 +174,7 @@ func (d *Disambiguator) anchorSignal(description string) float64 {
 	}
 
 	var count int
-	if err := d.db.Conn.QueryRow("SELECT COUNT(*) FROM nodes").Scan(&count); err != nil || count == 0 {
+	if err := d.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM nodes").Scan(&count); err != nil || count == 0 {
 		return weightAnchor
 	}
 
@@ -181,19 +183,19 @@ func (d *Disambiguator) anchorSignal(description string) float64 {
 		return weightAnchor
 	}
 
-	matched, total := matchKeywordsInGraph(d.db.Conn, keywords)
+	matched, total := matchKeywordsInGraph(ctx, d.db.Conn, keywords)
 	matchedRatio := float64(matched) / float64(total)
 	return weightAnchor * (1.0 - matchedRatio)
 }
 
-func (d *Disambiguator) queryGraph(description string) []Suggestion {
+func (d *Disambiguator) queryGraph(ctx context.Context, description string) []Suggestion {
 	keywords := extractKeywords(description)
 	var suggestions []Suggestion
 	seen := map[string]bool{}
 
 loop:
 	for _, kw := range keywords {
-		rows, err := d.db.Conn.Query(
+		rows, err := d.db.Conn.QueryContext(ctx,
 			"SELECT name, file_path FROM nodes WHERE LOWER(name) LIKE ? LIMIT 3",
 			fmt.Sprintf("%%%s%%", kw),
 		)

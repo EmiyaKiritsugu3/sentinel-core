@@ -1,3 +1,4 @@
+// Package audit provides compliance verification and gate execution.
 package audit
 
 import (
@@ -5,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"time"
 
@@ -12,10 +14,12 @@ import (
 	"github.com/google/shlex"
 )
 
+// Runner runs audit verifications and records results.
 type Runner struct {
 	db *sqlite.DB
 }
 
+// NewRunner creates a new Runner with the given DB.
 func NewRunner(db *sqlite.DB) (*Runner, error) {
 	if err := sqlite.ValidateDB(db, "audit-runner"); err != nil {
 		return nil, err
@@ -23,9 +27,9 @@ func NewRunner(db *sqlite.DB) (*Runner, error) {
 	return &Runner{db: db}, nil
 }
 
-// ExecuteAudit roda o comando de verificação para uma tarefa específica com timeout e proteção de shell
+// ExecuteAudit roda o commando de verificação para uma tarefa específica com timeout e proteção de shell
 func (r *Runner) ExecuteAudit(taskID string, command string) (bool, error) {
-	fmt.Printf("🛡️ Sentinel: Auditing Task [%s]...\n", taskID)
+	slog.Info("auditing task", "task", taskID)
 
 	args, err := shlex.Split(command)
 	if err != nil {
@@ -35,12 +39,12 @@ func (r *Runner) ExecuteAudit(taskID string, command string) (bool, error) {
 		return false, fmt.Errorf("audit: empty verification command")
 	}
 
-	fmt.Printf("Executing: %v (Timeout: 30s)\n", args)
+	slog.Info("executing verification", "command", args, "timeout", "30s")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...) //nolint:gosec // intentional: command from ADR
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -51,7 +55,7 @@ func (r *Runner) ExecuteAudit(taskID string, command string) (bool, error) {
 
 	if err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			fmt.Println("🛑 ERROR: Audit Timeout Exceeded.")
+			slog.Error("audit timeout exceeded")
 			exitCode = 124
 		} else {
 			// Uso do errors.As para detecção robusta de erro de saída
@@ -72,9 +76,9 @@ func (r *Runner) ExecuteAudit(taskID string, command string) (bool, error) {
 	}
 
 	if success {
-		fmt.Println("✅ Audit Passed. Gate open.")
+		slog.Info("audit passed", "gate", "open")
 	} else {
-		fmt.Printf("❌ Audit Failed (Exit Code: %d). Gate locked.\n", exitCode)
+		slog.Error("audit failed", "exit_code", exitCode)
 	}
 
 	return success, nil
