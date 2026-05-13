@@ -319,7 +319,7 @@ func scanFileMatches(re *regexp.Regexp, path string) ([]string, error) {
 			matches = append(matches, fmt.Sprintf("%s:%d: %s", path, lineNum, scanner.Text()))
 		}
 		if len(matches) > 100 {
-			return matches, fmt.Errorf(errTooManyMatches)
+			return matches, fmt.Errorf("%s", errTooManyMatches)
 		}
 		lineNum++
 	}
