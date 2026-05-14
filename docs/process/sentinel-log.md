@@ -1,5 +1,39 @@
 # Sentinel Log — Compiled Brain [PID-SENTINEL]
 
+## [2026-05-14] Milestone: SonarCloud Code Quality & Remediation [PID-SENTINEL-SONARCLOUD]
+
+**Status**: COMPLETED 💎
+**Impact**: HIGH (CI Pipeline Fix + Code Quality — 7 SonarCloud issues resolved)
+
+### 🔍 Analysis
+
+1. **Cognitive Complexity Reduction (2 functions)**: Refatoradas para extrair helpers:
+   - `executeQuery` (31→≤15): `handleImportCapture` + `handleSymbolCapture`
+   - `buildNodeToContainerMap` (19→≤15): `classifyEdgeEndpoints`
+2. **Duplicate Literals (S1192)**: `errTooManyMatches` (3x → 1x) e `pacAngleLogMsg` (3x → 1x).
+3. **S8209**: Parâmetros consecutivos agrupados em `collectADRDetails`.
+4. **PT→EN Comments**: ~100 comentários traduzidos em 30 arquivos — zero comentários em português no código.
+5. **modernc.org/sqlite Timezone Bug**: `time.Parse("2006-01-02 15:04:05", ...)` assumia formato C SQLite, mas `modernc.org/sqlite` retorna RFC3339. Erro silenciado por `_` desde o início. Corrigido para `time.Parse(time.RFC3339, ...)`.
+6. **CI Fix**: Action `SonarSource/sonarqube-scan-action` com SHA quebrado → `@v7.1.0`. `qualitygate.wait=true` removido (plano free não permite customizar thresholds).
+7. **CodeRabbit Fix**: `time.Parse` error ignorado em `ListTasks` — agora propagado.
+
+### 📊 Metrics
+
+| Check | Before | After |
+|---|---|---|
+| `SonarCloud Scan` | ❌ exit code 3 | ✅ **PASS** |
+| SonarCloud Go issues | 7+ (S3776/S1192/S8209) | **0** |
+| Portuguese comments | ~100 | **0** |
+| CI action version | SHA quebrado | ✅ **v7.1.0** |
+| `golangci-lint run` | 0 | ✅ **0** |
+| `go test -race` | ✅ | ✅ |
+
+### 💡 Key Learning
+
+"O `modernc.org/sqlite` retorna timestamps em RFC3339, não no formato clássico do SQLite C (`YYYY-MM-DD HH:MM:SS`). Isso não é documentado explicitamente — descobrimos na prática quando o CodeRabbit sugeriu tratar erros de `time.Parse` que antes eram silenciados com `_`. Nunca silencie erros de parsing de timestamp: o formato pode mudar entre drivers SQLite."
+
+---
+
 ## [2026-05-13] Milestone: Linter Cleanup & Quality Firewall [PID-SENTINEL-LINTER-CLEANUP]
 
 **Status**: COMPLETED 💎

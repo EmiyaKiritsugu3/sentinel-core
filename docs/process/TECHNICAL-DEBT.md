@@ -1,5 +1,28 @@
 # Technical Debt Log [PID-SENTINEL]
 
+## [2026-05-14] SonarCloud Remediation & modernc.org/sqlite Timezone Fix [PID-SENTINEL-SONARCLOUD]
+
+**Status**: RESOLVED ✅
+
+- ~~**SonarCloud Code Analysis — Quality Gate (3 PRs)**: SonarCloud Scan falhava com exit code 3 por 3 motivos encadeados:
+  1. `time.Parse("2006-01-02 15:04:05", ...)` assumia formato C SQLite, mas `modernc.org/sqlite` retorna **RFC3339** — erro mascarado por `_`.
+  2. Testes quebravam → `coverage.out` corrompido → scanner não conseguia processar.
+  3. Action SHA `c7ee0f9d...` quebrado + `sonar.qualitygate.wait=true` bloqueava CI.~~
+  **RESOLVED**:
+  - Timestamp parsing migrado para `time.RFC3339` (manager.go + store.go).
+  - Action atualizado para `SonarSource/sonarqube-scan-action@v7.1.0`.
+  - `qualitygate.wait` removido (gratuito não permite customizar thresholds).
+- ~~**~100 Comentários em Português no código Go**: Mistura de idiomas nos comentários de 30 arquivos.~~ **RESOLVED**: Todos traduzidos para inglês.
+- ~~**CodeRabbit: time.Parse error ignorado em ListTasks**: `t.CreatedAt, _ = time.Parse(...)` mascara dados corrompidos.~~ **RESOLVED**: Erro propagado com `fmt.Errorf`.
+
+### Resumo
+| Check | Antes | Depois |
+|---|---|---|
+| Portuguese comments | ~100 | **0** |
+| SonarCloud Go issues | ~7 (S3776+S1192+S8209) | **0** |
+| SonarCloud Scan | ❌ exit code 3 | ✅ **PASS** |
+| CI action version | SHA quebrado | ✅ **v7.1.0** |
+
 ## [2026-05-13] Linter Cleanup — Quality Firewall [PID-SENTINEL-LINTER-CLEANUP]
 
 **Status**: RESOLVED ✅

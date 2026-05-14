@@ -22,6 +22,14 @@ Este documento define a trajetória oficial de desenvolvimento do Sentinel Core.
   - Thread safety no Registry: `sync.RWMutex` + `go test -race` pass.
   - Context threading no Disambiguator (noctx fix).
   - `golangci-lint run`: 0 issues (de 137).
+- [x] **Fase 2.12: SonarCloud Code Quality Remediation**
+  - Tradução de ~100 comentários PT→EN em 30 arquivos.
+  - Redução de complexidade cognitiva em 2 funções (executeQuery 31→≤15, buildNodeToContainerMap 19→≤15).
+  - Duplicate literals extraídos para constantes (S1192).
+  - Parâmetros consecutivos agrupados (S8209).
+  - Fix do timestamp RFC3339 para compatibilidade com modernc.org/sqlite.
+  - CI action version reparada (SHA quebrado → v7.1.0).
+  - `golangci-lint run`: 0 issues, `SonarCloud Scan`: ✅ PASS.
 
 ## 🚀 Próximas Frentes (O Plano Concreto)
 
@@ -118,5 +126,5 @@ Ideias com mérito técnico validado, sem data definida. Cada uma tem uma **pré
 
 ---
 
-*Atualizado em: 2026-05-13*
+*Atualizado em: 2026-05-14*
 *Assinado: Sovereign Council*

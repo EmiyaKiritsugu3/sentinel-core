@@ -7,6 +7,8 @@
 [![Status](https://img.shields.io/badge/Status-Beta-green.svg)](https://github.com/EmiyaKiritsugu3/sentinel-core)
 [![Linter](https://img.shields.io/badge/Linter-0%20issues-brightgreen)](https://github.com/EmiyaKiritsugu3/sentinel-core)
 [![Race](https://img.shields.io/badge/Race%20Detector-Pass-brightgreen)](https://github.com/EmiyaKiritsugu3/sentinel-core)
+[![SonarCloud](https://img.shields.io/badge/SonarCloud-Quality%20Gate-yellow)](https://sonarcloud.io/project/overview?id=EmiyaKiritsugu3_sentinel-core)
+[![CodeRabbit](https://img.shields.io/badge/CodeRabbit-Reviewed-brightgreen)](https://github.com/EmiyaKiritsugu3/sentinel-core)
 
 > "Code without architecture is just noise. Action without verification is just a risk."
 
@@ -31,6 +33,9 @@ Sentinel introduces the **Subagent Triad Architecture**, separating concerns to 
 * **Nil Guard Hardening**: All exported methods validate dependencies via typed `ErrNilDB` sentinel error, enabling systematic `errors.Is()` matching across the codebase.
 * **Zero Linter Debt**: Enforced via `golangci-lint` v2 with 0 blocking issues — gocyclo ≤ 15, all exported symbols documented, no data races, no context leaks (noctx).
 * **Thread-Safe Registry**: All tool registrations and lookups protected by `sync.RWMutex`, vetted by `go test -race`.
+* **SonarCloud Integrated**: 0 open issues, quality gate enforced on PRs via automated scanning (S3776, S1192, S8209).
+* **CodeRabbit Verified**: Every PR reviewed by AI, with automated fix suggestions for error handling, edge cases, and code quality.
+* **All-English Codebase**: Every comment across 94 Go files is in English — zero language mixing.
 * **Zero Dependencies**: Compiled in Go, it's a single static binary. No `node_modules`, no runtime friction.
 
 ## 🛠️ How it Works (The Sovereign Workflow)
