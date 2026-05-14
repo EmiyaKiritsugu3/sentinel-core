@@ -22,7 +22,8 @@ const CategoryStructuralPrinciple = "structural-principle"
 // CategoryRoutingPrinciple identifies the routing-principle category.
 const CategoryRoutingPrinciple = "routing-principle"
 
-const timeLayout = "2006-01-02 15:04:05"
+// timeLayout is the timestamp format used by modernc.org/sqlite CURRENT_TIMESTAMP.
+const timeLayout = time.RFC3339
 
 // SourceCognitiveDNA identifies cognitive DNA as the pattern source.
 const SourceCognitiveDNA = "cognitive-dna"

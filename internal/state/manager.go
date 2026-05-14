@@ -102,8 +102,8 @@ func (m *Manager) ListTasks(ctx context.Context) ([]Task, error) {
 		if err := rows.Scan(&t.ID, &t.Description, &t.Status, &t.Tier, &createdAt); err != nil {
 			return nil, fmt.Errorf("state: failed to scan task: %w", err)
 		}
-		// SQLite CURRENT_TIMESTAMP is "YYYY-MM-DD HH:MM:SS"
-		parsedCreatedAt, err := time.Parse("2006-01-02 15:04:05", createdAt)
+		// modernc.org/sqlite stores TIMESTAMP DEFAULT CURRENT_TIMESTAMP in RFC3339
+		parsedCreatedAt, err := time.Parse(time.RFC3339, createdAt)
 		if err != nil {
 			return nil, fmt.Errorf("state: invalid created_at %q: %w", createdAt, err)
 		}
