@@ -24,7 +24,7 @@ func NewVisualizer(db *sqlite.DB) (*Visualizer, error) {
 	return &Visualizer{db: db}, nil
 }
 
-// GenerateMasterDiagram gera o C4 holístico do projeto
+// GenerateMasterDiagram generates the holistic C4 of the project
 func (v *Visualizer) GenerateMasterDiagram(ctx context.Context) error {
 	nodes, err := v.getNodes(ctx, "")
 	if err != nil {
@@ -51,7 +51,7 @@ func (v *Visualizer) GenerateMasterDiagram(ctx context.Context) error {
 	return nil
 }
 
-// GenerateTaskSnapshot gera um diagrama focado nos nós impactados por uma tarefa
+// GenerateTaskSnapshot generates a diagram focused on nodes impacted by a task
 func (v *Visualizer) GenerateTaskSnapshot(ctx context.Context, taskID, description string, impactFiles []string) error {
 	var nodes []Node
 	for _, file := range impactFiles {
@@ -113,7 +113,7 @@ func (v *Visualizer) getNodes(ctx context.Context, filterFile string) ([]Node, e
 	return nodes, nil
 }
 
-// GenerateC4ContainerDiagram gera um diagrama C4 de Nível 2 (Container)
+// GenerateC4ContainerDiagram generates a C4 Level 2 (Container) diagram
 func (v *Visualizer) GenerateC4ContainerDiagram(ctx context.Context) error {
 	nodes, err := v.getNodes(ctx, "")
 	if err != nil {
@@ -166,6 +166,25 @@ func writeContainerDefs(sb *strings.Builder, containers []c4Container) {
 	sb.WriteString("\n")
 }
 
+// classifyEdgeEndpoints maps edge From/To IDs to containers when the ID
+// has a "file:" prefix. Only maps endpoints not already in the container map.
+func classifyEdgeEndpoints(edges []Edge, nodeToContainer map[string]string) {
+	for _, e := range edges {
+		if _, ok := nodeToContainer[e.To]; !ok && strings.HasPrefix(e.To, "file:") {
+			path := strings.TrimPrefix(e.To, "file:")
+			if cid := classifyContainer(path); cid != "" {
+				nodeToContainer[e.To] = cid
+			}
+		}
+		if _, ok := nodeToContainer[e.From]; !ok && strings.HasPrefix(e.From, "file:") {
+			path := strings.TrimPrefix(e.From, "file:")
+			if cid := classifyContainer(path); cid != "" {
+				nodeToContainer[e.From] = cid
+			}
+		}
+	}
+}
+
 // buildNodeToContainerMap classifies all nodes and edge endpoints into their
 // corresponding C4 containers based on file paths.
 func buildNodeToContainerMap(nodes []Node, edges []Edge) map[string]string {
@@ -181,20 +200,7 @@ func buildNodeToContainerMap(nodes []Node, edges []Edge) map[string]string {
 		}
 	}
 
-	for _, e := range edges {
-		if _, ok := nodeToContainer[e.To]; !ok && strings.HasPrefix(e.To, "file:") {
-			path := strings.TrimPrefix(e.To, "file:")
-			if cid := classifyContainer(path); cid != "" {
-				nodeToContainer[e.To] = cid
-			}
-		}
-		if _, ok := nodeToContainer[e.From]; !ok && strings.HasPrefix(e.From, "file:") {
-			path := strings.TrimPrefix(e.From, "file:")
-			if cid := classifyContainer(path); cid != "" {
-				nodeToContainer[e.From] = cid
-			}
-		}
-	}
+	classifyEdgeEndpoints(edges, nodeToContainer)
 
 	return nodeToContainer
 }

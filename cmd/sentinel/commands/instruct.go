@@ -51,7 +51,7 @@ func readIntent(message string, quick bool) (string, error) {
 }
 
 // collectADRDetails fills an ADRData based on the user's menu choice.
-func collectADRDetails(choice string, intent string, evidence string) graph.ADRData {
+func collectADRDetails(choice, intent, evidence string) graph.ADRData {
 	adrData := graph.ADRData{
 		Title:  intent,
 		Status: "PROPOSED",
@@ -166,7 +166,7 @@ func isVagueIntent(intent string) bool {
 }
 
 func performDiagnostic(ctx context.Context, db *sqlite.DB) string {
-	// Query real no banco para encontrar os 3 arquivos mais complexos (God Objects)
+	// Real database query to find the 3 most complex files (God Objects)
 	query := `
 		SELECT n.file_path, COUNT(e.from_node_id) as degree
 		FROM nodes n

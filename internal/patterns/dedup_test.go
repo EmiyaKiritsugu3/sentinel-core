@@ -88,7 +88,7 @@ func TestFindSimilar(t *testing.T) {
 	}
 }
 
-// CG-02: FindSimilar deve retornar ErrNilDB quando store não tem DB
+// CG-02: FindSimilar should return ErrNilDB when store has no DB
 
 func TestFindSimilar_NilDB(t *testing.T) {
 	t.Parallel()
@@ -99,7 +99,7 @@ func TestFindSimilar_NilDB(t *testing.T) {
 	}
 }
 
-// Cobertura: FindSimilar — ramo de tag overlap (sem match levenshtein, mas overlap ≥ 0.5)
+// Coverage: FindSimilar — tag overlap branch (no levenshtein match, but overlap ≥ 0.5)
 
 func TestFindSimilar_TagOverlap(t *testing.T) {
 	t.Parallel()

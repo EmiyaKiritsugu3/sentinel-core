@@ -32,7 +32,7 @@ func NewManager(db *sqlite.DB) (*Manager, error) {
 	return &Manager{db: db}, nil
 }
 
-// CreateTask cria uma nova tarefa no banco
+// CreateTask creates a new task in the database
 func (m *Manager) CreateTask(ctx context.Context, description string, tier string, verificationCmd string) (string, error) {
 	id := uuid.New().String()
 	query := `INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)`
@@ -43,7 +43,7 @@ func (m *Manager) CreateTask(ctx context.Context, description string, tier strin
 	return id, nil
 }
 
-// StartTask marca a tarefa como em progression
+// StartTask marks the task as in progress
 func (m *Manager) StartTask(ctx context.Context, id string) error {
 	query := `UPDATE tasks SET status = 'IN_PROGRESS', updated_at = CURRENT_TIMESTAMP WHERE id = ?`
 	_, err := m.db.Conn.ExecContext(ctx, query, id)
@@ -53,7 +53,7 @@ func (m *Manager) StartTask(ctx context.Context, id string) error {
 	return nil
 }
 
-// GetTaskByID busca uma tarefa específica
+// GetTaskByID fetches a specific task
 func (m *Manager) GetTaskByID(ctx context.Context, id string) (*Task, string, error) {
 	query := `SELECT id, description, status, tier, verification_command FROM tasks WHERE id = ?`
 	var t Task
@@ -75,7 +75,7 @@ func (m *Manager) UpdateStatus(ctx context.Context, id string, nextStatus string
 	return nil
 }
 
-// GetActiveTask retorna a tarefa que está em progression
+// GetActiveTask returns the task that is in progress
 func (m *Manager) GetActiveTask(ctx context.Context) (*Task, error) {
 	query := `SELECT id, description, status, tier FROM tasks WHERE status = 'IN_PROGRESS' LIMIT 1`
 	var t Task
@@ -102,8 +102,12 @@ func (m *Manager) ListTasks(ctx context.Context) ([]Task, error) {
 		if err := rows.Scan(&t.ID, &t.Description, &t.Status, &t.Tier, &createdAt); err != nil {
 			return nil, fmt.Errorf("state: failed to scan task: %w", err)
 		}
-		// SQLite CURRENT_TIMESTAMP é "YYYY-MM-DD HH:MM:SS"
-		t.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		// modernc.org/sqlite stores TIMESTAMP DEFAULT CURRENT_TIMESTAMP in RFC3339
+		parsedCreatedAt, err := time.Parse(time.RFC3339, createdAt)
+		if err != nil {
+			return nil, fmt.Errorf("state: invalid created_at %q: %w", createdAt, err)
+		}
+		t.CreatedAt = parsedCreatedAt
 		tasks = append(tasks, t)
 	}
 

@@ -8,12 +8,12 @@ import (
 	"strings"
 )
 
-// IgnoreFilter gerencia as regras de exclusão baseadas no .gitignore
+// IgnoreFilter manages exclusion rules based on .gitignore
 type IgnoreFilter struct {
 	patterns []string
 }
 
-// NewIgnoreFilter carrega os padrões de um diretório raiz
+// NewIgnoreFilter loads patterns from a root directory
 func NewIgnoreFilter(root string) *IgnoreFilter {
 	f := &IgnoreFilter{}
 	f.loadGitignore(root)
@@ -52,28 +52,28 @@ func (f *IgnoreFilter) IsIgnored(path string) bool {
 		}
 	}
 
-	// 2. Padrões do .gitignore
+	// 2. .gitignore patterns
 	for _, p := range f.patterns {
 		pattern := strings.ToLower(strings.TrimPrefix(p, "./"))
 
-		// Match exato de arquivo ou pasta
+		// Exact file or folder match
 		if filepath.Base(cleanPath) == strings.Trim(pattern, "/") {
 			return true
 		}
 
-		// Match de diretório (prefixo ou conteúdo)
+		// Directory match (prefix or content)
 		if strings.Contains(cleanPath, "/"+strings.Trim(pattern, "/")+"/") ||
 			strings.HasPrefix(cleanPath, strings.TrimSuffix(pattern, "/")+"/") {
 			return true
 		}
 
-		// Match de sufixo (extensões como *.log ou caminhos específicos)
+		// Suffix match (extensions like *.log or specific paths)
 		if strings.HasSuffix(cleanPath, pattern) && strings.Contains(pattern, ".") {
 			return true
 		}
 	}
 
-	// 3. Arquivos ocultos por padrão
+	// 3. Hidden files by default
 	base := filepath.Base(path)
 	if strings.HasPrefix(base, ".") && base != "." {
 		return true

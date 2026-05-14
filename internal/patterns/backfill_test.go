@@ -144,12 +144,12 @@ func TestBackfillFromSentinelLog_DryRun(t *testing.T) {
 	}
 }
 
-// CG-01: Testes de Falso Positivo — strings.Contains para classificação
-// deve ser testado contra inputs que match a substring mas não são itens válidos.
+// CG-01: False Positive Tests — strings.Contains for classification
+// should be tested against inputs that match the substring but are not valid items.
 
 func TestParseCognitiveDNA_FalsePositive_APBracketInComment(t *testing.T) {
 	t.Parallel()
-	// [AP- em comentário HTML sem pipes — len(parts) < 5 não gera candidato
+	// [AP- in HTML comment without pipes — len(parts) < 5 does not generate candidate
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "COGNITIVE-DNA.md")
@@ -164,7 +164,7 @@ func TestParseCognitiveDNA_FalsePositive_APBracketInComment(t *testing.T) {
 
 func TestParseCognitiveDNA_FalsePositive_RegraOutsidePMO(t *testing.T) {
 	t.Parallel()
-	// Regra/MO antes de "### PMO-" — inPMO == false, não captura
+	// Rule/MO before "### PMO-" — inPMO == false, does not capture
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "COGNITIVE-DNA.md")
@@ -194,11 +194,11 @@ func TestParseCognitiveDNA_FalsePositive_ModusOperandiOutsidePMO(t *testing.T) {
 
 func TestParseEvolutionInsights_FalsePositive_SectionNameInBody(t *testing.T) {
 	t.Parallel()
-	// FP DOCUMENTADO: strings.Contains("Gaps Estruturais") em body ativa section detector
-	// Mecanismo: parseEvolutionInsights usa strings.Contains para detectar seção,
-	// o que match substring em qualquer contexto. O FP é conhecido — a linha
-	// "Veja Gaps Estruturais acima para contexto" vira candidato espúrio porque
-	// a seção está ativa quando o parser a encontra.
+	// DOCUMENTED FP: strings.Contains("Structural Gaps") in body triggers section detector
+	// Mechanism: parseEvolutionInsights uses strings.Contains to detect section,
+	// which matches substring in any context. The FP is known — the line
+	// "See Structural Gaps above for context" becomes a spurious candidate because
+	// the section is active when the parser finds it.
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "EVOLUTION-INSIGHTS.md")
@@ -239,9 +239,9 @@ func TestParseEvolutionInsights_FalsePositive_StrikethroughSkipped(t *testing.T)
 
 func TestParseSentinelLog_FalsePositive_FiltroInNarrativeText(t *testing.T) {
 	t.Parallel()
-	// FP DOCUMENTADO: "Filtro A" em texto narrativo sem prefix "- "/"* " —
-	// parseSentinelLine não exige prefixo de lista, apenas strings.Contains("Filtro A/B/C"),
-	// logo texto narrativo com substring vira candidato espúrio se len(clean)>10
+	// DOCUMENTED FP: "Filter A" in narrative text without "- "/"* " prefix —
+	// parseSentinelLine does not require list prefix, only strings.Contains("Filter A/B/C"),
+	// so narrative text with substring becomes spurious candidate if len(clean)>10
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sentinel-log.md")
@@ -265,7 +265,7 @@ func TestParseSentinelLog_FalsePositive_FiltroInNarrativeText(t *testing.T) {
 
 func TestParseSentinelLog_FalsePositive_ShortLine(t *testing.T) {
 	t.Parallel()
-	// "Filtro A" em linha curta — len(clean) > 10 protege
+	// "Filter A" in short line — len(clean) > 10 protects
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sentinel-log.md")
@@ -278,7 +278,7 @@ func TestParseSentinelLog_FalsePositive_ShortLine(t *testing.T) {
 	assert.Empty(t, candidates, "linha curta com Filtro A não deve gerar candidato")
 }
 
-// Cobertura: BackfillFromSentinelLog non-dry-run (caminho de inserção real)
+// Coverage: BackfillFromSentinelLog non-dry-run (real insert path)
 
 func TestBackfillFromSentinelLog_Insert(t *testing.T) {
 	t.Parallel()
@@ -292,7 +292,7 @@ func TestBackfillFromSentinelLog_Insert(t *testing.T) {
 		t.Fatalf("NewPatternStore failed: %v", err)
 	}
 
-	// Cria arquivo sentinel-log com conteúdo Filtro para testar inserção non-dry-run
+	// Create sentinel-log file with Filter content to test non-dry-run insert
 	dir := t.TempDir()
 	docDir := filepath.Join(dir, "docs", "process")
 	if err := os.MkdirAll(docDir, 0755); err != nil { //nolint:gosec // test fixture {
@@ -355,7 +355,7 @@ func TestParseSentinelLine_FiltroC(t *testing.T) {
 	assert.Contains(t, c.SourceRef, "Filtro-C")
 }
 
-// Cobertura: insertIfNew — caminho de erro (Create falha)
+// Coverage: insertIfNew — error path (Create fails)
 
 func TestInsertIfNew_CreateError(t *testing.T) {
 	t.Parallel()
@@ -369,7 +369,7 @@ func TestInsertIfNew_CreateError(t *testing.T) {
 		t.Fatalf("NewPatternStore failed: %v", err)
 	}
 
-	// Fecha o DB para forçar erro no Create dentro de insertIfNew
+	// Close the DB to force error on Create inside insertIfNew
 	_ = db.Close()
 
 	var result BackfillResult
@@ -386,7 +386,7 @@ func TestInsertIfNew_CreateError(t *testing.T) {
 	assert.True(t, len(result.Errors) > 0, "insertIfNew deve registrar erro quando Create falha")
 }
 
-// CG-02: Métodos BackfillFrom* devem retornar ErrNilDB quando store não tem DB
+// CG-02: BackfillFrom* methods should return ErrNilDB when store has no DB
 
 func TestBackfillFromCognitiveDNA_NilDB(t *testing.T) {
 	t.Parallel()

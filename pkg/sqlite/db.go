@@ -16,12 +16,12 @@ type DB struct {
 	Conn *sql.DB
 }
 
-// Init inicializa a conexão com o SQLite e configura as Pragmas de Elite
+// Init establishes SQLite connection and configures Elite Pragmas
 func Init() (*DB, error) {
 	return InitAtPath(".sentinel/graph.db")
 }
 
-// InitAtPath inicializa a conexão com o SQLite em um caminho específico
+// InitAtPath establishes SQLite connection at a specific path
 func InitAtPath(dbPath string) (*DB, error) {
 	sentinelDir := filepath.Dir(dbPath)
 	if _, err := os.Stat(sentinelDir); os.IsNotExist(err) && sentinelDir != "." {
@@ -36,7 +36,7 @@ func InitAtPath(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("sqlite: could not open db: %w", err)
 	}
 
-	// Configuração de Pragmas para Performance e Integridade
+	// Pragma Configuration for Performance and Integrity
 	pragmas := []string{
 		"PRAGMA journal_mode=WAL;",
 		"PRAGMA foreign_keys = ON;",
@@ -52,7 +52,7 @@ func InitAtPath(dbPath string) (*DB, error) {
 		}
 	}
 
-	// Configuração de Pool para Concorrência (WAL permite múltiplos leitores)
+	// Pool Configuration for Concurrency (WAL allows multiple readers)
 	db.SetMaxOpenConns(8)
 	db.SetMaxIdleConns(8)
 
@@ -63,7 +63,7 @@ func InitAtPath(dbPath string) (*DB, error) {
 	return &DB{Conn: db}, nil
 }
 
-// Close fecha a conexão com o banco
+// Close closes the database connection
 func (db *DB) Close() error {
 	return db.Conn.Close()
 }

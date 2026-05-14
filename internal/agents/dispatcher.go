@@ -58,7 +58,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, st *SubTask) error {
 		return fmt.Errorf("dispatcher: failed to marshal capabilities: %w", err)
 	}
 
-	// Persistir sub-task no Ledger Central (Apenas o Dispatcher escreve aqui)
+	// Persist sub-task in Central Ledger (Only the Dispatcher writes here)
 	query := `
 		INSERT INTO sub_tasks (id, parent_task_id, specialist_id, description, status, worktree_path, branch_name, required_capabilities)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -119,7 +119,7 @@ func (d *Dispatcher) ReconcileEvents(ctx context.Context) error {
 			continue
 		}
 
-		// Atualização Atômica no Ledger (Standard #13)
+		// Atomic Update on Ledger (Standard #13)
 		_, err = d.DB.Conn.ExecContext(ctx, "UPDATE sub_tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", event.Status, event.SubTaskID)
 		if err != nil {
 			return fmt.Errorf("dispatcher: reconciliation failed for %s: %w", event.SubTaskID, err)

@@ -168,7 +168,7 @@ func (t *WriteFileTool) Execute(ctx context.Context, args map[string]interface{}
 		return "", err // Sentinel Protocol: Block writing syntactically invalid code
 	}
 
-	// Garante que o diretório pai exista
+	// Ensures the parent directory exists
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0750); err != nil {
 		return "", fmt.Errorf("write_file: failed to create directory %s: %w", dir, err)
@@ -271,6 +271,9 @@ func (t *ReplaceTool) Execute(ctx context.Context, args map[string]interface{}) 
 	return fmt.Sprintf("Successfully replaced content in %s.", path), nil
 }
 
+// errTooManyMatches is the sentinel error message for the match limit.
+const errTooManyMatches = "too many matches found"
+
 // textFileExtensions defines file extensions that GrepSearchTool scans.
 var textFileExtensions = map[string]bool{
 	".go":   true,
@@ -316,7 +319,7 @@ func scanFileMatches(re *regexp.Regexp, path string) ([]string, error) {
 			matches = append(matches, fmt.Sprintf("%s:%d: %s", path, lineNum, scanner.Text()))
 		}
 		if len(matches) > 100 {
-			return matches, fmt.Errorf("too many matches found")
+			return matches, fmt.Errorf("%s", errTooManyMatches)
 		}
 		lineNum++
 	}
@@ -398,7 +401,7 @@ func (t *GrepSearchTool) Execute(ctx context.Context, args map[string]interface{
 		}
 
 		fileMatches, scanErr := scanFileMatches(re, path)
-		if scanErr != nil && scanErr.Error() == "too many matches found" {
+		if scanErr != nil && scanErr.Error() == errTooManyMatches {
 			matches = append(matches, fileMatches...)
 			return scanErr
 		}
@@ -406,7 +409,7 @@ func (t *GrepSearchTool) Execute(ctx context.Context, args map[string]interface{
 		return nil
 	})
 
-	if err != nil && err.Error() != "too many matches found" {
+	if err != nil && err.Error() != errTooManyMatches {
 		return "", fmt.Errorf("grep_search: walk error: %w", err)
 	}
 

@@ -47,7 +47,7 @@ func (e *Engine) notifyObservers(event GraphEvent) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	for _, o := range e.observers {
-		// Notifica de forma assíncrona com backpressure protection
+		// Notifies asynchronously with backpressure protection
 		select {
 		case e.observeSem <- struct{}{}:
 			go func(observer Observer) {
@@ -67,19 +67,19 @@ func (e *Engine) RegisterScanner(s FileScanner) {
 	}
 }
 
-// ScanProject varre o diretório e coordena os scanners registrados
+// ScanProject scans the directory and coordinates registered scanners
 func (e *Engine) ScanProject(ctx context.Context, root string) error {
 	e.notifyObservers(GraphEvent{Type: EventScanStarted, Time: time.Now()})
 	defer e.notifyObservers(GraphEvent{Type: EventScanCompleted, Time: time.Now()})
 
-	// Inicializa o filtro soberano baseado no .gitignore
+	// Initializes the sovereign filter based on .gitignore
 	e.filter = utils.NewIgnoreFilter(root)
 
 	filesChan := make(chan string)
 	resultsChan := make(chan ScanResult)
 	var wg sync.WaitGroup
 
-	// 1. Inicia o Worker Pool
+	// 1. Start the Worker Pool
 	numWorkers := 8
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
@@ -92,14 +92,14 @@ func (e *Engine) ScanProject(ctx context.Context, root string) error {
 					continue
 				}
 
-				// Verificação de Hash Incremental movida para o Engine para ser global
+				// Incremental Hash Verification moved to Engine to be global
 				res := e.scanFileWithIncrementalCheck(ctx, scanner, path)
 				resultsChan <- res
 			}
 		}()
 	}
 
-	// 2. Coletor de Resultados (Escrita no DB serializada)
+	// 2. Result Collector (Serialized DB writes)
 	var scanErr error
 	done := make(chan bool)
 	go func() {
@@ -120,7 +120,7 @@ func (e *Engine) ScanProject(ctx context.Context, root string) error {
 		done <- true
 	}()
 
-	// 3. File Walker utilizando o novo filtro dinâmico
+	// 3. File Walker using the new dynamic filter
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || e.filter.IsIgnored(path) {
 			return nil
@@ -164,7 +164,7 @@ func (e *Engine) scanFileWithIncrementalCheck(ctx context.Context, scanner FileS
 
 	res := scanner.Scan(path)
 	if res.Err == nil && len(res.Nodes) > 0 {
-		// Garante que o nó do arquivo tenha o hash atualizado
+		// Ensures the file node has the updated hash
 		for i := range res.Nodes {
 			if res.Nodes[i].ID == fileID {
 				res.Nodes[i].Hash = hash
@@ -209,7 +209,7 @@ func (e *Engine) persistResult(ctx context.Context, res ScanResult) error {
 		return fmt.Errorf("engine: commit failed: %w", err)
 	}
 
-	// Notifica observadores após commit bem sucedido
+	// Notifies observers after successful commit
 	for _, n := range res.Nodes {
 		e.notifyObservers(GraphEvent{Type: EventNodeUpserted, Payload: n, Time: time.Now()})
 	}

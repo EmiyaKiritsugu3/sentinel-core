@@ -28,7 +28,7 @@ func NewScanCmd(db *sqlite.DB) *cobra.Command {
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		var err error
-		// Auto-Migração: garante que o banco esteja pronto
+		// Auto-Migration: ensures the database is ready
 		err = graph.Migrate(cmd.Context(), db)
 		if err != nil {
 			return fmt.Errorf("scan: migration failed: %w", err)
@@ -36,7 +36,7 @@ func NewScanCmd(db *sqlite.DB) *cobra.Command {
 
 		fmt.Println("🔍 Sentinel: Scanning project AST...")
 
-		// Inicializa o Engine Multi-Linguagem
+		// Initializes the Multi-Language Engine
 		engine, err := graph.NewEngine(db)
 		if err != nil {
 			return fmt.Errorf("scan: failed to create engine: %w", err)

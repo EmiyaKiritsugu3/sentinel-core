@@ -9,9 +9,9 @@ import (
 	"strings"
 )
 
-// LinkDependencies resolve imports temporários para referências reais entre arquivos.
+// LinkDependencies resolves temporary imports to real cross-file references.
 func (e *Engine) LinkDependencies(ctx context.Context) error {
-	// 1. Busca todos os imports pendentes
+	// 1. Fetch all pending imports
 	rows, err := e.db.Conn.QueryContext(ctx, "SELECT id, name, file_path FROM nodes WHERE type = 'unresolved_import'")
 	if err != nil {
 		return fmt.Errorf("linker: failed to query pending imports: %w", err)
@@ -42,7 +42,7 @@ func (e *Engine) LinkDependencies(ctx context.Context) error {
 				slog.Warn("failed to link dependency", "source", p.sourceFile, "target", targetFile, "error", err)
 				continue
 			}
-			// Remove o nó temporário após resolução bem sucedida
+			// Remove the temporary node after successful resolution
 			_, _ = e.db.Conn.ExecContext(ctx, "DELETE FROM nodes WHERE id = ?", p.id)
 		}
 	}
@@ -71,7 +71,7 @@ func (e *Engine) resolveImport(sourceFile, importPath string) (string, bool) {
 	baseDir := filepath.Dir(sourceFile)
 	targetBase := filepath.Join(baseDir, importPath)
 
-	// Possíveis extensões em ordem de prioridade
+	// Possible extensions in priority order
 	exts := []string{".tsx", ".ts", ".js", ".jsx", "/index.tsx", "/index.ts"}
 
 	for _, ext := range exts {

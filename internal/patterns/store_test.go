@@ -32,8 +32,8 @@ func TestNewPatternStore_NilDB(t *testing.T) {
 	}
 }
 
-// CG-02: Validação nil-DB em métodos exportados — cada método deve
-// retornar ErrNilDB independence do wiring do construtor.
+// CG-02: nil-DB validation on exported methods — each method should
+// return ErrNilDB regardless of constructor wiring.
 
 func TestCreate_NilDB(t *testing.T) {
 	t.Parallel()
@@ -309,7 +309,7 @@ func TestList_WithLimit(t *testing.T) {
 	}
 }
 
-// Cobertura: List — filtro por Impact
+// Coverage: List — filter by Impact
 
 // CG-01: bm25 ASC retorna melhor match primeiro (FP: DESC retornaria pior primeiro)
 
