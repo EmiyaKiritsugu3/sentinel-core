@@ -81,7 +81,7 @@ func (r *Registry) ToolsSnapshot() map[string]Tool {
 // Engine orchestrates the 6-Phase ReAct loop for subagents.
 type Engine struct {
 	registry      *Registry
-	genaiClient   *genai.Client
+	genaiClient   bridge.GenaiClient
 	authProvider  AuthProvider
 	promptFactory *bridge.Factory
 	validator     *reflect.Validator
@@ -114,10 +114,12 @@ func NewEngine(r *Registry, auth AuthProvider, v *reflect.Validator, db *sqlite.
 		return nil, fmt.Errorf("engine: failed to create genai client: %w", err)
 	}
 
-	geminiClassifier, err := bridge.NewGeminiClassifier(client)
+	sdkClt := bridge.NewSDKClient(client)
+	geminiClassifier, err := bridge.NewGeminiClassifier(sdkClt)
 	if err != nil {
 		return nil, fmt.Errorf("engine: failed to create gemini classifier: %w", err)
 	}
+
 	classifier := bridge.NewIntentClassifier(geminiClassifier, 0.60)
 	factory, err := bridge.NewFactory(db, classifier)
 	if err != nil {
@@ -126,7 +128,7 @@ func NewEngine(r *Registry, auth AuthProvider, v *reflect.Validator, db *sqlite.
 
 	return &Engine{
 		registry:      r,
-		genaiClient:   client,
+		genaiClient:   sdkClt,
 		authProvider:  auth,
 		promptFactory: factory,
 		validator:     v,
@@ -257,7 +259,7 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 }
 
 // initSession sets up the generative model session and initial prompt.
-func (e *Engine) initSession(ctx *AgentContext) (*genai.ChatSession, []genai.Part, float64, error) {
+func (e *Engine) initSession(ctx *AgentContext) (bridge.GenaiChatSession, []genai.Part, float64, error) {
 	payload, err := e.promptFactory.GeneratePayload(ctx.Context, ctx.StateID, ctx.Definition.SystemPrompt)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("engine: failed to generate prompt payload: %w", err)
@@ -265,8 +267,8 @@ func (e *Engine) initSession(ctx *AgentContext) (*genai.ChatSession, []genai.Par
 
 	model := e.genaiClient.GenerativeModel(ctx.ActiveModel)
 	model.SetTemperature(float32(ctx.Definition.Temperature))
-	model.SystemInstruction = genai.NewUserContent(genai.Text(payload.SystemInstruction))
-	model.Tools = e.getGenaiTools()
+	model.SetSystemInstructionContent(genai.NewUserContent(genai.Text(payload.SystemInstruction)))
+	model.SetTools(e.getGenaiTools())
 
 	session := model.StartChat()
 	initialPrompt := fmt.Sprintf("TASK OBJECTIVE: %s\n\nSURGICAL CONTEXT:%s", payload.TaskDescription, payload.SurgicalContext)

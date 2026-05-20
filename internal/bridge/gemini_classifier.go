@@ -12,14 +12,14 @@ import (
 
 // GeminiClassifier implements AIClassifier using the Gemini API.
 type GeminiClassifier struct {
-	client *genai.Client
+	client GenaiClient
 }
 
 // defaultModelID is the Gemini model used for intent classification.
 const defaultModelID = "gemini-1.5-flash"
 
 // NewGeminiClassifier creates a new GeminiClassifier with the given genai client.
-func NewGeminiClassifier(client *genai.Client) (*GeminiClassifier, error) {
+func NewGeminiClassifier(client GenaiClient) (*GeminiClassifier, error) {
 	if client == nil {
 		return nil, fmt.Errorf("gemini-classifier: nil genai client")
 	}
@@ -32,9 +32,9 @@ func (g *GeminiClassifier) Classify(ctx context.Context, description string) (In
 		return IntentUnknown, nil
 	}
 	model := g.client.GenerativeModel(defaultModelID)
-	model.SystemInstruction = &genai.Content{
+	model.SetSystemInstructionContent(&genai.Content{
 		Parts: []genai.Part{genai.Text("You are a task classifier. Respond with exactly one word.")},
-	}
+	})
 	prompt := fmt.Sprintf(
 		"Classify this software task into exactly one word: diagnose, implement, refactor, or review.\nTask: %s",
 		description,
