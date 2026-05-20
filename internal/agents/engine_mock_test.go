@@ -28,7 +28,6 @@ func setupTestCwd(t *testing.T) {
 }
 
 func TestEngine_Execute_HappyPath(t *testing.T) {
-	t.Parallel()
 	setupTestCwd(t)
 	db := testutil.SetupTestDB(t)
 	defer func() { _ = db.Close() }()
@@ -129,7 +128,6 @@ func TestEngine_Execute_HappyPath(t *testing.T) {
 }
 
 func TestEngine_Execute_EntropyGate(t *testing.T) {
-	t.Parallel()
 	setupTestCwd(t)
 	db := testutil.SetupTestDB(t)
 	defer func() { _ = db.Close() }()
@@ -233,7 +231,6 @@ func TestEngine_Execute_EntropyGate(t *testing.T) {
 }
 
 func TestEngine_Execute_LyapunovInterruption(t *testing.T) {
-	t.Parallel()
 	setupTestCwd(t)
 	db := testutil.SetupTestDB(t)
 	defer func() { _ = db.Close() }()
@@ -342,7 +339,6 @@ func TestEngine_Execute_LyapunovInterruption(t *testing.T) {
 }
 
 func TestEngine_Execute_BudgetExceededPath(t *testing.T) {
-	t.Parallel()
 	setupTestCwd(t)
 	db := testutil.SetupTestDB(t)
 	defer func() { _ = db.Close() }()
@@ -421,7 +417,6 @@ func TestEngine_Execute_BudgetExceededPath(t *testing.T) {
 }
 
 func TestEngine_Execute_EmptyResponseError(t *testing.T) {
-	t.Parallel()
 	setupTestCwd(t)
 	db := testutil.SetupTestDB(t)
 	defer func() { _ = db.Close() }()
