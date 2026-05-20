@@ -431,8 +431,8 @@ func TestEngine_Execute_BudgetExceededPath(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for budget exceeded, got nil")
 	}
-	if !strings.Contains(err.Error(), "budget exceeded") {
-		t.Errorf("expected 'budget exceeded' error, got: %v", err)
+	if got, want := err.Error(), "agent budget exceeded (MaxSteps: 2)"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
 	}
 }
 
@@ -492,7 +492,7 @@ func TestEngine_Execute_EmptyResponseError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for empty response, got nil")
 	}
-	if !strings.Contains(err.Error(), "empty response from model") {
-		t.Errorf("expected 'empty response from model' error, got: %v", err)
+	if got, want := err.Error(), "gemini: empty response from model"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
 	}
 }

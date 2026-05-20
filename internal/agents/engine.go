@@ -116,8 +116,19 @@ func NewEngine(r *Registry, auth AuthProvider, v *reflect.Validator, db *sqlite.
 
 	sdkClt, err := bridge.NewSDKClient(client)
 	if err != nil {
+		if client != nil {
+			_ = client.Close()
+		}
 		return nil, fmt.Errorf("engine: failed to wrap sdk client: %w", err)
 	}
+
+	closeOnErr := true
+	defer func() {
+		if closeOnErr {
+			_ = sdkClt.Close()
+		}
+	}()
+
 	geminiClassifier, err := bridge.NewGeminiClassifier(sdkClt)
 	if err != nil {
 		return nil, fmt.Errorf("engine: failed to create gemini classifier: %w", err)
@@ -129,6 +140,7 @@ func NewEngine(r *Registry, auth AuthProvider, v *reflect.Validator, db *sqlite.
 		return nil, fmt.Errorf("engine: failed to create prompt factory: %w", err)
 	}
 
+	closeOnErr = false
 	return &Engine{
 		registry:      r,
 		genaiClient:   sdkClt,

@@ -3,10 +3,13 @@ package bridge
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/google/generative-ai-go/genai"
 )
+
+// ErrNilClient is returned when a nil generative AI client is provided.
+var ErrNilClient = errors.New("bridge: nil generative AI client")
 
 // GenaiClient abstracts *genai.Client to enable mocking and structural separation.
 type GenaiClient interface {
@@ -37,7 +40,7 @@ type sdkClient struct {
 // NewSDKClient creates a new GenaiClient wrapping a real SDK Client.
 func NewSDKClient(client *genai.Client) (GenaiClient, error) {
 	if client == nil {
-		return nil, fmt.Errorf("bridge: nil generative AI client")
+		return nil, ErrNilClient
 	}
 	return &sdkClient{client: client}, nil
 }
