@@ -2,7 +2,10 @@ package agents
 
 import (
 	"context"
+	"errors"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -496,3 +499,1061 @@ func TestEngine_Execute_EmptyResponseError(t *testing.T) {
 		t.Errorf("expected %q, got %q", want, got)
 	}
 }
+
+func TestEngine_Execute_SubTaskOrchestration(t *testing.T) {
+	setupTestCwd(t)
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	if err := graph.Migrate(context.Background(), db); err != nil {
+		t.Fatalf("failed to migrate: %v", err)
+	}
+
+	// Insert parent task as IN_PROGRESS so active task works
+	parentID := "parent-task-123"
+	_, err := db.Conn.ExecContext(context.Background(),
+		"INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)",
+		parentID, "test decomposition and subtask dispatching", "IN_PROGRESS", "T2", "",
+	)
+	if err != nil {
+		t.Fatalf("failed to insert task: %v", err)
+	}
+
+	// Create a temp Git repository
+	tmpDir := t.TempDir()
+
+	// Helper to run git commands
+	runCmd := func(args ...string) {
+		c := exec.CommandContext(context.Background(), "git", args...)
+		c.Dir = tmpDir
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v (output: %s)", args, err, out)
+		}
+	}
+	runCmd("init")
+
+	// Configure git author to avoid errors in environments without git config
+	runCmd("config", "user.email", "test@example.com")
+	runCmd("config", "user.name", "Test User")
+
+	_ = os.WriteFile(filepath.Join(tmpDir, "dummy"), []byte("data"), 0644)
+	runCmd("add", ".")
+	runCmd("commit", "-m", "initial")
+
+	// Create subtask-branch-1 in the git repo
+	runCmd("branch", "subtask-branch-1")
+
+	registry := NewRegistry()
+	RegisterCoreTools(registry, db)
+
+	auth := &mockAuthProvider{key: "test-key"}
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	engine, err := NewEngine(registry, auth, validator, db)
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+	defer func() { _ = engine.Close() }()
+
+	// Wire the dispatcher!
+	regMgr, err := NewRegistryManager(db)
+	if err != nil {
+		t.Fatalf("failed to create registry manager: %v", err)
+	}
+	shield := NewGitShield(tmpDir, validator)
+	dispatcher, err := NewDispatcher(regMgr, shield, db)
+	if err != nil {
+		t.Fatalf("failed to create dispatcher: %v", err)
+	}
+	engine.SetDispatcher(dispatcher)
+
+	// Verify SetDispatcher, DB(), and Registry() methods
+	if engine.DB() != db {
+		t.Errorf("DB() returned unexpected db handle")
+	}
+	if engine.Registry() != registry {
+		t.Errorf("Registry() returned unexpected registry")
+	}
+
+	// Mock model responses:
+	// Turn 1: Calls sentinel:decompose
+	// Turn 2: Provides Sovereign Audit Report to terminate
+	mockSession := &MockSession{
+		Responses: []*genai.GenerateContentResponse{
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("<think>Let's decompose the task.</think>"),
+								genai.FunctionCall{
+									Name: "sentinel:decompose",
+									Args: map[string]interface{}{
+										"subtasks": []interface{}{
+											map[string]interface{}{
+												"description": "Implement feature X",
+												"branch_name": "subtask-branch-1",
+												"capabilities": []interface{}{"go"},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 50},
+			},
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("All subtasks dispatched. Sovereign Audit Report: Done."),
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 50},
+			},
+		},
+	}
+
+	mockClt := &MockClient{
+		Model: &MockModel{
+			Session: mockSession,
+		},
+	}
+	engine.genaiClient = mockClt
+
+	ctx := NewAgentContext(context.Background(), parentID, &AgentDefinition{
+		Name:         "dispatch-agent",
+		ModelID:      ModelFlash,
+		MaxSteps:     5,
+		Temperature:  0.2,
+		SystemPrompt: "Be a coordinating agent.",
+	})
+
+	err = engine.Execute(ctx)
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	// Verify that the sub-task was inserted and dispatched in the database
+	var count int
+	err = db.Conn.QueryRow("SELECT COUNT(*) FROM sub_tasks WHERE parent_task_id = ? AND status = 'DISPATCHED'", parentID).Scan(&count)
+	if err != nil {
+		t.Fatalf("failed to query sub_tasks count: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 DISPATCHED subtask, got %d", count)
+	}
+}
+
+func TestEngine_Execute_NoToolCalls(t *testing.T) {
+	setupTestCwd(t)
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	if err := graph.Migrate(context.Background(), db); err != nil {
+		t.Fatalf("failed to migrate: %v", err)
+	}
+
+	taskID := "no-tool-task"
+	_, err := db.Conn.ExecContext(context.Background(),
+		"INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)",
+		taskID, "test no tool calls path", "IN_PROGRESS", "T2", "",
+	)
+	if err != nil {
+		t.Fatalf("failed to insert task: %v", err)
+	}
+
+	registry := NewRegistry()
+	auth := &mockAuthProvider{key: "test-key"}
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	engine, err := NewEngine(registry, auth, validator, db)
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+	defer func() { _ = engine.Close() }()
+
+	// Mock model responses:
+	// Turn 1: Returns text but no tool calls and no "sovereign audit"
+	// Turn 2: Terminates
+	mockSession := &MockSession{
+		Responses: []*genai.GenerateContentResponse{
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("<think>Thinking...</think> Just text, no tools."),
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("Sovereign Audit Report: Done."),
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+		},
+	}
+	mockClt := &MockClient{
+		Model: &MockModel{
+			Session: mockSession,
+		},
+	}
+	engine.genaiClient = mockClt
+
+	ctx := NewAgentContext(context.Background(), taskID, &AgentDefinition{
+		Name:     "no-tool-agent",
+		ModelID:  ModelFlash,
+		MaxSteps: 5,
+	})
+
+	err = engine.Execute(ctx)
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+}
+
+func TestEngine_Execute_ToolNotFound(t *testing.T) {
+	setupTestCwd(t)
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	if err := graph.Migrate(context.Background(), db); err != nil {
+		t.Fatalf("failed to migrate: %v", err)
+	}
+
+	taskID := "notfound-task"
+	_, err := db.Conn.ExecContext(context.Background(),
+		"INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)",
+		taskID, "test tool not found", "IN_PROGRESS", "T2", "",
+	)
+	if err != nil {
+		t.Fatalf("failed to insert task: %v", err)
+	}
+
+	registry := NewRegistry()
+	auth := &mockAuthProvider{key: "test-key"}
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	engine, err := NewEngine(registry, auth, validator, db)
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+	defer func() { _ = engine.Close() }()
+
+	// Model returns a tool call for a tool that doesn't exist
+	mockSession := &MockSession{
+		Responses: []*genai.GenerateContentResponse{
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("<think>Thinking...</think>"),
+								genai.FunctionCall{
+									Name: "non_existent_tool",
+									Args: map[string]interface{}{},
+								},
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("Sovereign Audit Report: Done."),
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+		},
+	}
+	mockClt := &MockClient{
+		Model: &MockModel{
+			Session: mockSession,
+		},
+	}
+	engine.genaiClient = mockClt
+
+	ctx := NewAgentContext(context.Background(), taskID, &AgentDefinition{
+		Name:     "notfound-agent",
+		ModelID:  ModelFlash,
+		MaxSteps: 5,
+	})
+
+	err = engine.Execute(ctx)
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+}
+
+func TestEngine_Execute_HardGateValidationFailure(t *testing.T) {
+	setupTestCwd(t)
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	if err := graph.Migrate(context.Background(), db); err != nil {
+		t.Fatalf("failed to migrate: %v", err)
+	}
+
+	taskID := "validation-fail-task"
+	_, err := db.Conn.ExecContext(context.Background(),
+		"INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)",
+		taskID, "test validation failure path", "IN_PROGRESS", "T2", "",
+	)
+	if err != nil {
+		t.Fatalf("failed to insert task: %v", err)
+	}
+
+	registry := NewRegistry()
+	RegisterCoreTools(registry, db)
+
+	auth := &mockAuthProvider{key: "test-key"}
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	engine, err := NewEngine(registry, auth, validator, db)
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+	defer func() { _ = engine.Close() }()
+
+	// Model returns a tool call with an invalid path (e.g. absolute path outside repo)
+	mockSession := &MockSession{
+		Responses: []*genai.GenerateContentResponse{
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("<think>Thinking...</think>"),
+								genai.FunctionCall{
+									Name: "read_file",
+									Args: map[string]interface{}{
+										"path": "/etc/passwd",
+									},
+								},
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("Sovereign Audit Report: Done."),
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+		},
+	}
+	mockClt := &MockClient{
+		Model: &MockModel{
+			Session: mockSession,
+		},
+	}
+	engine.genaiClient = mockClt
+
+	ctx := NewAgentContext(context.Background(), taskID, &AgentDefinition{
+		Name:     "validation-agent",
+		ModelID:  ModelFlash,
+		MaxSteps: 5,
+	})
+
+	err = engine.Execute(ctx)
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+}
+
+func TestEngine_Execute_PACEscalation(t *testing.T) {
+	setupTestCwd(t)
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	if err := graph.Migrate(context.Background(), db); err != nil {
+		t.Fatalf("failed to migrate: %v", err)
+	}
+
+	taskID := "escalate-task"
+	_, err := db.Conn.ExecContext(context.Background(),
+		"INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)",
+		taskID, "test pac escalation", "IN_PROGRESS", "T2", "",
+	)
+	if err != nil {
+		t.Fatalf("failed to insert task: %v", err)
+	}
+
+	registry := NewRegistry()
+	RegisterCoreTools(registry, db)
+
+	auth := &mockAuthProvider{key: "test-key"}
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	engine, err := NewEngine(registry, auth, validator, db)
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+	defer func() { _ = engine.Close() }()
+
+	// Mock responses that fail tool execution 3 times, causing PAC escalation
+	mockSession := &MockSession{
+		Responses: []*genai.GenerateContentResponse{
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("<think>Thinking 1...</think>"),
+								genai.FunctionCall{
+									Name: "read_file",
+									Args: map[string]interface{}{
+										"path": "/etc/passwd",
+									},
+								},
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("<think>Thinking 2...</think>"),
+								genai.FunctionCall{
+									Name: "read_file",
+									Args: map[string]interface{}{
+										"path": "/etc/passwd",
+									},
+								},
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("<think>Thinking 3...</think>"),
+								genai.FunctionCall{
+									Name: "read_file",
+									Args: map[string]interface{}{
+										"path": "/etc/passwd",
+									},
+								},
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("Escalated! Sovereign Audit Report: Done."),
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+		},
+	}
+	mockClt := &MockClient{
+		Model: &MockModel{
+			Session: mockSession,
+		},
+	}
+	engine.genaiClient = mockClt
+
+	ctx := NewAgentContext(context.Background(), taskID, &AgentDefinition{
+		Name:     "escalate-agent",
+		ModelID:  ModelFlash,
+		MaxSteps: 5,
+	})
+
+	err = engine.Execute(ctx)
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	if ctx.ActiveModel != ModelPro {
+		t.Errorf("expected model to escalate to %s, got %s", ModelPro, ctx.ActiveModel)
+	}
+}
+
+func TestEngine_Execute_CancelledContext(t *testing.T) {
+	setupTestCwd(t)
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	if err := graph.Migrate(context.Background(), db); err != nil {
+		t.Fatalf("failed to migrate: %v", err)
+	}
+
+	taskID := "cancelled-task"
+	_, err := db.Conn.ExecContext(context.Background(),
+		"INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)",
+		taskID, "test cancelled context", "IN_PROGRESS", "T2", "",
+	)
+	if err != nil {
+		t.Fatalf("failed to insert task: %v", err)
+	}
+
+	registry := NewRegistry()
+	auth := &mockAuthProvider{key: "test-key"}
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	engine, err := NewEngine(registry, auth, validator, db)
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+	defer func() { _ = engine.Close() }()
+
+	mockClt := &MockClient{
+		Model: &MockModel{
+			Session: &MockSession{
+				Responses: []*genai.GenerateContentResponse{
+					{
+						Candidates: []*genai.Candidate{
+							{
+								Content: &genai.Content{
+									Parts: []genai.Part{
+										genai.Text("Continuing..."),
+									},
+								},
+							},
+						},
+						UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+					},
+				},
+			},
+		},
+	}
+	engine.genaiClient = mockClt
+
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel context immediately
+
+	ctx := NewAgentContext(cancelCtx, taskID, &AgentDefinition{
+		Name:     "cancelled-agent",
+		ModelID:  ModelFlash,
+		MaxSteps: 5,
+	})
+
+	err = engine.Execute(ctx)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected context.Canceled, got %v", err)
+	}
+}
+
+func TestEngine_Execute_SendMessageError(t *testing.T) {
+	setupTestCwd(t)
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	if err := graph.Migrate(context.Background(), db); err != nil {
+		t.Fatalf("failed to migrate: %v", err)
+	}
+
+	taskID := "send-err-task"
+	_, err := db.Conn.ExecContext(context.Background(),
+		"INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)",
+		taskID, "test send message error", "IN_PROGRESS", "T2", "",
+	)
+	if err != nil {
+		t.Fatalf("failed to insert task: %v", err)
+	}
+
+	registry := NewRegistry()
+	auth := &mockAuthProvider{key: "test-key"}
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	engine, err := NewEngine(registry, auth, validator, db)
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+	defer func() { _ = engine.Close() }()
+
+	expectedErr := errors.New("simulated send message error")
+	mockClt := &MockClient{
+		Model: &MockModel{
+			Session: &MockSession{
+				Err: expectedErr,
+			},
+		},
+	}
+	engine.genaiClient = mockClt
+
+	ctx := NewAgentContext(context.Background(), taskID, &AgentDefinition{
+		Name:     "send-err-agent",
+		ModelID:  ModelFlash,
+		MaxSteps: 5,
+	})
+
+	err = engine.Execute(ctx)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "generation failed:") {
+		t.Errorf("expected 'generation failed:' error, got %v", err)
+	}
+	if !errors.Is(err, expectedErr) {
+		t.Errorf("expected wrapped simulated error, got %v", err)
+	}
+}
+
+func TestEngine_Execute_SubTaskOrchestrationFailure(t *testing.T) {
+	setupTestCwd(t)
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	if err := graph.Migrate(context.Background(), db); err != nil {
+		t.Fatalf("failed to migrate: %v", err)
+	}
+
+	parentID := "parent-task-fail"
+	_, err := db.Conn.ExecContext(context.Background(),
+		"INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)",
+		parentID, "test decomposition failure", "IN_PROGRESS", "T2", "",
+	)
+	if err != nil {
+		t.Fatalf("failed to insert task: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	runCmd := func(args ...string) {
+		c := exec.CommandContext(context.Background(), "git", args...)
+		c.Dir = tmpDir
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v (output: %s)", args, err, out)
+		}
+	}
+	runCmd("init")
+	runCmd("config", "user.email", "test@example.com")
+	runCmd("config", "user.name", "Test User")
+
+	_ = os.WriteFile(filepath.Join(tmpDir, "dummy"), []byte("data"), 0644)
+	runCmd("add", ".")
+	runCmd("commit", "-m", "initial")
+
+	registry := NewRegistry()
+	RegisterCoreTools(registry, db)
+
+	auth := &mockAuthProvider{key: "test-key"}
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	engine, err := NewEngine(registry, auth, validator, db)
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+	defer func() { _ = engine.Close() }()
+
+	regMgr, err := NewRegistryManager(db)
+	if err != nil {
+		t.Fatalf("failed to create registry manager: %v", err)
+	}
+	shield := NewGitShield(tmpDir, validator)
+	dispatcher, err := NewDispatcher(regMgr, shield, db)
+	if err != nil {
+		t.Fatalf("failed to create dispatcher: %v", err)
+	}
+	engine.SetDispatcher(dispatcher)
+
+	// Model returns a decomposition subtask requesting a capability no specialist has ("unknown-capability")
+	mockSession := &MockSession{
+		Responses: []*genai.GenerateContentResponse{
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("<think>Thinking...</think>"),
+								genai.FunctionCall{
+									Name: "sentinel:decompose",
+									Args: map[string]interface{}{
+										"subtasks": []interface{}{
+											map[string]interface{}{
+												"description": "Fail feature",
+												"branch_name": "subtask-branch-fail",
+												"capabilities": []interface{}{"unknown-capability"},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 50},
+			},
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("Failed as expected. Sovereign Audit Report: Done."),
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 50},
+			},
+		},
+	}
+
+	mockClt := &MockClient{
+		Model: &MockModel{
+			Session: mockSession,
+		},
+	}
+	engine.genaiClient = mockClt
+
+	ctx := NewAgentContext(context.Background(), parentID, &AgentDefinition{
+		Name:     "dispatch-fail-agent",
+		ModelID:  ModelFlash,
+		MaxSteps: 5,
+	})
+
+	err = engine.Execute(ctx)
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+}
+
+func TestEngine_Execute_HardGateValidationFailureCommand(t *testing.T) {
+	setupTestCwd(t)
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	if err := graph.Migrate(context.Background(), db); err != nil {
+		t.Fatalf("failed to migrate: %v", err)
+	}
+
+	taskID := "validation-fail-cmd-task"
+	_, err := db.Conn.ExecContext(context.Background(),
+		"INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)",
+		taskID, "test validation cmd failure path", "IN_PROGRESS", "T2", "",
+	)
+	if err != nil {
+		t.Fatalf("failed to insert task: %v", err)
+	}
+
+	registry := NewRegistry()
+	RegisterCoreTools(registry, db)
+
+	auth := &mockAuthProvider{key: "test-key"}
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	engine, err := NewEngine(registry, auth, validator, db)
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+	defer func() { _ = engine.Close() }()
+
+	// Model returns a tool call with forbidden command character in arguments
+	mockSession := &MockSession{
+		Responses: []*genai.GenerateContentResponse{
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("<think>Thinking...</think>"),
+								genai.FunctionCall{
+									Name: "read_file",
+									Args: map[string]interface{}{
+										"path": "dummy.txt",
+										"command": "rm -rf /; echo",
+									},
+								},
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("Sovereign Audit Report: Done."),
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+		},
+	}
+	mockClt := &MockClient{
+		Model: &MockModel{
+			Session: mockSession,
+		},
+	}
+	engine.genaiClient = mockClt
+
+	ctx := NewAgentContext(context.Background(), taskID, &AgentDefinition{
+		Name:     "validation-fail-cmd-agent",
+		ModelID:  ModelFlash,
+		MaxSteps: 5,
+	})
+
+	err = engine.Execute(ctx)
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+}
+
+type dummyTool struct{}
+
+func (t *dummyTool) Name() string { return "dummy_tool" }
+func (t *dummyTool) Description() string { return "dummy description" }
+func (t *dummyTool) Definition() *genai.FunctionDeclaration {
+	return &genai.FunctionDeclaration{Name: t.Name(), Description: t.Description()}
+}
+func (t *dummyTool) ValidateArguments(v *reflect.Validator, args map[string]interface{}) error {
+	return nil
+}
+func (t *dummyTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
+	return "success", nil
+}
+
+func TestEngine_Execute_SuccessfulToolCallNotDecompose(t *testing.T) {
+	setupTestCwd(t)
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	if err := graph.Migrate(context.Background(), db); err != nil {
+		t.Fatalf("failed to migrate: %v", err)
+	}
+
+	taskID := "dummy-tool-task"
+	_, err := db.Conn.ExecContext(context.Background(),
+		"INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)",
+		taskID, "test dummy tool path", "IN_PROGRESS", "T2", "",
+	)
+	if err != nil {
+		t.Fatalf("failed to insert task: %v", err)
+	}
+
+	registry := NewRegistry()
+	registry.Tools["dummy_tool"] = &dummyTool{}
+
+	auth := &mockAuthProvider{key: "test-key"}
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	engine, err := NewEngine(registry, auth, validator, db)
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+	defer func() { _ = engine.Close() }()
+
+	mockSession := &MockSession{
+		Responses: []*genai.GenerateContentResponse{
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("<think>Let's call dummy tool.</think>"),
+								genai.FunctionCall{
+									Name: "dummy_tool",
+									Args: map[string]interface{}{},
+								},
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("Sovereign Audit Report: Done."),
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+		},
+	}
+	mockClt := &MockClient{
+		Model: &MockModel{
+			Session: mockSession,
+		},
+	}
+	engine.genaiClient = mockClt
+
+	ctx := NewAgentContext(context.Background(), taskID, &AgentDefinition{
+		Name:     "dummy-tool-agent",
+		ModelID:  ModelFlash,
+		MaxSteps: 5,
+	})
+
+	err = engine.Execute(ctx)
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+}
+
+func TestEngine_Execute_ToolExecutionFailure(t *testing.T) {
+	setupTestCwd(t)
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	if err := graph.Migrate(context.Background(), db); err != nil {
+		t.Fatalf("failed to migrate: %v", err)
+	}
+
+	taskID := "tool-exec-fail-task"
+	_, err := db.Conn.ExecContext(context.Background(),
+		"INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)",
+		taskID, "test tool execution error", "IN_PROGRESS", "T2", "",
+	)
+	if err != nil {
+		t.Fatalf("failed to insert task: %v", err)
+	}
+
+	registry := NewRegistry()
+	RegisterCoreTools(registry, db)
+
+	auth := &mockAuthProvider{key: "test-key"}
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	engine, err := NewEngine(registry, auth, validator, db)
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+	defer func() { _ = engine.Close() }()
+
+	// Model returns a valid path format but file does not exist, causing read_file to fail during execution
+	mockSession := &MockSession{
+		Responses: []*genai.GenerateContentResponse{
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("<think>Thinking...</think>"),
+								genai.FunctionCall{
+									Name: "read_file",
+									Args: map[string]interface{}{
+										"path": "nonexistent_file_xyz.txt",
+									},
+								},
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+			{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []genai.Part{
+								genai.Text("Sovereign Audit Report: Done."),
+							},
+						},
+					},
+				},
+				UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+			},
+		},
+	}
+	mockClt := &MockClient{
+		Model: &MockModel{
+			Session: mockSession,
+		},
+	}
+	engine.genaiClient = mockClt
+
+	ctx := NewAgentContext(context.Background(), taskID, &AgentDefinition{
+		Name:     "tool-exec-fail-agent",
+		ModelID:  ModelFlash,
+		MaxSteps: 5,
+	})
+
+	err = engine.Execute(ctx)
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+}
+
+
+

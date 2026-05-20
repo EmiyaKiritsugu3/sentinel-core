@@ -192,3 +192,14 @@ func TestGeminiClassifier_Classify_Empty(t *testing.T) {
 		t.Errorf("expected UNKNOWN, got %s", intent)
 	}
 }
+
+func TestGeminiClassifier_Classify_Nil(t *testing.T) {
+	var g *bridge.GeminiClassifier
+	intent, err := g.Classify(context.Background(), "test")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if intent != bridge.IntentUnknown {
+		t.Errorf("expected UNKNOWN, got %s", intent)
+	}
+}
