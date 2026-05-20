@@ -23,12 +23,12 @@ type GenaiModel interface {
 	SetSystemInstruction(instruction string)
 	SetSystemInstructionContent(content *genai.Content)
 	SetTools(tools []*genai.Tool)
-	StartChat() GenaiChatSession
+	StartChat() MessageSender
 	GenerateContent(ctx context.Context, parts ...genai.Part) (*genai.GenerateContentResponse, error)
 }
 
-// GenaiChatSession abstracts *genai.ChatSession.
-type GenaiChatSession interface {
+// MessageSender abstracts *genai.ChatSession for sending messages.
+type MessageSender interface {
 	SendMessage(ctx context.Context, parts ...genai.Part) (*genai.GenerateContentResponse, error)
 }
 
@@ -81,7 +81,7 @@ func (m *sdkModel) SetTools(tools []*genai.Tool) {
 }
 
 // StartChat implements GenaiModel.
-func (m *sdkModel) StartChat() GenaiChatSession {
+func (m *sdkModel) StartChat() MessageSender {
 	return &sdkChatSession{session: m.model.StartChat()}
 }
 
@@ -90,12 +90,12 @@ func (m *sdkModel) GenerateContent(ctx context.Context, parts ...genai.Part) (*g
 	return m.model.GenerateContent(ctx, parts...)
 }
 
-// sdkChatSession implements GenaiChatSession wrapping the concrete SDK ChatSession.
+// sdkChatSession implements MessageSender wrapping the concrete SDK ChatSession.
 type sdkChatSession struct {
 	session *genai.ChatSession
 }
 
-// SendMessage implements GenaiChatSession.
+// SendMessage implements MessageSender.
 func (s *sdkChatSession) SendMessage(ctx context.Context, parts ...genai.Part) (*genai.GenerateContentResponse, error) {
 	return s.session.SendMessage(ctx, parts...)
 }

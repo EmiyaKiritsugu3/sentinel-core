@@ -38,7 +38,7 @@ func (m *mockClassifierModel) SetSystemInstructionContent(content *genai.Content
 
 func (m *mockClassifierModel) SetTools(tools []*genai.Tool) {}
 
-func (m *mockClassifierModel) StartChat() bridge.GenaiChatSession {
+func (m *mockClassifierModel) StartChat() bridge.MessageSender {
 	return nil
 }
 

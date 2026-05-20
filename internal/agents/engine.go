@@ -286,7 +286,7 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 }
 
 // initSession sets up the generative model session and initial prompt.
-func (e *Engine) initSession(ctx *AgentContext) (bridge.GenaiChatSession, []genai.Part, float64, error) {
+func (e *Engine) initSession(ctx *AgentContext) (bridge.MessageSender, []genai.Part, float64, error) {
 	payload, err := e.promptFactory.GeneratePayload(ctx.Context, ctx.StateID, ctx.Definition.SystemPrompt)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("engine: failed to generate prompt payload: %w", err)

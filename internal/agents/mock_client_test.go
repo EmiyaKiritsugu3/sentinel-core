@@ -31,9 +31,9 @@ type MockModel struct {
 	Instruction string
 	Tools       []*genai.Tool
 	Session     *MockSession
-	// ChatSession overrides Session when non-nil, allowing any GenaiChatSession
+	// ChatSession overrides Session when non-nil, allowing any MessageSender
 	// implementation to be injected (e.g. cancelOnSecondCallSession).
-	ChatSession bridge.GenaiChatSession
+	ChatSession bridge.MessageSender
 	Response    *genai.GenerateContentResponse
 	Err         error
 }
@@ -63,7 +63,7 @@ func (m *MockModel) SetTools(tools []*genai.Tool) {
 }
 
 // StartChat implements bridge.GenaiModel.
-func (m *MockModel) StartChat() bridge.GenaiChatSession {
+func (m *MockModel) StartChat() bridge.MessageSender {
 	if m.ChatSession != nil {
 		return m.ChatSession
 	}
@@ -78,14 +78,14 @@ func (m *MockModel) GenerateContent(ctx context.Context, parts ...genai.Part) (*
 	return m.Response, m.Err
 }
 
-// MockSession mocks bridge.GenaiChatSession for unit tests.
+// MockSession mocks bridge.MessageSender for unit tests.
 type MockSession struct {
 	Responses []*genai.GenerateContentResponse
 	Idx       int
 	Err       error
 }
 
-// SendMessage implements bridge.GenaiChatSession.
+// SendMessage implements bridge.MessageSender.
 func (s *MockSession) SendMessage(ctx context.Context, parts ...genai.Part) (*genai.GenerateContentResponse, error) {
 	if s.Err != nil {
 		return nil, s.Err
@@ -125,7 +125,7 @@ type cancelOnSecondCallSession struct {
 	calls    int
 }
 
-// SendMessage implements bridge.GenaiChatSession.
+// SendMessage implements bridge.MessageSender.
 func (s *cancelOnSecondCallSession) SendMessage(ctx context.Context, parts ...genai.Part) (*genai.GenerateContentResponse, error) {
 	s.calls++
 	if s.calls == 2 {
