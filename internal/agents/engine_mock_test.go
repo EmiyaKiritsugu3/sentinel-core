@@ -265,9 +265,17 @@ func TestEngine_Execute_LyapunovInterruption(t *testing.T) {
 	// Step 2: high action / low thought (first divergence).
 	// Step 3: extremely high action / low thought (consecutive divergence -> Gate A.5 fires).
 	// Step 4: terminate.
-	step1Text := "<think>Reasoning step 1: I will plan thoroughly.</think> Action: ok."
-	step2Text := "<think>Reasoning step 2.</think> Action: let's build something large. " + strings.Repeat("more actions ", 10)
-	step3Text := "Action: write infinite loops. " + strings.Repeat("even more actions ", 30)
+	step1Thought := "<think>Reasoning step 1: I will plan thoroughly.</think>"
+	step1Action := "Action: ok."
+
+	step2Thought := "<think>Reasoning step 2.</think>"
+	step2Action := "Action: let's build something large. " + strings.Repeat("more actions ", 10)
+
+	step3Thought := "<think>Reasoning step 3.</think>"
+	step3Action := "Action: write infinite loops. " + strings.Repeat("even more actions ", 30)
+
+	step4Thought := "<think>Reasoning step 4: Stabilizing model trajectory.</think>"
+	step4Action := "Sovereign Audit Report: Stabilized reasoning and completed task."
 
 	mockSession := &MockSession{
 		Responses: []*genai.GenerateContentResponse{
@@ -275,7 +283,10 @@ func TestEngine_Execute_LyapunovInterruption(t *testing.T) {
 				Candidates: []*genai.Candidate{
 					{
 						Content: &genai.Content{
-							Parts: []genai.Part{genai.Text(step1Text)},
+							Parts: []genai.Part{
+								genai.Text(step1Thought),
+								genai.Text(step1Action),
+							},
 						},
 					},
 				},
@@ -285,7 +296,10 @@ func TestEngine_Execute_LyapunovInterruption(t *testing.T) {
 				Candidates: []*genai.Candidate{
 					{
 						Content: &genai.Content{
-							Parts: []genai.Part{genai.Text(step2Text)},
+							Parts: []genai.Part{
+								genai.Text(step2Thought),
+								genai.Text(step2Action),
+							},
 						},
 					},
 				},
@@ -295,7 +309,10 @@ func TestEngine_Execute_LyapunovInterruption(t *testing.T) {
 				Candidates: []*genai.Candidate{
 					{
 						Content: &genai.Content{
-							Parts: []genai.Part{genai.Text(step3Text)},
+							Parts: []genai.Part{
+								genai.Text(step3Thought),
+								genai.Text(step3Action),
+							},
 						},
 					},
 				},
@@ -305,7 +322,10 @@ func TestEngine_Execute_LyapunovInterruption(t *testing.T) {
 				Candidates: []*genai.Candidate{
 					{
 						Content: &genai.Content{
-							Parts: []genai.Part{genai.Text("Sovereign Audit Report: Stabilized reasoning and completed task.")},
+							Parts: []genai.Part{
+								genai.Text(step4Thought),
+								genai.Text(step4Action),
+							},
 						},
 					},
 				},
@@ -332,9 +352,9 @@ func TestEngine_Execute_LyapunovInterruption(t *testing.T) {
 		t.Fatalf("Execute failed: %v", err)
 	}
 
-	// Verify that the Lyapunov divergence triggered counter changes
-	if ctx.DivergenceCount > 0 {
-		t.Logf("Sovereign Lyapunov Divergence count: %d", ctx.DivergenceCount)
+	// Verify that the Lyapunov divergence triggered an intervention, executing 5 total steps
+	if ctx.Budget.StepsTaken != 5 {
+		t.Errorf("expected 5 steps (including 1 Lyapunov intervention step), got %d", ctx.Budget.StepsTaken)
 	}
 }
 

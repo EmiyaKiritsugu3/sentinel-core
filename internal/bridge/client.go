@@ -3,6 +3,7 @@ package bridge
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/generative-ai-go/genai"
 )
@@ -34,11 +35,11 @@ type sdkClient struct {
 }
 
 // NewSDKClient creates a new GenaiClient wrapping a real SDK Client.
-func NewSDKClient(client *genai.Client) GenaiClient {
+func NewSDKClient(client *genai.Client) (GenaiClient, error) {
 	if client == nil {
-		return nil
+		return nil, fmt.Errorf("bridge: nil generative AI client")
 	}
-	return &sdkClient{client: client}
+	return &sdkClient{client: client}, nil
 }
 
 // GenerativeModel implements GenaiClient.

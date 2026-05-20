@@ -114,7 +114,10 @@ func NewEngine(r *Registry, auth AuthProvider, v *reflect.Validator, db *sqlite.
 		return nil, fmt.Errorf("engine: failed to create genai client: %w", err)
 	}
 
-	sdkClt := bridge.NewSDKClient(client)
+	sdkClt, err := bridge.NewSDKClient(client)
+	if err != nil {
+		return nil, fmt.Errorf("engine: failed to wrap sdk client: %w", err)
+	}
 	geminiClassifier, err := bridge.NewGeminiClassifier(sdkClt)
 	if err != nil {
 		return nil, fmt.Errorf("engine: failed to create gemini classifier: %w", err)
