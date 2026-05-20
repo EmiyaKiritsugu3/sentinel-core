@@ -17,9 +17,13 @@ import (
 
 type mockAuthProvider struct {
 	key string
+	err error
 }
 
 func (m *mockAuthProvider) GetAPIKey() (string, error) {
+	if m.err != nil {
+		return "", m.err
+	}
 	return m.key, nil
 }
 
@@ -610,6 +614,26 @@ func TestNewEngine_EmptyAPIKey(t *testing.T) {
 	// genai.NewClient with empty key may or may not error depending on SDK version.
 	// The important thing is it doesn't panic.
 	_ = err
+}
+
+func TestNewEngine_GetAPIKeyError(t *testing.T) {
+	registry := NewRegistry()
+	auth := &mockAuthProvider{err: errors.New("auth error")}
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	_, err = NewEngine(registry, auth, validator, db)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to get API key") {
+		t.Errorf("expected 'failed to get API key' error, got: %v", err)
+	}
 }
 
 // --- Execute: budget exceeded on first step ---
