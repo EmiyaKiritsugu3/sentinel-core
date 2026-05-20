@@ -122,14 +122,26 @@ func NewEngine(r *Registry, auth AuthProvider, v *reflect.Validator, db *sqlite.
 		return nil, fmt.Errorf("engine: failed to wrap sdk client: %w", err)
 	}
 
+	e, err := newEngineFromComponents(r, sdkClt, auth, v, db)
+	if err != nil {
+		_ = sdkClt.Close()
+		return nil, err
+	}
+	return e, nil
+}
+
+// newEngineFromComponents wires a pre-built GenaiClient into the engine.
+// Separated from NewEngine to allow unit testing of the classifier/factory
+// initialization paths without a live genai.Client.
+func newEngineFromComponents(r *Registry, clt bridge.GenaiClient, auth AuthProvider, v *reflect.Validator, db *sqlite.DB) (*Engine, error) {
 	closeOnErr := true
 	defer func() {
-		if closeOnErr {
-			_ = sdkClt.Close()
+		if closeOnErr && clt != nil {
+			_ = clt.Close()
 		}
 	}()
 
-	geminiClassifier, err := bridge.NewGeminiClassifier(sdkClt)
+	geminiClassifier, err := bridge.NewGeminiClassifier(clt)
 	if err != nil {
 		return nil, fmt.Errorf("engine: failed to create gemini classifier: %w", err)
 	}
@@ -143,7 +155,7 @@ func NewEngine(r *Registry, auth AuthProvider, v *reflect.Validator, db *sqlite.
 	closeOnErr = false
 	return &Engine{
 		registry:      r,
-		genaiClient:   sdkClt,
+		genaiClient:   clt,
 		authProvider:  auth,
 		promptFactory: factory,
 		validator:     v,

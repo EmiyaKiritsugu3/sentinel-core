@@ -31,6 +31,9 @@ type MockModel struct {
 	Instruction string
 	Tools       []*genai.Tool
 	Session     *MockSession
+	// ChatSession overrides Session when non-nil, allowing any GenaiChatSession
+	// implementation to be injected (e.g. cancelOnSecondCallSession).
+	ChatSession bridge.GenaiChatSession
 	Response    *genai.GenerateContentResponse
 	Err         error
 }
@@ -61,6 +64,9 @@ func (m *MockModel) SetTools(tools []*genai.Tool) {
 
 // StartChat implements bridge.GenaiModel.
 func (m *MockModel) StartChat() bridge.GenaiChatSession {
+	if m.ChatSession != nil {
+		return m.ChatSession
+	}
 	if m.Session == nil {
 		m.Session = &MockSession{}
 	}
@@ -90,4 +96,43 @@ func (s *MockSession) SendMessage(ctx context.Context, parts ...genai.Part) (*ge
 	r := s.Responses[s.Idx]
 	s.Idx++
 	return r, nil
+}
+
+// closeTrackingClient is a GenaiClient that records Close() calls.
+type closeTrackingClient struct {
+	onClose func()
+}
+
+// GenerativeModel implements bridge.GenaiClient.
+func (c *closeTrackingClient) GenerativeModel(model string) bridge.GenaiModel {
+	return &MockModel{}
+}
+
+// Close implements bridge.GenaiClient and invokes the onClose callback.
+func (c *closeTrackingClient) Close() error {
+	if c.onClose != nil {
+		c.onClose()
+	}
+	return nil
+}
+
+// cancelOnSecondCallSession cancels a context on the second SendMessage call.
+// This lets tests deterministically exercise the select-case <-ctx.Done() branch
+// in the Execute loop, which only fires on the SECOND iteration.
+type cancelOnSecondCallSession struct {
+	Response *genai.GenerateContentResponse
+	cancel   context.CancelFunc
+	calls    int
+}
+
+// SendMessage implements bridge.GenaiChatSession.
+func (s *cancelOnSecondCallSession) SendMessage(ctx context.Context, parts ...genai.Part) (*genai.GenerateContentResponse, error) {
+	s.calls++
+	if s.calls == 2 {
+		s.cancel()
+	}
+	if s.Response != nil {
+		return s.Response, nil
+	}
+	return &genai.GenerateContentResponse{}, nil
 }

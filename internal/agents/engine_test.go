@@ -61,6 +61,60 @@ func TestEngine_Close_NilClient(t *testing.T) {
 	}
 }
 
+// --- newEngineFromComponents error paths ---
+
+// TestNewEngineFromComponents_CloseOnErrDefer verifies that newEngineFromComponents
+// calls clt.Close() via the closeOnErr defer when a downstream step (NewFactory)
+// fails, ensuring no resource leak on error paths.
+func TestNewEngineFromComponents_CloseOnErrDefer(t *testing.T) {
+	t.Parallel()
+
+	closed := false
+	clt := &closeTrackingClient{onClose: func() { closed = true }}
+
+	// Nil DB → NewFactory will fail → closeOnErr defer fires → Close called.
+	_, err := newEngineFromComponents(NewRegistry(), clt, &mockAuthProvider{key: "k"}, nil, nil)
+	if err == nil {
+		t.Fatal("expected error for nil DB, got nil")
+	}
+	if !closed {
+		t.Error("expected clt.Close() to be called via closeOnErr defer, but it was not")
+	}
+}
+
+// TestNewEngineFromComponents_NilClassifierClient covers NewGeminiClassifier
+// returning an error when the client it wraps is logically nil.
+func TestNewEngineFromComponents_ClassifierError(t *testing.T) {
+	t.Parallel()
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	// Pass a nil GenaiClient interface to trigger NewGeminiClassifier error.
+	_, err := newEngineFromComponents(NewRegistry(), nil, &mockAuthProvider{key: "k"}, nil, db)
+	if err == nil {
+		t.Fatal("expected error when clt is nil")
+	}
+	if !strings.Contains(err.Error(), "gemini classifier") {
+		t.Errorf("expected 'gemini classifier' error, got: %v", err)
+	}
+}
+
+// TestNewEngineFromComponents_NilDB covers the NewFactory error path when the
+// DB is nil (ValidateDB rejects it) after a valid classifier is built.
+func TestNewEngineFromComponents_NilDB(t *testing.T) {
+	t.Parallel()
+	clt := &MockClient{}
+
+	_, err := newEngineFromComponents(NewRegistry(), clt, &mockAuthProvider{key: "k"}, nil, nil)
+	if err == nil {
+		t.Fatal("expected error when db is nil")
+	}
+	// Should hit NewFactory → ValidateDB error.
+	if !strings.Contains(err.Error(), "prompt factory") && !strings.Contains(err.Error(), "nil") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 // --- isExplicitThoughtBlock ---
 
 func TestIsExplicitThoughtBlock(t *testing.T) {

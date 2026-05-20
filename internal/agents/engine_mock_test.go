@@ -1102,6 +1102,82 @@ func TestEngine_Execute_CancelledContext(t *testing.T) {
 	}
 }
 
+// TestEngine_Execute_ContextCancelledInLoop covers the select-case
+// <-ctx.Context.Done() branch inside the ReAct loop (line 232 in engine.go).
+// The context is cancelled mid-loop by the mock session on its 2nd SendMessage
+// call, so the select fires on the 3rd iteration before SendMessage is reached.
+func TestEngine_Execute_ContextCancelledInLoop(t *testing.T) {
+	setupTestCwd(t)
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	if err := graph.Migrate(context.Background(), db); err != nil {
+		t.Fatalf("failed to migrate: %v", err)
+	}
+
+	taskID := "ctx-cancel-loop-task"
+	_, err := db.Conn.ExecContext(context.Background(),
+		"INSERT INTO tasks (id, description, status, tier, verification_command) VALUES (?, ?, ?, ?, ?)",
+		taskID, "test cancel in loop", "IN_PROGRESS", "T2", "",
+	)
+	if err != nil {
+		t.Fatalf("failed to insert task: %v", err)
+	}
+
+	registry := NewRegistry()
+	auth := &mockAuthProvider{key: "test-key"}
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	engine, err := NewEngine(registry, auth, validator, db)
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+	defer func() { _ = engine.Close() }()
+
+	// A response that won't trigger shouldTerminate (no "sovereign audit").
+	nonTerminatingResp := &genai.GenerateContentResponse{
+		Candidates: []*genai.Candidate{
+			{
+				Content: &genai.Content{
+					Parts: []genai.Part{genai.Text("Executing next step.")},
+				},
+			},
+		},
+		UsageMetadata: &genai.UsageMetadata{TotalTokenCount: 10},
+	}
+
+	cancelCtx, cancel := context.WithCancel(context.Background())
+
+	// The cancelOnSecondCallSession fires cancel() on the 2nd SendMessage call.
+	// Iter 1: SendMessage (call 1) → response → executePhase → loop.
+	// Iter 2: select (not cancelled) → SendMessage (call 2, fires cancel) → response → executePhase → loop.
+	// Iter 3: select (ctx IS cancelled) → returns context.Canceled ✅
+	mockSession := &cancelOnSecondCallSession{
+		Response: nonTerminatingResp,
+		cancel:   cancel,
+	}
+	engine.genaiClient = &MockClient{
+		Model: &MockModel{ChatSession: mockSession},
+	}
+
+	ctx := NewAgentContext(cancelCtx, taskID, &AgentDefinition{
+		Name:     "cancel-loop-agent",
+		ModelID:  ModelFlash,
+		MaxSteps: 10,
+	})
+
+	err = engine.Execute(ctx)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected context.Canceled, got %v", err)
+	}
+}
+
 func TestEngine_Execute_SendMessageError(t *testing.T) {
 	setupTestCwd(t)
 	db := testutil.SetupTestDB(t)
