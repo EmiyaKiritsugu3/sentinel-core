@@ -27,7 +27,6 @@ func setupAggregatorDB(t *testing.T) *sqlite.DB {
 }
 
 func TestFetchStats_EmptyDB(t *testing.T) {
-	t.Parallel()
 	db := setupAggregatorDB(t)
 	defer func() { _ = db.Close() }()
 
@@ -51,7 +50,6 @@ func TestFetchStats_EmptyDB(t *testing.T) {
 }
 
 func TestFetchStats_WithNodes(t *testing.T) {
-	t.Parallel()
 	db := setupAggregatorDB(t)
 	defer func() { _ = db.Close() }()
 
@@ -86,7 +84,6 @@ func TestFetchStats_WithNodes(t *testing.T) {
 }
 
 func TestFetchStats_WithTasks(t *testing.T) {
-	t.Parallel()
 	db := setupAggregatorDB(t)
 	defer func() { _ = db.Close() }()
 
@@ -135,7 +132,6 @@ func TestFetchStats_WithTasks(t *testing.T) {
 }
 
 func TestFetchStats_ZeroTasks_SuccessRateZero(t *testing.T) {
-	t.Parallel()
 	db := setupAggregatorDB(t)
 	defer func() { _ = db.Close() }()
 
@@ -156,7 +152,6 @@ func TestFetchStats_ZeroTasks_SuccessRateZero(t *testing.T) {
 }
 
 func TestNewAggregator(t *testing.T) {
-	t.Parallel()
 	db := setupAggregatorDB(t)
 	defer func() { _ = db.Close() }()
 
@@ -173,7 +168,6 @@ func TestNewAggregator(t *testing.T) {
 }
 
 func TestNewAggregator_NilDB(t *testing.T) {
-	t.Parallel()
 	agg, err := NewAggregator(nil)
 	if err == nil {
 		t.Fatal("expected error for nil db, got nil")
@@ -187,7 +181,6 @@ func TestNewAggregator_NilDB(t *testing.T) {
 }
 
 func TestGenerateMarkdown(t *testing.T) {
-	t.Parallel()
 	db := setupAggregatorDB(t)
 	defer func() { _ = db.Close() }()
 
@@ -246,7 +239,6 @@ func TestGenerateMarkdown(t *testing.T) {
 }
 
 func TestFetchStats_WithADRMatch(t *testing.T) {
-	t.Parallel()
 	db := setupAggregatorDB(t)
 	defer func() { _ = db.Close() }()
 
