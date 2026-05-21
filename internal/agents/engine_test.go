@@ -13,6 +13,7 @@ import (
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/reflect"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/testutil"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
+	"github.com/google/generative-ai-go/genai"
 )
 
 type mockAuthProvider struct {
@@ -112,6 +113,67 @@ func TestNewEngineFromComponents_NilDB(t *testing.T) {
 	// Should hit NewFactory → ValidateDB error.
 	if !strings.Contains(err.Error(), "prompt factory") && !strings.Contains(err.Error(), "nil") {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// --- NewEngine: injected error paths ---
+
+// TestNewEngine_SDKClientWrapError covers the NewSDKClient error branch
+// (lines 118-122) using the newSDKClientFunc test hook.
+func TestNewEngine_SDKClientWrapError(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	orig := newSDKClientFunc
+	newSDKClientFunc = func(_ *genai.Client) (bridge.GenaiClient, error) {
+		return nil, bridge.ErrNilClient
+	}
+	defer func() { newSDKClientFunc = orig }()
+
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("validator: %v", err)
+	}
+
+	_, err = NewEngine(NewRegistry(), &mockAuthProvider{key: "fake-key"}, validator, db)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to wrap sdk client") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// TestNewEngine_ComponentsInitError covers the newEngineFromComponents error
+// branch (lines 130-133): sdkClt created OK but downstream setup fails.
+func TestNewEngine_ComponentsInitError(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	origSDK := newSDKClientFunc
+	newSDKClientFunc = func(_ *genai.Client) (bridge.GenaiClient, error) {
+		return &MockClient{}, nil
+	}
+	defer func() { newSDKClientFunc = origSDK }()
+
+	// Override factory creation to simulate a downstream failure.
+	origFactory := newFactoryFunc
+	newFactoryFunc = func(_ *sqlite.DB, _ *bridge.IntentClassifier) (*bridge.Factory, error) {
+		return nil, errors.New("simulated factory failure")
+	}
+	defer func() { newFactoryFunc = origFactory }()
+
+	validator, err := reflect.NewValidator(db)
+	if err != nil {
+		t.Fatalf("validator: %v", err)
+	}
+
+	_, err = NewEngine(NewRegistry(), &mockAuthProvider{key: "fake-key"}, validator, db)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "prompt factory") {
+		t.Errorf("unexpected error message: %v", err)
 	}
 }
 

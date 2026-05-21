@@ -89,6 +89,15 @@ type Engine struct {
 	db            *sqlite.DB
 }
 
+// newSDKClientFunc wraps bridge.NewSDKClient and can be overridden in tests
+// to inject failures that are otherwise unreachable through the real SDK.
+var newSDKClientFunc = bridge.NewSDKClient
+
+// newFactoryFunc wraps bridge.NewFactory and can be overridden in tests
+// to make newEngineFromComponents fail from within NewEngine without
+// corrupting the real DB state.
+var newFactoryFunc = bridge.NewFactory
+
 // NewEngine initializes a new agent engine.
 func NewEngine(r *Registry, auth AuthProvider, v *reflect.Validator, db *sqlite.DB) (*Engine, error) {
 	if r == nil {
@@ -114,7 +123,7 @@ func NewEngine(r *Registry, auth AuthProvider, v *reflect.Validator, db *sqlite.
 		return nil, fmt.Errorf("engine: failed to create genai client: %w", err)
 	}
 
-	sdkClt, err := bridge.NewSDKClient(client)
+	sdkClt, err := newSDKClientFunc(client)
 	if err != nil {
 		if client != nil {
 			_ = client.Close()
@@ -147,7 +156,7 @@ func newEngineFromComponents(r *Registry, clt bridge.GenaiClient, auth AuthProvi
 	}
 
 	classifier := bridge.NewIntentClassifier(geminiClassifier, 0.60)
-	factory, err := bridge.NewFactory(db, classifier)
+	factory, err := newFactoryFunc(db, classifier)
 	if err != nil {
 		return nil, fmt.Errorf("engine: failed to create prompt factory: %w", err)
 	}
