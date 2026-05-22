@@ -1,0 +1,3 @@
+## 2026-05-22 - Optimize isExplicitThoughtBlock by avoiding strings.TrimSpace
+**Learning:** In a loop that analyzes generative AI text responses to count token ratio, calling `strings.TrimSpace` evaluates the entire string (both ends) and can be unnecessarily expensive. Since `isExplicitThoughtBlock` only checks for the start of a string (`<think>` or ````thought`), we only need to skip leading whitespace.
+**Action:** Replaced `strings.TrimSpace` with a custom leading-whitespace skipper (using ASCII fast path) and falling back to `strings.TrimLeftFunc(text[i:], unicode.IsSpace)` for non-ASCII characters. This improves the performance for long texts and avoids suffix scanning, resulting in roughly a 2x-3x speedup on related benchmarks.

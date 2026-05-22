@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/bridge"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/math"
@@ -531,8 +532,31 @@ func (e *Engine) executeToolsWithResults(ctx *AgentContext, toolCalls []map[stri
 }
 
 func isExplicitThoughtBlock(text string) bool {
-	trimmed := strings.TrimSpace(text)
-	return strings.HasPrefix(trimmed, "<think>") || strings.HasPrefix(trimmed, "```thought")
+	i := 0
+	for i < len(text) {
+		c := text[i]
+		if c == ' ' || c == '\n' || c == '\t' || c == '\r' || c == '\v' || c == '\f' {
+			i++
+			continue
+		}
+		if c >= 0x80 {
+			// Fallback for Unicode spaces
+			trimmed := strings.TrimLeftFunc(text[i:], unicode.IsSpace)
+			return strings.HasPrefix(trimmed, "<think>") || strings.HasPrefix(trimmed, "```thought")
+		}
+		break
+	}
+
+	if i < len(text) {
+		rem := len(text) - i
+		if rem >= 7 && text[i:i+7] == "<think>" {
+			return true
+		}
+		if rem >= 10 && text[i:i+10] == "```thought" {
+			return true
+		}
+	}
+	return false
 }
 
 // PACRecommendation represents a single angle's deliberation outcome.
