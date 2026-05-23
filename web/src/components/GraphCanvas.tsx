@@ -58,11 +58,11 @@ export function GraphCanvas() {
   useSentinelData(cyInstance);
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', background: '#1e1e1e' }}>
-      <div style={{ position: 'absolute', top: 16, left: 16, color: '#fff', fontFamily: 'monospace', zIndex: 10 }}>
-        <h2>Sentinel Live View</h2>
+    <>
+      <div style={{ position: 'absolute', top: 12, left: 12, color: '#888', fontFamily: 'monospace', fontSize: 11, zIndex: 10 }}>
+        Sentinel Live View
       </div>
-      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-    </div>
+      <div ref={containerRef} className="graph-container" />
+    </>
   );
 }
