@@ -191,6 +191,7 @@ func (s *Server) writePump(c *wsClient) {
 func (s *Server) StartHTTP(port int, db *sqlite.DB) error {
 	http.HandleFunc("/ws", s.serveWS)
 	http.HandleFunc("/api/graph", handleGetGraph(db))
+	http.HandleFunc("/api/status", handleGetStatus(db))
 
 	// Serve the Vite build
 	fs := http.FileServer(http.Dir("./web/dist"))
