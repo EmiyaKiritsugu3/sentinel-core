@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import cytoscape from 'cytoscape';
 import { useSentinelData } from '../hooks/useSentinelData';
 
-export function GraphCanvas() {
+interface GraphCanvasProps {
+  onCyReady?: (cy: cytoscape.Core) => void;
+}
+
+export function GraphCanvas({ onCyReady }: GraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cyInstance, setCyInstance] = useState<cytoscape.Core | null>(null);
 
@@ -49,6 +53,7 @@ export function GraphCanvas() {
     });
 
     setCyInstance(cy);
+    onCyReady?.(cy);
 
     return () => {
       cy.destroy();
