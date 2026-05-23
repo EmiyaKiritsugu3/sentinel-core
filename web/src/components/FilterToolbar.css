@@ -1,0 +1,64 @@
+.filter-toolbar {
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 36px;
+}
+
+.filter-toolbar__types {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.filter-toolbar__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: #ccc;
+  cursor: pointer;
+  user-select: none;
+}
+
+.filter-toolbar__checkbox input {
+  cursor: pointer;
+}
+
+.filter-toolbar__search {
+  background: #1e1e1e;
+  border: 1px solid #444;
+  color: #e0e0e0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  width: 180px;
+}
+
+.filter-toolbar__search::placeholder {
+  color: #666;
+}
+
+.filter-toolbar__select {
+  background: #1e1e1e;
+  border: 1px solid #444;
+  color: #e0e0e0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.filter-toolbar__reset {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.filter-toolbar__reset:hover {
+  color: #e0e0e0;
+}
