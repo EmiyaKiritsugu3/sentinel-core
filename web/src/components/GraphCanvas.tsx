@@ -6,6 +6,15 @@ interface GraphCanvasProps {
   onCyReady?: (cy: cytoscape.Core) => void;
 }
 
+/**
+ * Renders a Cytoscape graph inside a React component and initializes the Cytoscape instance on mount.
+ *
+ * Initializes a Cytoscape core with base styles and a preset layout, stores the instance in state,
+ * and cleans it up on unmount. Also invokes `onCyReady` if provided after the instance is created.
+ *
+ * @param onCyReady - Optional callback invoked with the created Cytoscape `cy` instance once it is initialized
+ * @returns The React element containing the Cytoscape mounting container and a "Sentinel Live View" label
+ */
 export function GraphCanvas({ onCyReady }: GraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cyInstance, setCyInstance] = useState<cytoscape.Core | null>(null);

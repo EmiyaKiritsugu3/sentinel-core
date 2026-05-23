@@ -2,6 +2,16 @@ import { useEffect, useState } from 'react';
 import cytoscape from 'cytoscape';
 import { useFilterStore } from '../stores';
 
+/**
+ * Update Cytoscape node visibility according to type filters, a text search, and an optional package selection.
+ *
+ * Matches `searchText` case-insensitively against node `label` and `file_path` (partial match). When `enabledTypes` is non-empty, only nodes whose `type` is in the set are shown. When `selectedPackage` is provided, a node is shown only if the top-level prefix of its `file_path` (first segment before `/`, or `'(root)'` if no `/`) equals `selectedPackage`.
+ *
+ * @param cy - The Cytoscape core instance whose nodes will be updated
+ * @param enabledTypes - Set of node `type` values to allow; empty set disables type filtering
+ * @param searchText - Text to match against node `label` and `file_path` (case-insensitive, partial)
+ * @param selectedPackage - Optional top-level package name to filter by, or `null` to disable package filtering
+ */
 function applyFilter(
   cy: cytoscape.Core,
   enabledTypes: Set<string>,
@@ -41,6 +51,14 @@ function applyFilter(
   });
 }
 
+/**
+ * Extracts a sorted list of unique top-level package identifiers from nodes' `file_path` values.
+ *
+ * For each node, the root is the substring before the first `/`, or `'(root)'` when no `/` is present.
+ *
+ * @param cy - Cytoscape instance whose nodes' `file_path` data will be inspected
+ * @returns Sorted array of unique package roots (first segment of `file_path`, or `'(root)'` when absent)
+ */
 function extractPackages(cy: cytoscape.Core): string[] {
   return [...new Set(
     cy.nodes()
@@ -51,9 +69,10 @@ function extractPackages(cy: cytoscape.Core): string[] {
 }
 
 /**
- * Reads filterStore and applies visibility to cytoscape nodes.
- * Re-filters when store changes or when new nodes arrive via WebSocket.
- * Returns a reactive package list for the FilterToolbar dropdown.
+ * Synchronizes Cytoscape node visibility with filter state and exposes available packages.
+ *
+ * @param cy - Cytoscape `Core` instance or `null`
+ * @returns An object with `packages`: a sorted array of unique top-level package identifiers derived from nodes' `file_path` (the first segment before `/`, or `"(root)"` when no slash)
  */
 export function useGraphFilter(cy: cytoscape.Core | null) {
   const enabledTypes    = useFilterStore(s => s.enabledTypes);

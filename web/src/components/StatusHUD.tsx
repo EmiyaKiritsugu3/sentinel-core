@@ -10,6 +10,14 @@ const STATUS_COLORS: Record<string, string> = {
   FAILED:      '#ef4444',
 };
 
+/**
+ * Renders a compact colored badge for a task status.
+ *
+ * Looks up the background color from `STATUS_COLORS` and uses `#555` if the status is unknown.
+ *
+ * @param status - The status label to display (e.g., `PENDING`, `DONE`)
+ * @returns A styled `<span>` element containing the `status` text
+ */
 function StatusBadge({ status }: { status: string }) {
   const color = STATUS_COLORS[status] ?? '#555';
   return (
@@ -30,6 +38,13 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+/**
+ * Displays a compact HUD showing the current task status from the status store.
+ *
+ * Renders one of four views: a loading indicator, an error message, an idle message when no task is active, or an active task view showing description, status badge, optional tier, localized creation time, and optional verification command. On mount it triggers an immediate poll and continues polling the store every 2 seconds for `${window.location.hostname}:8080`; the polling interval is cleared on unmount.
+ *
+ * @returns A JSX element containing the status HUD.
+ */
 export function StatusHUD() {
   const task    = useStatusStore(s => s.task);
   const loading = useStatusStore(s => s.loading);

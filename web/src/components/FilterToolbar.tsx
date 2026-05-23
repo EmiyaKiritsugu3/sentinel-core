@@ -8,6 +8,12 @@ interface FilterToolbarProps {
   packages: string[];
 }
 
+/**
+ * Render a toolbar for filtering graph nodes by type, search text, and package.
+ *
+ * @param packages - Array of package names used to populate the package dropdown
+ * @returns A JSX element containing type checkboxes, a search input, a package select, and a reset button
+ */
 export function FilterToolbar({ packages }: FilterToolbarProps) {
   const enabledTypes    = useFilterStore(s => s.enabledTypes);
   const searchText      = useFilterStore(s => s.searchText);
