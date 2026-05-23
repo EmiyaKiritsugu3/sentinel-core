@@ -189,6 +189,10 @@ func (s *Server) writePump(c *wsClient) {
 
 // StartHTTP starts the blocking HTTP server
 func (s *Server) StartHTTP(port int, db *sqlite.DB) error {
+	if err := sqlite.ValidateDB(db, "liveview"); err != nil {
+		return fmt.Errorf("liveview: %w", err)
+	}
+
 	http.HandleFunc("/ws", s.serveWS)
 	http.HandleFunc("/api/graph", handleGetGraph(db))
 	http.HandleFunc("/api/status", handleGetStatus(db))

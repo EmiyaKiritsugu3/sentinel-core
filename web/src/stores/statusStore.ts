@@ -25,10 +25,10 @@ export const useStatusStore = create<StatusState>((set) => ({
       if (task.id || task.status) {
         set({ task, loading: false });
       } else {
-        set({ loading: false });
+        set({ task: null, loading: false });
       }
     } catch (e) {
-      set({ loading: false, error: String(e) });
+      set({ loading: false, error: e instanceof Error ? e.message : String(e) });
     }
   },
 }));

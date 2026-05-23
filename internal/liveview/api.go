@@ -88,7 +88,7 @@ func handleGetStatus(db *sqlite.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		row := db.Conn.QueryRow(
-			"SELECT id, description, status, tier, verification_command, created_at FROM tasks ORDER BY created_at DESC LIMIT 1",
+			"SELECT id, description, status, tier, verification_command, created_at FROM tasks ORDER BY created_at DESC, rowid DESC LIMIT 1",
 		)
 
 		var status TaskStatus
@@ -98,11 +98,16 @@ func handleGetStatus(db *sqlite.DB) http.HandlerFunc {
 			if errors.Is(err, sql.ErrNoRows) {
 				// No tasks yet — return empty status.
 				encoder := json.NewEncoder(w)
-				_ = encoder.Encode(TaskStatus{})
+				if err := encoder.Encode(TaskStatus{}); err != nil {
+					log.Printf("liveview: failed to encode empty status: %v", err)
+				}
 				return
 			}
 			log.Printf("liveview: failed to query task status: %v", err)
-			http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			if err := json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"}); err != nil {
+				log.Printf("liveview: failed to encode error response: %v", err)
+			}
 			return
 		}
 
