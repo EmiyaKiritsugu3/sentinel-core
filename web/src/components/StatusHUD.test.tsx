@@ -15,8 +15,6 @@ vi.mock('../stores', () => {
   };
 });
 
-import { useStatusStore } from '../stores';
-
 describe('StatusHUD', () => {
   beforeEach(() => {
     vi.clearAllMocks();

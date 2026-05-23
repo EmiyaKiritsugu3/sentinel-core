@@ -18,10 +18,14 @@
 /* ── Regions ──────────────────────────────────── */
 .app-layout > .header {
   grid-area: header;
+  background: #2a2a2a;
+  border-bottom: 1px solid #444;
 }
 
 .app-layout > .toolbar {
   grid-area: toolbar;
+  background: #2a2a2a;
+  border-bottom: 1px solid #444;
 }
 
 .app-layout > .main {
