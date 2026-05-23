@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/bridge"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/math"
@@ -530,8 +531,11 @@ func (e *Engine) executeToolsWithResults(ctx *AgentContext, toolCalls []map[stri
 	return results, nil
 }
 
+// isExplicitThoughtBlock checks if the text starts with a thought block marker.
+// ⚡ Bolt Optimization: Avoids strings.TrimSpace to prevent O(N) scanning of trailing
+// whitespace on large text blocks. We only care about leading whitespace.
 func isExplicitThoughtBlock(text string) bool {
-	trimmed := strings.TrimSpace(text)
+	trimmed := strings.TrimLeftFunc(text, unicode.IsSpace)
 	return strings.HasPrefix(trimmed, "<think>") || strings.HasPrefix(trimmed, "```thought")
 }
 
