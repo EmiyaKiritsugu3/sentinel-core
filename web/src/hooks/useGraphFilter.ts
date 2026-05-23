@@ -97,7 +97,11 @@ export function useGraphFilter(cy: cytoscape.Core | null) {
       setPackages(extractPackages(cy));
     };
     cy.on('add', 'node', handler);
-    return () => { cy.off('add', 'node', handler); };
+    return () => {
+      if (!cy.destroyed()) {
+        cy.off('add', 'node', handler);
+      }
+    };
   }, [cy]);
 
   return { packages };

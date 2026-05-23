@@ -28,7 +28,9 @@ export const useStatusStore = create<StatusState>((set) => ({
         set({ task: null, loading: false });
       }
     } catch (e) {
-      set({ loading: false, error: e instanceof Error ? e.message : String(e) });
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('[StatusStore] poll failed:', msg, e);
+      set({ loading: false, error: msg });
     }
   },
 }));

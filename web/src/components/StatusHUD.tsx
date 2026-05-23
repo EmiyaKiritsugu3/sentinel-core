@@ -52,20 +52,20 @@ export function StatusHUD() {
   const poll    = useStatusStore(s => s.poll);
 
   useEffect(() => {
-    const baseUrl = `${window.location.hostname}:8080`;
-    poll(baseUrl);
-    const id = setInterval(() => poll(baseUrl), 2000);
-    return () => clearInterval(id);
-  }, [poll]);
+    let active = true;
+    const baseUrl = `http://${window.location.hostname}:8080`;
 
-  if (loading) {
-    return (
-      <div className="status-hud">
-        <span className="status-dot" />
-        Loading...
-      </div>
-    );
-  }
+    const tick = async () => {
+      if (!active) return;
+      await poll(baseUrl);
+      if (active) setTimeout(tick, 2000);
+    };
+
+    poll(baseUrl);
+    tick();
+
+    return () => { active = false; };
+  }, [poll]);
 
   if (error) {
     return (
@@ -76,6 +76,14 @@ export function StatusHUD() {
   }
 
   if (!task) {
+    if (loading) {
+      return (
+        <div className="status-hud">
+          <span className="status-dot" />
+          Loading...
+        </div>
+      );
+    }
     return (
       <div className="status-hud status-hud--idle">
         No active task

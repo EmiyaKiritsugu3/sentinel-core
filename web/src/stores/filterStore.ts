@@ -6,7 +6,7 @@ export type NodeType = 'function' | 'struct' | 'interface' | 'unresolved_import'
 export interface FilterState {
   /** Which node types are currently visible. Empty set = show all. */
   enabledTypes: Set<NodeType>;
-  /** Search text for node name / file path filtering (debounced by consumer). */
+  /** Search text for node name / file path filtering (instant, no debounce). */
   searchText: string;
   /** Selected package prefix for file_path filtering. null = no package filter. */
   selectedPackage: string | null;
