@@ -147,6 +147,13 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			return
 		}
 
+			cleanPath := filepath.Clean(filePath)
+		if filepath.IsAbs(cleanPath) || strings.HasPrefix(cleanPath, "..") {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
+			return
+		}
+
 		startStr := r.URL.Query().Get("start")
 		endStr := r.URL.Query().Get("end")
 
@@ -177,9 +184,15 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 		}
 
 		allLines := strings.Split(string(content), "\n")
-		// Trim trailing empty line from files ending with \n
 		if len(allLines) > 0 && allLines[len(allLines)-1] == "" {
 			allLines = allLines[:len(allLines)-1]
+		}
+
+		if len(allLines) == 0 {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"file": filePath, "lines": []string{}, "startLine": 0, "endLine": 0,
+			})
+			return
 		}
 
 		end := len(allLines)
@@ -193,17 +206,23 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			if v > end {
 				v = end
 			}
+			if v < 1 {
+				v = 1
+			}
 			end = v
 		}
 
-		if start > len(allLines) {
-			start = len(allLines) + 1
-		}
 		if start < 1 {
 			start = 1
 		}
+		if start > len(allLines) {
+			start = len(allLines)
+		}
 		if end < start {
 			end = start
+		}
+		if end > len(allLines) {
+			end = len(allLines)
 		}
 
 		lines := allLines[start-1 : end]
@@ -273,7 +292,7 @@ func handleGetADR(db *sqlite.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		filename := strings.TrimPrefix(r.URL.Path, "/api/adr/")
-		if filename == "" || strings.Contains(filename, "..") {
+		if filename == "" || strings.Contains(filename, "..") || strings.HasPrefix(filename, "/") {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
 			return
@@ -282,6 +301,13 @@ func handleGetADR(db *sqlite.DB) http.HandlerFunc {
 		fullPath := filepath.Join("docs/architecture/adr", filename)
 		absPath, err := filepath.Abs(fullPath)
 		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
+			return
+		}
+
+		adrDir, err := filepath.Abs("docs/architecture/adr")
+		if err != nil || !strings.HasPrefix(absPath, adrDir+string(filepath.Separator)) {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
 			return
