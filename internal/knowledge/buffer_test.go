@@ -213,3 +213,14 @@ func TestConcurrentRecordAndRead(t *testing.T) {
 		t.Errorf("unexpected buffer length %d", len)
 	}
 }
+
+func TestEventBuffer_TagsImmutability(t *testing.T) {
+	buf := NewEventBuffer(10)
+	tags := []string{"original"}
+	buf.Record(SessionEvent{Type: EventDecision, Summary: "test", Tags: tags})
+	tags[0] = "mutated"
+	snap := buf.Snapshot()
+	if snap[0].Tags[0] != "original" {
+		t.Errorf("Tags should be immutable: got %q", snap[0].Tags[0])
+	}
+}

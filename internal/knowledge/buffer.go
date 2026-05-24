@@ -6,6 +6,13 @@ import (
 	"time"
 )
 
+func cloneEvent(e SessionEvent) SessionEvent {
+	if len(e.Tags) > 0 {
+		e.Tags = append([]string(nil), e.Tags...)
+	}
+	return e
+}
+
 // EventType classifies a session event for debrief categorization.
 type EventType string
 
@@ -63,7 +70,7 @@ func (b *EventBuffer) Record(event SessionEvent) {
 	if event.Timestamp.IsZero() {
 		event.Timestamp = time.Now()
 	}
-	b.events[b.head] = event
+	b.events[b.head] = cloneEvent(event)
 	b.head = (b.head + 1) % b.max
 	if b.size < b.max {
 		b.size++
@@ -81,7 +88,7 @@ func (b *EventBuffer) Snapshot() []SessionEvent {
 	start := (b.head - b.size + b.max) % b.max
 	for i := 0; i < b.size; i++ {
 		idx := (start + i) % b.max
-		result[i] = b.events[idx]
+		result[i] = cloneEvent(b.events[idx])
 	}
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Timestamp.Before(result[j].Timestamp)
@@ -139,7 +146,7 @@ func (b *EventBuffer) filter(pred func(SessionEvent) bool) []SessionEvent {
 	for i := 0; i < b.size; i++ {
 		idx := (start + i) % b.max
 		if pred(b.events[idx]) {
-			result = append(result, b.events[idx])
+			result = append(result, cloneEvent(b.events[idx]))
 		}
 	}
 	return result
