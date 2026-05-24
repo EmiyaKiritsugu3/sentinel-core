@@ -1,0 +1,51 @@
+<<<<<<< SEARCH
+		cleanPath := filepath.Clean(filePath)
+		if filepath.IsAbs(cleanPath) || strings.HasPrefix(cleanPath, "..") {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
+			return
+		}
+
+		startStr := r.URL.Query().Get("start")
+		endStr := r.URL.Query().Get("end")
+
+		start := 1
+		if startStr != "" {
+			v, err := strconv.Atoi(startStr)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid start param"})
+				return
+			}
+			if v > 0 {
+				start = v
+			}
+		}
+
+		content, err := os.ReadFile(filePath)
+=======
+		cleanPath := filepath.Clean(filePath)
+		if filepath.IsAbs(cleanPath) || strings.HasPrefix(cleanPath, "..") {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
+			return
+		}
+
+		startStr := r.URL.Query().Get("start")
+		endStr := r.URL.Query().Get("end")
+
+		start := 1
+		if startStr != "" {
+			v, err := strconv.Atoi(startStr)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid start param"})
+				return
+			}
+			if v > 0 {
+				start = v
+			}
+		}
+
+		content, err := os.ReadFile(cleanPath)
+>>>>>>> REPLACE

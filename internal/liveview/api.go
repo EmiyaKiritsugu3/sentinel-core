@@ -170,7 +170,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			}
 		}
 
-		content, err := os.ReadFile(filePath)
+		content, err := os.ReadFile(cleanPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				w.WriteHeader(http.StatusNotFound)
