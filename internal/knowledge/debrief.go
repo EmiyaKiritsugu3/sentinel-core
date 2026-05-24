@@ -56,7 +56,9 @@ type DebriefService struct {
 	tmpl    string
 }
 
-// NewDebriefService creates a debrief service. baseDir is the knowledge root directory (typically ~/knowledge).
+// NewDebriefService creates and returns a DebriefService configured with the provided
+// EventBuffer, optional sqlite.DB, and base directory used to store generated session files.
+// The baseDir is the knowledge root directory (typically ~/knowledge).
 func NewDebriefService(buffer *EventBuffer, db *sqlite.DB, baseDir string) *DebriefService {
 	return &DebriefService{
 		buffer:  buffer,

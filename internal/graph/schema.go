@@ -289,6 +289,11 @@ var pragmaTableInfo = map[string]string{
 	"session_events":     "PRAGMA table_info(session_events)",
 }
 
+// columnExistsInTx reports whether the named column exists in the specified table
+// using the provided transaction's PRAGMA table_info query.
+// It returns (true, nil) if a column with the given name is present, (false, nil)
+// if the column is not found, and (false, error) if the table is unknown or the
+// underlying query/scan fails.
 func columnExistsInTx(ctx context.Context, tx *sql.Tx, table, column string) (bool, error) {
 	query, ok := pragmaTableInfo[table]
 	if !ok {

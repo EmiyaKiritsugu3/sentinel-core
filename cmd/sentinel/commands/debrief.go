@@ -14,12 +14,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// init registers NewDebriefCmd with the central command registry.
 func init() {
 	registry.Register(NewDebriefCmd)
 }
 
 // NewDebriefCmd creates the sentinel debrief command, which generates a
-// session debrief from captured events and persists it to ~/knowledge/.
+// NewDebriefCmd creates the Cobra "debrief" command which generates a session
+// debrief from captured events and persists it under ~/knowledge/sessions/.
+//
+// The command accepts flags to control its behavior: --dry-run prints the
+// generated content without saving, --auto saves immediately without prompts,
+// --editor opens the content in $EDITOR for editing before optionally saving,
+// and --output is provided but not used by the command. The command validates
+// the provided SQLite DB and runs necessary migrations before generating or
+// saving the debrief.
 func NewDebriefCmd(db *sqlite.DB) *cobra.Command {
 	var auto, dryRun bool
 	var editor bool
@@ -84,6 +93,8 @@ at the end of your session to persist captured knowledge.`,
 	return cmd
 }
 
+// interactiveDebrief prints the provided debrief content, prompts the user to confirm saving, and either saves or discards the debrief based on the response.
+// If the user enters an empty line or "y"/"Y", the content is saved via svc.SaveContent and any error from that operation is returned; otherwise the debrief is discarded and nil is returned.
 func interactiveDebrief(content string, svc *knowledge.DebriefService, ctx context.Context) error {
 	fmt.Println(content)
 	fmt.Print("\nSave this debrief? [Y/n]: ")
@@ -101,6 +112,11 @@ func interactiveDebrief(content string, svc *knowledge.DebriefService, ctx conte
 	return nil
 }
 
+// openInEditor opens the provided debrief content in the user's editor, prints the edited result,
+// prompts whether to save it, and saves via the provided DebriefService if the user accepts.
+// It writes the content to a temporary file and uses the `EDITOR` environment variable (defaulting
+// to `vi`) to edit it, then reads the edited file, displays it to stdout, and asks "Save this debrief? [Y/n]:".
+// Returns an error if creating/writing/reading the temp file, launching the editor, or saving the content fails.
 func openInEditor(content string, svc *knowledge.DebriefService, ctx context.Context) error {
 	tmpFile, err := os.CreateTemp("", "sentinel-debrief-*.md")
 	if err != nil {

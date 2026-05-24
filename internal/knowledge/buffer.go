@@ -44,7 +44,8 @@ type EventBuffer struct {
 	size   int
 }
 
-// NewEventBuffer creates a ring buffer with the given maximum capacity.
+// NewEventBuffer creates a ring buffer for SessionEvent values with the specified maximum capacity.
+// If maxSize is less than 1, the buffer is created with a default capacity of 1000.
 func NewEventBuffer(maxSize int) *EventBuffer {
 	if maxSize < 1 {
 		maxSize = 1000
