@@ -1,6 +1,7 @@
 package knowledge
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -152,5 +153,25 @@ func TestDebriefService_Generate_DomainsDeterministic(t *testing.T) {
 	}
 	if methodologyIdx >= systemsIdx {
 		t.Error("domains not in alphabetical order (expected methodology before systems)")
+	}
+}
+
+func TestDebriefService_SaveContent_UsesProvidedContent(t *testing.T) {
+	buf := NewEventBuffer(10)
+	tmpDir := t.TempDir()
+	svc := NewDebriefService(buf, nil, tmpDir)
+
+	customContent := "# Custom Debrief\n\nCustom content here.\n"
+	_, path, err := svc.SaveContent(context.Background(), customContent)
+	if err != nil {
+		t.Fatalf("SaveContent failed: %v", err)
+	}
+
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read saved file: %v", err)
+	}
+	if string(saved) != customContent {
+		t.Errorf("SaveContent did not save provided content:\nwant: %q\ngot:  %q", customContent, string(saved))
 	}
 }

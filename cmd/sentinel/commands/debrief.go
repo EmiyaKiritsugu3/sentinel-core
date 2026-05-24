@@ -90,7 +90,7 @@ func interactiveDebrief(content string, svc *knowledge.DebriefService, ctx conte
 	var answer string
 	fmt.Scanln(&answer)
 	if answer == "" || answer == "y" || answer == "Y" {
-		id, path, err := svc.Save(ctx)
+		id, path, err := svc.SaveContent(ctx, content)
 		if err != nil {
 			return err
 		}
@@ -136,7 +136,7 @@ func openInEditor(content string, svc *knowledge.DebriefService, ctx context.Con
 	var answer string
 	fmt.Scanln(&answer)
 	if answer == "" || answer == "y" || answer == "Y" {
-		id, path, err := svc.Save(ctx)
+		id, path, err := svc.SaveContent(ctx, string(edited))
 		if err != nil {
 			return err
 		}

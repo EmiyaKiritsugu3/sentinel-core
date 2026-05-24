@@ -130,23 +130,32 @@ func (s *DebriefService) renderFallback(data DebriefData) string {
 // Save persists the debrief to the filesystem and graph database.
 // Returns the session ID, markdown path, and any error.
 func (s *DebriefService) Save(ctx context.Context) (string, string, error) {
+	return s.SaveContent(ctx, s.Generate())
+}
+
+// SaveContent persists pre-rendered content to the filesystem and graph database.
+// Unlike Save, it does not regenerate from the buffer — it uses the provided content as-is.
+func (s *DebriefService) SaveContent(ctx context.Context, content string) (string, string, error) {
 	now := time.Now()
 	sessionID := uuid.New().String()[:8]
 	filename := fmt.Sprintf("%s-%s.md", now.Format("2006-01-02"), now.Format("1504"))
 	dir := filepath.Join(s.baseDir, "sessions")
+
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", "", fmt.Errorf("debrief: create sessions dir %s: %w", dir, err)
 	}
-	content := s.Generate()
+
 	path := filepath.Join(dir, filename)
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		return "", "", fmt.Errorf("debrief: write markdown: %w", err)
 	}
+
 	if s.db != nil {
 		if err := s.saveToGraph(ctx, sessionID, path, now); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: debrief graph persistence failed: %v\n", err)
 		}
 	}
+
 	return sessionID, path, nil
 }
 
