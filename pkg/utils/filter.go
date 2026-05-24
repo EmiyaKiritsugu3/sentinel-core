@@ -55,7 +55,12 @@ func (f *IgnoreFilter) loadGitignore(root string) {
 			dirContains: "/" + strings.Trim(pattern, "/") + "/",
 			dirPrefix:   strings.TrimSuffix(pattern, "/") + "/",
 		}
-		if strings.Contains(pattern, ".") {
+
+		// Fix for suffix match logic: we check for wildcards first, otherwise it's just strings.HasSuffix(cleanPath, pattern) && strings.Contains(pattern, ".") in fallback
+		if strings.HasPrefix(pattern, "*.") {
+			parsed.suffix = strings.TrimPrefix(pattern, "*")
+			parsed.hasSuffix = true
+		} else if strings.Contains(pattern, ".") {
 			parsed.suffix = pattern
 			parsed.hasSuffix = true
 		}
@@ -85,6 +90,28 @@ func (f *IgnoreFilter) IsIgnored(path string) bool {
 		}
 	}
 
+	// Fallback to unparsed patterns if any (e.g. for manually constructed IgnoreFilter)
+	if len(f.patterns) > 0 && len(f.parsed) == 0 {
+		for _, p := range f.patterns {
+			pattern := strings.ToLower(strings.TrimPrefix(p, "./"))
+
+			parsed := parsedPattern{
+				baseMatch:   strings.Trim(pattern, "/"),
+				dirContains: "/" + strings.Trim(pattern, "/") + "/",
+				dirPrefix:   strings.TrimSuffix(pattern, "/") + "/",
+			}
+
+			if strings.HasPrefix(pattern, "*.") {
+				parsed.suffix = strings.TrimPrefix(pattern, "*")
+				parsed.hasSuffix = true
+			} else if strings.Contains(pattern, ".") {
+				parsed.suffix = pattern
+				parsed.hasSuffix = true
+			}
+			f.parsed = append(f.parsed, parsed)
+		}
+	}
+
 	// 2. .gitignore patterns
 	for _, p := range f.parsed {
 		// Exact file or folder match
@@ -100,26 +127,6 @@ func (f *IgnoreFilter) IsIgnored(path string) bool {
 		// Suffix match (extensions like *.log or specific paths)
 		if p.hasSuffix && strings.HasSuffix(cleanPath, p.suffix) {
 			return true
-		}
-	}
-
-	// Fallback to unparsed patterns if any (e.g. for manually constructed IgnoreFilter)
-	if len(f.patterns) > 0 && len(f.parsed) == 0 {
-		for _, p := range f.patterns {
-			pattern := strings.ToLower(strings.TrimPrefix(p, "./"))
-			// Exact file or folder match
-			if base == strings.Trim(pattern, "/") {
-				return true
-			}
-			// Directory match (prefix or content)
-			if strings.Contains(cleanPath, "/"+strings.Trim(pattern, "/")+"/") ||
-				strings.HasPrefix(cleanPath, strings.TrimSuffix(pattern, "/")+"/") {
-				return true
-			}
-			// Suffix match (extensions like *.log or specific paths)
-			if strings.HasSuffix(cleanPath, pattern) && strings.Contains(pattern, ".") {
-				return true
-			}
 		}
 	}
 
