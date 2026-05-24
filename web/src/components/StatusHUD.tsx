@@ -39,11 +39,11 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 /**
- * Displays a compact HUD showing the current task status from the status store.
+ * Displays a compact heads-up display of the current task status.
  *
- * Renders one of four views: a loading indicator, an error message, an idle message when no task is active, or an active task view showing description, status badge, optional tier, localized creation time, and optional verification command. On mount it triggers an immediate poll and continues polling the store every 2 seconds for `${window.location.hostname}:8080`; the polling interval is cleared on unmount.
+ * Renders one of: a loading view, an error message, an idle message when no task is active, or an active task view showing the task description, a status badge, optional tier, localized creation time, and an optional verification command.
  *
- * @returns A JSX element containing the status HUD.
+ * @returns The JSX element representing the status HUD based on the status store state.
  */
 export function StatusHUD() {
   const task    = useStatusStore(s => s.task);
