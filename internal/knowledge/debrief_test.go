@@ -186,3 +186,12 @@ func TestDebriefService_SaveContent_UsesProvidedContent(t *testing.T) {
 		t.Errorf("SaveContent did not save provided content:\nwant: %q\ngot:  %q", customContent, string(saved))
 	}
 }
+
+func TestNewDebriefService_NilBufferPanics(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic for nil buffer")
+		}
+	}()
+	_ = NewDebriefService(nil, nil, t.TempDir())
+}

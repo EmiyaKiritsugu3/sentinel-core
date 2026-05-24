@@ -60,6 +60,9 @@ type DebriefService struct {
 // EventBuffer, optional sqlite.DB, and base directory used to store generated session files.
 // The baseDir is the knowledge root directory (typically ~/knowledge).
 func NewDebriefService(buffer *EventBuffer, db *sqlite.DB, baseDir string) *DebriefService {
+	if buffer == nil {
+		panic("knowledge: NewDebriefService requires non-nil EventBuffer")
+	}
 	return &DebriefService{
 		buffer:  buffer,
 		db:      db,
