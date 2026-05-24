@@ -6,7 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
@@ -127,5 +132,190 @@ func handleGetStatus(db *sqlite.DB) http.HandlerFunc {
 		if err := encoder.Encode(status); err != nil {
 			log.Printf("liveview: failed to encode task status: %v", err)
 		}
+	}
+}
+
+func handleGetCode(db *sqlite.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+
+		filePath := r.URL.Query().Get("path")
+		if filePath == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "missing required query param: path"})
+			return
+		}
+
+		startStr := r.URL.Query().Get("start")
+		endStr := r.URL.Query().Get("end")
+
+		start := 1
+		if startStr != "" {
+			v, err := strconv.Atoi(startStr)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid start param"})
+				return
+			}
+			if v > 0 {
+				start = v
+			}
+		}
+
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				w.WriteHeader(http.StatusNotFound)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "file not found: " + filePath})
+				return
+			}
+			slog.Error("liveview: failed to read file", "path", filePath, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
+			return
+		}
+
+		allLines := strings.Split(string(content), "\n")
+		// Trim trailing empty line from files ending with \n
+		if len(allLines) > 0 && allLines[len(allLines)-1] == "" {
+			allLines = allLines[:len(allLines)-1]
+		}
+
+		end := len(allLines)
+		if endStr != "" {
+			v, err := strconv.Atoi(endStr)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid end param"})
+				return
+			}
+			if v > end {
+				v = end
+			}
+			end = v
+		}
+
+		if start > len(allLines) {
+			start = len(allLines) + 1
+		}
+		if start < 1 {
+			start = 1
+		}
+		if end < start {
+			end = start
+		}
+
+		lines := allLines[start-1 : end]
+
+		resp := map[string]any{
+			"file":      filePath,
+			"lines":     lines,
+			"startLine": start,
+			"endLine":   end,
+		}
+
+		_ = json.NewEncoder(w).Encode(resp)
+	}
+}
+
+func handleListADR(db *sqlite.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+
+		entries, err := os.ReadDir("docs/architecture/adr")
+		if err != nil {
+			if os.IsNotExist(err) {
+				_ = json.NewEncoder(w).Encode(map[string]any{"adrs": []any{}})
+				return
+			}
+			slog.Error("liveview: failed to read ADR directory", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
+			return
+		}
+
+		adrs := make([]map[string]string, 0)
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			name := entry.Name()
+			if !strings.HasPrefix(name, "ADR-") || !strings.HasSuffix(name, ".md") {
+				continue
+			}
+
+			rest := strings.TrimPrefix(name, "ADR-")
+			parts := strings.SplitN(rest, "-", 2)
+			id := parts[0]
+
+			title := ""
+			if len(parts) > 1 {
+				title = strings.TrimSuffix(parts[1], ".md")
+				title = strings.ReplaceAll(title, "-", " ")
+			}
+
+			adrs = append(adrs, map[string]string{
+				"id":       id,
+				"title":    title,
+				"filename": name,
+			})
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]any{"adrs": adrs})
+	}
+}
+
+func handleGetADR(db *sqlite.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+
+		filename := strings.TrimPrefix(r.URL.Path, "/api/adr/")
+		if filename == "" || strings.Contains(filename, "..") {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
+			return
+		}
+
+		fullPath := filepath.Join("docs/architecture/adr", filename)
+		absPath, err := filepath.Abs(fullPath)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
+			return
+		}
+
+		content, err := os.ReadFile(absPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				w.WriteHeader(http.StatusNotFound)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "file not found: " + filename})
+				return
+			}
+			slog.Error("liveview: failed to read ADR file", "filename", filename, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
+			return
+		}
+
+		rest := strings.TrimPrefix(filename, "ADR-")
+		parts := strings.SplitN(rest, "-", 2)
+		id := parts[0]
+		title := ""
+		if len(parts) > 1 {
+			title = strings.TrimSuffix(parts[1], ".md")
+			title = strings.ReplaceAll(title, "-", " ")
+		}
+
+		resp := map[string]any{
+			"id":       id,
+			"title":    title,
+			"content":  string(content),
+			"filename": filename,
+		}
+
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
