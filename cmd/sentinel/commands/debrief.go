@@ -63,14 +63,17 @@ at the end of your session to persist captured knowledge.`,
 		if err != nil {
 			return fmt.Errorf("debrief: cannot find home directory: %w", err)
 		}
-		baseDir := fmt.Sprintf("%s/knowledge", homeDir)
+		baseDir := outputPath
+		if baseDir == "" {
+			baseDir = fmt.Sprintf("%s/knowledge", homeDir)
+		}
 
 		svc := knowledge.NewDebriefService(knowledge.GlobalBuffer, db, baseDir)
 		content := svc.Generate()
 
 		if dryRun {
 			fmt.Println(content)
-			fmt.Printf("\n[DRY RUN] Would save to %s/knowledge/sessions/\n", homeDir)
+			fmt.Printf("\n[DRY RUN] Would save to %s/sessions/\n", baseDir)
 			return nil
 		}
 

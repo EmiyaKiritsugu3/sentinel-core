@@ -140,7 +140,7 @@ func (s *DebriefService) Save(ctx context.Context) (string, string, error) {
 func (s *DebriefService) SaveContent(ctx context.Context, content string) (string, string, error) {
 	now := time.Now()
 	sessionID := uuid.New().String()[:8]
-	filename := fmt.Sprintf("%s-%s.md", now.Format("2006-01-02"), now.Format("1504"))
+	filename := fmt.Sprintf("%s-%s-%s.md", now.Format("2006-01-02"), now.Format("150405"), sessionID)
 	dir := filepath.Join(s.baseDir, "sessions")
 
 	if err := os.MkdirAll(dir, 0755); err != nil {

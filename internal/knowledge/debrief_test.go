@@ -156,6 +156,17 @@ func TestDebriefService_Generate_DomainsDeterministic(t *testing.T) {
 	}
 }
 
+func TestDebriefService_SaveContent_UniqueFilenames(t *testing.T) {
+	buf := NewEventBuffer(10)
+	tmpDir := t.TempDir()
+	svc := NewDebriefService(buf, nil, tmpDir)
+	_, path1, _ := svc.SaveContent(context.Background(), "c1")
+	_, path2, _ := svc.SaveContent(context.Background(), "c2")
+	if path1 == path2 {
+		t.Errorf("filenames must be unique: both got %s", path1)
+	}
+}
+
 func TestDebriefService_SaveContent_UsesProvidedContent(t *testing.T) {
 	buf := NewEventBuffer(10)
 	tmpDir := t.TempDir()
