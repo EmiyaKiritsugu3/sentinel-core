@@ -164,6 +164,32 @@ CREATE TRIGGER IF NOT EXISTS patterns_au AFTER UPDATE ON patterns BEGIN
 	INSERT INTO patterns_fts(rowid, title, description, tags)
 	VALUES (new.rowid, new.title, new.description, new.tags);
 END;
+
+CREATE TABLE IF NOT EXISTS knowledge_sessions (
+    id TEXT PRIMARY KEY,
+    markdown_path TEXT NOT NULL,
+    started_at TIMESTAMP NOT NULL,
+    ended_at TIMESTAMP,
+    event_count INTEGER DEFAULT 0,
+    decision_count INTEGER DEFAULT 0,
+    error_count INTEGER DEFAULT 0,
+    pattern_count INTEGER DEFAULT 0,
+    domains TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS session_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    domain TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    detail TEXT,
+    file_path TEXT,
+    tags TEXT NOT NULL DEFAULT '',
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (session_id) REFERENCES knowledge_sessions(id) ON DELETE CASCADE
+);
 `
 
 // Migrate runs database schema migrations for the graph engine.
@@ -259,6 +285,8 @@ var pragmaTableInfo = map[string]string{
 	"standards":           "PRAGMA table_info(standards)",
 	"performance_logs":    "PRAGMA table_info(performance_logs)",
 	"patterns":            "PRAGMA table_info(patterns)",
+	"knowledge_sessions": "PRAGMA table_info(knowledge_sessions)",
+	"session_events":     "PRAGMA table_info(session_events)",
 }
 
 func columnExistsInTx(ctx context.Context, tx *sql.Tx, table, column string) (bool, error) {
