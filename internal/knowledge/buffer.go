@@ -6,17 +6,25 @@ import (
 	"time"
 )
 
+// EventType classifies a session event for debrief categorization.
 type EventType string
 
 const (
-	EventDecision   EventType = "decision"
-	EventError      EventType = "error"
-	EventPattern    EventType = "pattern"
+	// EventDecision records an architectural or implementation decision.
+	EventDecision EventType = "decision"
+	// EventError records a captured error or warning.
+	EventError EventType = "error"
+	// EventPattern records a detected architectural pattern.
+	EventPattern EventType = "pattern"
+	// EventFileChange records a file modification event.
 	EventFileChange EventType = "file_change"
-	EventCommand    EventType = "command"
-	EventMetric     EventType = "metric"
+	// EventCommand records a shell command executed during the session.
+	EventCommand EventType = "command"
+	// EventMetric records a numeric measurement (e.g., token count, latency).
+	EventMetric EventType = "metric"
 )
 
+// SessionEvent represents a single captured event during a sentinel session.
 type SessionEvent struct {
 	Timestamp time.Time
 	Type      EventType
@@ -27,6 +35,7 @@ type SessionEvent struct {
 	Tags      []string
 }
 
+// EventBuffer is a thread-safe ring buffer that collects session events for later debrief generation.
 type EventBuffer struct {
 	mu     sync.RWMutex
 	events []SessionEvent
@@ -35,6 +44,7 @@ type EventBuffer struct {
 	size   int
 }
 
+// NewEventBuffer creates a ring buffer with the given maximum capacity.
 func NewEventBuffer(maxSize int) *EventBuffer {
 	if maxSize < 1 {
 		maxSize = 1000
@@ -45,6 +55,7 @@ func NewEventBuffer(maxSize int) *EventBuffer {
 	}
 }
 
+// Record appends an event to the buffer. Thread-safe. Oldest events are overwritten when the buffer is full.
 func (b *EventBuffer) Record(event SessionEvent) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -58,6 +69,7 @@ func (b *EventBuffer) Record(event SessionEvent) {
 	}
 }
 
+// Snapshot returns all events in chronological order (oldest first).
 func (b *EventBuffer) Snapshot() []SessionEvent {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
@@ -76,36 +88,43 @@ func (b *EventBuffer) Snapshot() []SessionEvent {
 	return result
 }
 
+// ByDomain returns all events matching the given domain.
 func (b *EventBuffer) ByDomain(domain string) []SessionEvent {
 	return b.filter(func(e SessionEvent) bool {
 		return e.Domain == domain
 	})
 }
 
+// ByType returns all events matching the given event type.
 func (b *EventBuffer) ByType(typ EventType) []SessionEvent {
 	return b.filter(func(e SessionEvent) bool {
 		return e.Type == typ
 	})
 }
 
+// Patterns returns all events of type EventPattern.
 func (b *EventBuffer) Patterns() []SessionEvent {
 	return b.ByType(EventPattern)
 }
 
+// Decisions returns all events of type EventDecision.
 func (b *EventBuffer) Decisions() []SessionEvent {
 	return b.ByType(EventDecision)
 }
 
+// Errors returns all events of type EventError.
 func (b *EventBuffer) Errors() []SessionEvent {
 	return b.ByType(EventError)
 }
 
+// Len returns the current number of events in the buffer.
 func (b *EventBuffer) Len() int {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	return b.size
 }
 
+// GlobalBuffer is the process-wide singleton event buffer. All sentinel subsystems record events here during a session.
 var GlobalBuffer = NewEventBuffer(1000)
 
 func (b *EventBuffer) filter(pred func(SessionEvent) bool) []SessionEvent {
