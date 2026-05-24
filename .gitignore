@@ -14,3 +14,25 @@ graphify-out/.graphify_python
 .sentinel/
 coverage.out
 install.sh
+
+# AI Tool Configs
+.clinerules/
+.cursor/
+.deepseek/
+.jules/
+.opencode/
+.windsurf/
+.github/copilot-instructions.md
+AGENTS.md
+
+# Build artifacts
+agents.test
+cancel.out
+coverage-agents.out
+
+# Graphify cache
+graphify-out/extraction.json
+graphify-out/graph.pkl
+
+# Superpowers plans & specs (committed separately per milestone)
+docs/superpowers/

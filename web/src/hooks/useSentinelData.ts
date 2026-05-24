@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import cytoscape from 'cytoscape';
+import { useEventLogStore } from '../stores';
 
 type GraphEvent = {
   type: string;
@@ -23,6 +24,7 @@ export function useSentinelData(cy: cytoscape.Core | null) {
     ws.onmessage = (msg) => {
       try {
         const event: GraphEvent = JSON.parse(msg.data);
+        useEventLogStore.getState().addEvent(event);
         if (!isLoaded.current) {
           queue.current.push(event);
         } else {
