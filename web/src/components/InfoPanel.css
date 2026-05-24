@@ -1,0 +1,250 @@
+/* ── Info Panel Sidebar ──────────────────────── */
+.info-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-size: 12px;
+  color: #ccc;
+  background: #1e1e1e;
+  border-left: 1px solid #444;
+  overflow: hidden;
+}
+
+/* ── Header ──────────────────────────────────── */
+.info-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #444;
+  flex-shrink: 0;
+}
+
+.info-panel__node-id {
+  font-weight: 600;
+  font-size: 13px;
+  color: #e0e0e0;
+  font-family: monospace;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info-panel__close {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-family: monospace;
+}
+
+.info-panel__close:hover {
+  color: #ef4444;
+  background: #3a3a3a;
+}
+
+/* ── Meta ────────────────────────────────────── */
+.info-panel__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.info-panel__tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  background: #1a3a2a;
+  color: #4ade80;
+}
+
+.info-panel__file {
+  font-family: monospace;
+  font-size: 10px;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.info-panel__lines {
+  font-family: monospace;
+  font-size: 10px;
+  color: #60a5fa;
+  flex-shrink: 0;
+}
+
+/* ── Sections ────────────────────────────────── */
+.info-panel__section {
+  padding: 8px 12px;
+  border-bottom: 1px solid #333;
+}
+
+.info-panel__section-title {
+  font-weight: 600;
+  font-size: 11px;
+  color: #e0e0e0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+/* ── Code block ──────────────────────────────── */
+.info-panel__code-block {
+  background: #2a2a2a;
+  border-radius: 4px;
+  overflow-x: auto;
+  max-height: 240px;
+}
+
+.info-panel__code {
+  margin: 0;
+  padding: 8px;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #d4d4d4;
+  min-width: fit-content;
+}
+
+.info-panel__code-line {
+  display: block;
+  white-space: pre;
+}
+
+.info-panel__line-num {
+  display: inline-block;
+  width: 3ch;
+  text-align: right;
+  margin-right: 12px;
+  color: #555;
+  user-select: none;
+}
+
+.info-panel__line-text {
+  color: #d4d4d4;
+}
+
+/* ── ADR list ────────────────────────────────── */
+.info-panel__adr-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.info-panel__adr-list li {
+  margin-bottom: 3px;
+}
+
+.info-panel__adr-link {
+  background: none;
+  border: none;
+  color: #60a5fa;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 3px 6px;
+  border-radius: 2px;
+  display: block;
+  width: 100%;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info-panel__adr-link:hover {
+  background: #2d2d2d;
+  text-decoration: underline;
+  color: #93c5fd;
+}
+
+.info-panel__adr-content {
+  margin-top: 8px;
+  background: #2a2a2a;
+  border-radius: 4px;
+  padding: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.info-panel__adr-content-title {
+  font-weight: 600;
+  font-size: 12px;
+  color: #e0e0e0;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #444;
+}
+
+.info-panel__adr-content-text {
+  margin: 0;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #bbb;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Status text ─────────────────────────────── */
+.info-panel__loading {
+  padding: 12px;
+  text-align: center;
+  color: #555;
+  font-style: italic;
+  font-size: 11px;
+}
+
+.info-panel__error {
+  padding: 8px;
+  color: #f87171;
+  font-size: 11px;
+  background: #3a1a1a;
+  border-radius: 4px;
+}
+
+.info-panel__empty {
+  padding: 12px;
+  text-align: center;
+  color: #555;
+  font-style: italic;
+  font-size: 11px;
+}
+
+/* ── Scrollbar styling ───────────────────────── */
+.info-panel__code-block::-webkit-scrollbar,
+.info-panel__adr-content::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.info-panel__code-block::-webkit-scrollbar-track,
+.info-panel__adr-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.info-panel__code-block::-webkit-scrollbar-thumb,
+.info-panel__adr-content::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 3px;
+}
+
+.info-panel__code-block::-webkit-scrollbar-thumb:hover,
+.info-panel__adr-content::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}

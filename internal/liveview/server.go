@@ -196,6 +196,9 @@ func (s *Server) StartHTTP(port int, db *sqlite.DB) error {
 	http.HandleFunc("/ws", s.serveWS)
 	http.HandleFunc("/api/graph", handleGetGraph(db))
 	http.HandleFunc("/api/status", handleGetStatus(db))
+	http.HandleFunc("/api/code", handleGetCode(db))
+	http.HandleFunc("/api/adr", handleListADR(db))
+	http.HandleFunc("/api/adr/", handleGetADR(db))
 
 	// Serve the Vite build
 	fs := http.FileServer(http.Dir("./web/dist"))
