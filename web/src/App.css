@@ -40,3 +40,26 @@
   width: 100%;
   height: 100%;
 }
+
+/* ── UX Enhancements ──────────────────────────── */
+.live-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: #00ADB5;
+  border-radius: 50%;
+  margin-right: 8px;
+  box-shadow: 0 0 0 0 rgba(0, 173, 181, 0.7);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 173, 181, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 4px rgba(0, 173, 181, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 173, 181, 0); }
+}
+
+.graph-container:focus-visible {
+  outline: 2px solid #00ADB5;
+  outline-offset: -2px;
+}

@@ -59,10 +59,20 @@ export function GraphCanvas() {
 
   return (
     <>
-      <div style={{ position: 'absolute', top: 12, left: 12, color: '#888', fontFamily: 'monospace', fontSize: 11, zIndex: 10 }}>
+      <div
+        style={{ position: 'absolute', top: 12, left: 12, color: '#888', fontFamily: 'monospace', fontSize: 11, zIndex: 10, display: 'flex', alignItems: 'center' }}
+        aria-hidden="true"
+      >
+        <div className="live-indicator"></div>
         Sentinel Live View
       </div>
-      <div ref={containerRef} className="graph-container" />
+      <div
+        ref={containerRef}
+        className="graph-container"
+        role="region"
+        aria-label="Architecture dependency graph canvas"
+        tabIndex={0}
+      />
     </>
   );
 }
