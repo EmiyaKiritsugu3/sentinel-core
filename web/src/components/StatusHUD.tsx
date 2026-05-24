@@ -53,7 +53,7 @@ export function StatusHUD() {
 
   useEffect(() => {
     let active = true;
-    const baseUrl = `http://${window.location.hostname}:8080`;
+    const baseUrl = `${window.location.protocol}//${window.location.hostname}:8080`;
 
     const tick = async () => {
       if (!active) return;
@@ -61,7 +61,6 @@ export function StatusHUD() {
       if (active) setTimeout(tick, 2000);
     };
 
-    poll(baseUrl);
     tick();
 
     return () => { active = false; };
