@@ -38,4 +38,4 @@ docs/patterns/
 
 ## Current Count
 
-11 patterns seeded from project history (May 2026).
+12 patterns seeded from project history (May 2026).

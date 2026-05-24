@@ -266,4 +266,4 @@ git push --force-with-lease
 ---
 
 *Catalog seeded: 2026-05-24. Last updated: 2026-05-24.*
-*11 patterns from project history. Categories: Security (2), Safety (2), Concurrency (1), Web/Frontend (3), Quality (3), Architecture (1).*
+*12 patterns from project history. Categories: Security (2), Safety (2), Concurrency (1), Web/Frontend (3), Quality (3), Architecture (1).*
