@@ -154,6 +154,14 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			return
 		}
 
+		baseDir, _ := os.Getwd()
+		absPath, err := filepath.Abs(cleanPath)
+		if err != nil || !strings.HasPrefix(absPath, baseDir+string(filepath.Separator)) {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path outside root"})
+			return
+		}
+
 		startStr := r.URL.Query().Get("start")
 		endStr := r.URL.Query().Get("end")
 
@@ -170,7 +178,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			}
 		}
 
-		content, err := os.ReadFile(cleanPath)
+		content, err := os.ReadFile(absPath) //nolint:gosec // path is strictly validated against baseDir
 		if err != nil {
 			if os.IsNotExist(err) {
 				w.WriteHeader(http.StatusNotFound)
