@@ -24,14 +24,14 @@ function applyFilter(
       let visible = true;
 
       // Type filter: non-empty set = only show those types
-      if (enabledTypes.size > 0 && !enabledTypes.has(node.data('type') as string)) {
+      if (enabledTypes.size > 0 && !enabledTypes.has((node.data('type') as string) || '')) {
         visible = false;
       }
 
       // Text search: match label or file_path (case-insensitive, partial)
       if (search) {
-        const label = (node.data('label') as string).toLowerCase();
-        const path  = (node.data('file_path') as string).toLowerCase();
+        const label = ((node.data('label') as string) || '').toLowerCase();
+        const path  = ((node.data('file_path') as string) || '').toLowerCase();
         if (!label.includes(search) && !path.includes(search)) {
           visible = false;
         }
@@ -39,7 +39,7 @@ function applyFilter(
 
       // Package filter: match top-level directory prefix
       if (selectedPackage) {
-        const p = node.data('file_path') as string;
+        const p = (node.data('file_path') as string) || '';
         const root = p.includes('/') ? p.split('/')[0] : '(root)';
         if (root !== selectedPackage) {
           visible = false;
@@ -81,11 +81,16 @@ export function useGraphFilter(cy: cytoscape.Core | null) {
 
   const [packages, setPackages] = useState<string[]>([]);
 
+  // Extract packages when cy instance is first available
+  useEffect(() => {
+    if (!cy) return;
+    setPackages(extractPackages(cy));
+  }, [cy]);
+
   // Apply filter on every store change
   useEffect(() => {
     if (!cy) return;
     applyFilter(cy, enabledTypes, searchText, selectedPackage);
-    setPackages(extractPackages(cy));
   }, [cy, enabledTypes, searchText, selectedPackage]);
 
   // Re-apply filter when new nodes arrive via WebSocket

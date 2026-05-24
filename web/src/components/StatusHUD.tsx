@@ -91,9 +91,13 @@ export function StatusHUD() {
     );
   }
 
-  const time = task.created_at
-    ? new Date(task.created_at).toLocaleTimeString()
-    : '';
+  let time = '';
+  if (task.created_at) {
+    const date = new Date(task.created_at);
+    if (!isNaN(date.getTime())) {
+      time = date.toLocaleTimeString();
+    }
+  }
 
   return (
     <div className="status-hud">
