@@ -436,12 +436,15 @@ Write `internal/knowledge/debrief.go`:
 package knowledge
 
 import (
+    "bytes"
     "context"
     "database/sql"
     "fmt"
     "os"
     "path/filepath"
+    "sort"
     "strings"
+    "text/template"
     "time"
 
     "github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
@@ -503,14 +506,6 @@ func NewDebriefService(buffer *EventBuffer, db *sqlite.DB, baseDir string) *Debr
 // Generate renders the debrief markdown from the current buffer contents.
 func (s *DebriefService) Generate() string {
     now := time.Now()
-    data := DebriefData{
-        Date:        now.Format("2006-01-02"),
-        Time:        now.Format("15:04"),
-        Decisions:   s.buffer.Decisions(),
-        Errors:      s.buffer.Errors(),
-        Patterns:    s.buffer.Patterns(),
-        FileChanges: s.buffer.ByType(EventFileChange),
-    }
 
     domainSet := make(map[string]bool)
     for _, e := range s.buffer.Snapshot() {
@@ -518,49 +513,60 @@ func (s *DebriefService) Generate() string {
             domainSet[e.Domain] = true
         }
     }
+    domains := make([]string, 0, len(domainSet))
     for d := range domainSet {
-        data.Domains = append(data.Domains, d)
+        domains = append(domains, d)
+    }
+    sort.Strings(domains) // deterministic alphabetical order
+
+    data := DebriefData{
+        Date:        now.Format("2006-01-02"),
+        Time:        now.Format("15:04"),
+        Decisions:   s.buffer.Decisions(),
+        Errors:      s.buffer.Errors(),
+        Patterns:    s.buffer.Patterns(),
+        FileChanges: s.buffer.ByType(EventFileChange),
+        Domains:     domains,
     }
 
-    return s.renderTemplate(data)
+    var buf bytes.Buffer
+    tmpl, err := template.New("debrief").Parse(s.tmpl)
+    if err != nil {
+        return fmt.Sprintf("<!-- template error: %v -->\n%s", err, s.renderFallback(data))
+    }
+    if err := tmpl.Execute(&buf, data); err != nil {
+        return fmt.Sprintf("<!-- template error: %v -->\n%s", err, s.renderFallback(data))
+    }
+    return buf.String()
 }
 
-func (s *DebriefService) renderTemplate(data DebriefData) string {
-    result := s.tmpl
-    result = strings.Replace(result, "{{.Date}}", data.Date, 1)
-    result = strings.Replace(result, "{{.Time}}", data.Time, 1)
-
-    var decisions strings.Builder
+// renderFallback provides a degraded string-based render if the template
+// fails to parse or execute (should never happen with a constant template).
+func (s *DebriefService) renderFallback(data DebriefData) string {
+    var b strings.Builder
+    b.WriteString(fmt.Sprintf("# Session Debrief — %s %s\n\n", data.Date, data.Time))
+    b.WriteString("## Decisions Made\n")
     for _, d := range data.Decisions {
-        decisions.WriteString(fmt.Sprintf("- %s\n", d.Summary))
+        b.WriteString(fmt.Sprintf("- %s\n", d.Summary))
     }
-    result = strings.Replace(result, "{{range .Decisions}}- {{.Summary}}\n{{end}}", decisions.String(), 1)
-
-    var errors strings.Builder
+    b.WriteString("\n## Patterns Observed\n### Anti-Patterns\n")
     for _, e := range data.Errors {
-        errors.WriteString(fmt.Sprintf("- %s\n", e.Summary))
+        b.WriteString(fmt.Sprintf("- %s\n", e.Summary))
     }
-    result = strings.Replace(result, "{{range .Errors}}- {{.Summary}}\n{{end}}", errors.String(), 1)
-
-    var patterns strings.Builder
+    b.WriteString("### Success Patterns\n")
     for _, p := range data.Patterns {
-        patterns.WriteString(fmt.Sprintf("- %s\n", p.Summary))
+        b.WriteString(fmt.Sprintf("- %s\n", p.Summary))
     }
-    result = strings.Replace(result, "{{range .Patterns}}- {{.Summary}}\n{{end}}", patterns.String(), 1)
-
-    var files strings.Builder
+    b.WriteString("\n## Files Changed\n")
     for _, f := range data.FileChanges {
-        files.WriteString(fmt.Sprintf("- %s — %s\n", f.File, f.Summary))
+        b.WriteString(fmt.Sprintf("- %s — %s\n", f.File, f.Summary))
     }
-    result = strings.Replace(result, "{{range .FileChanges}}- {{.File}} — {{.Summary}}\n{{end}}", files.String(), 1)
-
-    var domains strings.Builder
+    b.WriteString("\n## Domain Tags\n")
     for _, d := range data.Domains {
-        domains.WriteString(fmt.Sprintf("- %s\n", d))
+        b.WriteString(fmt.Sprintf("- %s\n", d))
     }
-    result = strings.Replace(result, "{{range .Domains}}- {{.}}\n{{end}}", domains.String(), 1)
-
-    return result
+    b.WriteString("\n## Follow-ups\n- [ ] ...\n")
+    return b.String()
 }
 
 // Save persists the debrief to the filesystem and graph database.
@@ -745,6 +751,30 @@ func TestDebriefService_Save_CreatesDirectory(t *testing.T) {
         t.Fatalf("Save should create parent dirs: %v", err)
     }
 }
+
+func TestDebriefService_Generate_DomainsDeterministic(t *testing.T) {
+    buf := NewEventBuffer(10)
+    buf.Record(SessionEvent{Type: EventDecision, Domain: "systems", Summary: "a"})
+    buf.Record(SessionEvent{Type: EventError, Domain: "methodology", Summary: "b"})
+
+    tmpDir := t.TempDir()
+    svc := NewDebriefService(buf, nil, tmpDir)
+
+    first := svc.Generate()
+    second := svc.Generate()
+    if first != second {
+        t.Errorf("Generate() not deterministic:\nfirst:\n%s\nsecond:\n%s", first, second)
+    }
+
+    methIdx := strings.Index(first, "methodology")
+    sysIdx := strings.Index(first, "systems")
+    if methIdx == -1 || sysIdx == -1 {
+        t.Fatal("expected both domains in output")
+    }
+    if methIdx > sysIdx {
+        t.Error("domains not sorted: methodology should come before systems")
+    }
+}
 ```
 
 - [ ] **Step 3: Run tests**
@@ -777,6 +807,7 @@ import (
     "fmt"
     "os"
     "os/exec"
+    "strings"
 
     "github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
     "github.com/EmiyaKiritsugu3/sentinel-core/internal/knowledge"
@@ -889,7 +920,9 @@ func openInEditor(content string, svc *knowledge.DebriefService, ctx context.Con
     if editorCmd == "" {
         editorCmd = "vi"
     }
-    c := exec.Command(editorCmd, tmpFile.Name())
+    // Split into command + args to support "code --wait", "emacs -nw", etc.
+    parts := strings.Fields(editorCmd)
+    c := exec.Command(parts[0], append(parts[1:], tmpFile.Name())...)
     c.Stdin = os.Stdin
     c.Stdout = os.Stdout
     c.Stderr = os.Stderr
