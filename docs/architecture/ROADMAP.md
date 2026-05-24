@@ -96,7 +96,7 @@ Ideias com mérito técnico validado, sem data definida. Cada uma tem uma **pré
 
 **Por que é útil:** Os mesmos anti-padrões reaparecem em projetos diferentes. Capturar uma vez, aplicar sempre.
 
-**Pré-condição:** Nenhuma técnica — só disciplina de captura ao final de cada sessão. Iniciado em 2026-05-24 com catálogo inicial de 10 padrões do histórico do projeto.
+**Pré-condição:** Nenhuma técnica — só disciplina de captura ao final de cada sessão. Iniciado em 2026-05-24 com catálogo inicial de 12 padrões do histórico do projeto.
 
 ### Semantic Search — `sentinel search "query"`
 
