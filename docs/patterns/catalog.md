@@ -220,6 +220,28 @@ poll();
 
 ---
 
+### QUA-003: Pre-Implementation Audit — Never Ship Without Auditing
+
+**What happened:** Session Debrief plan audit (2026-05-24) found 3 critical issues before a single line was written: singleton in wrong package (test isolation broken), missing nil DB check (panic path), shared state in tests (flaky). Catching these in the plan saved hours of debugging.
+
+**Detection:** Starting implementation without validating: dependencies, security surface, codebase consistency, edge case coverage, test isolation.
+
+**Fix:** Run this checklist before implementing ANY plan:
+```markdown
+1. Dependencies — new packages? already in go.mod? version compatible?
+2. Security — path traversal? injection? input validation bypass?
+3. Consistency — follows codebase DI pattern? nil guards? error wrapping?
+4. Edge cases — empty buffer? concurrent access? graceful degradation?
+5. Tests — isolated (no shared singletons)? cover main flow? cover errors?
+6. Types — signatures match across files? imports correct?
+```
+
+**Real example:** 2026-05-24 Session Debrief audit. Found `eventBuffer` singleton in `commands/` (should be in `knowledge/`), missing `ValidateDB` check, flaky singleton test. All fixed in plan before implementation.
+
+**Rule:** Audit every implementation plan with this checklist. 5 minutes of audit saves hours of debugging. If you skip audit, you're betting against the pattern catalog.
+
+---
+
 ## Architecture
 
 ### ARC-001: Rebase Feature Branch Before Merging
@@ -244,4 +266,4 @@ git push --force-with-lease
 ---
 
 *Catalog seeded: 2026-05-24. Last updated: 2026-05-24.*
-*10 patterns from project history. Categories: Security (2), Safety (2), Concurrency (1), Web/Frontend (3), Quality (2), Architecture (1).*
+*11 patterns from project history. Categories: Security (2), Safety (2), Concurrency (1), Web/Frontend (3), Quality (3), Architecture (1).*
