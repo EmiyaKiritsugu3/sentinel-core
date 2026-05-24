@@ -190,6 +190,9 @@ CREATE TABLE IF NOT EXISTS session_events (
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (session_id) REFERENCES knowledge_sessions(id) ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS idx_session_events_session_id
+ON session_events(session_id);
 `
 
 // Migrate runs database schema migrations for the graph engine.
