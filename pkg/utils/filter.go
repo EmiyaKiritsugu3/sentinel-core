@@ -26,6 +26,24 @@ var internalIgnoresPaths = []string{"/.git/", "/.sentinel/", "/vendor/", "/dist/
 var internalIgnoresPrefixes = []string{".git/", ".sentinel/", "vendor/", "dist/", "build/"}
 var internalIgnoresBases = []string{".git", ".sentinel", "vendor", "dist", "build"}
 
+func parsePattern(line string) parsedPattern {
+	pattern := strings.ToLower(strings.TrimPrefix(line, "./"))
+	parsed := parsedPattern{
+		baseMatch:   strings.Trim(pattern, "/"),
+		dirContains: "/" + strings.Trim(pattern, "/") + "/",
+		dirPrefix:   strings.TrimSuffix(pattern, "/") + "/",
+	}
+
+	if strings.HasPrefix(pattern, "*.") {
+		parsed.suffix = strings.TrimPrefix(pattern, "*")
+		parsed.hasSuffix = true
+	} else if strings.Contains(pattern, ".") {
+		parsed.suffix = pattern
+		parsed.hasSuffix = true
+	}
+	return parsed
+}
+
 // NewIgnoreFilter loads patterns from a root directory
 func NewIgnoreFilter(root string) *IgnoreFilter {
 	f := &IgnoreFilter{}
@@ -48,23 +66,7 @@ func (f *IgnoreFilter) loadGitignore(root string) {
 			continue
 		}
 		f.patterns = append(f.patterns, line)
-
-		pattern := strings.ToLower(strings.TrimPrefix(line, "./"))
-		parsed := parsedPattern{
-			baseMatch:   strings.Trim(pattern, "/"),
-			dirContains: "/" + strings.Trim(pattern, "/") + "/",
-			dirPrefix:   strings.TrimSuffix(pattern, "/") + "/",
-		}
-
-		// Fix for suffix match logic: we check for wildcards first, otherwise it's just strings.HasSuffix(cleanPath, pattern) && strings.Contains(pattern, ".") in fallback
-		if strings.HasPrefix(pattern, "*.") {
-			parsed.suffix = strings.TrimPrefix(pattern, "*")
-			parsed.hasSuffix = true
-		} else if strings.Contains(pattern, ".") {
-			parsed.suffix = pattern
-			parsed.hasSuffix = true
-		}
-		f.parsed = append(f.parsed, parsed)
+		f.parsed = append(f.parsed, parsePattern(line))
 	}
 }
 
@@ -93,22 +95,7 @@ func (f *IgnoreFilter) IsIgnored(path string) bool {
 	// Fallback to unparsed patterns if any (e.g. for manually constructed IgnoreFilter)
 	if len(f.patterns) > 0 && len(f.parsed) == 0 {
 		for _, p := range f.patterns {
-			pattern := strings.ToLower(strings.TrimPrefix(p, "./"))
-
-			parsed := parsedPattern{
-				baseMatch:   strings.Trim(pattern, "/"),
-				dirContains: "/" + strings.Trim(pattern, "/") + "/",
-				dirPrefix:   strings.TrimSuffix(pattern, "/") + "/",
-			}
-
-			if strings.HasPrefix(pattern, "*.") {
-				parsed.suffix = strings.TrimPrefix(pattern, "*")
-				parsed.hasSuffix = true
-			} else if strings.Contains(pattern, ".") {
-				parsed.suffix = pattern
-				parsed.hasSuffix = true
-			}
-			f.parsed = append(f.parsed, parsed)
+			f.parsed = append(f.parsed, parsePattern(p))
 		}
 	}
 

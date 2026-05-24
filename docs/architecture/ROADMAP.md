@@ -60,8 +60,8 @@ Transformar o Sentinel em um guia proativo para o usuário.
 A visualização de arquitetura deve ser interativa.
 
 - [x] **C4 Container View**: Geração automática de diagramas de Nível 2 (Containers).
-- [ ] **Sentinel Live View**: Servidor WebSocket em Go que envia o Grafo para uma UI Web.
-- [ ] **Interactive C4**: Clique no nó do diagrama para abrir o código ou ver o ADR relacionado.
+- [x] **Sentinel Live View**: Servidor WebSocket em Go que envia o Grafo para uma UI Web (Sprints 0-2: WebSocket server, StatusHUD, FilterToolbar, EventLog).
+- [x] **Interactive C4**: Clique no nó do diagrama para abrir o código ou ver o ADR relacionado (Sprint 3: InfoPanel, code viewer, ADR links, path traversal hardening).
 *Critério de Sucesso: Visualização em tempo real no browser enquanto o código muda.*
 
 ### Fase 6: The Prompt Intelligence Layer
@@ -90,6 +90,14 @@ Elevar o Sentinel ao estado de Oráculo Matemático via Prova de Estabilidade.
 
 Ideias com mérito técnico validado, sem data definida. Cada uma tem uma **pré-condição explícita** — não iniciar sem validá-la.
 
+### 🔨 In Progress: Pattern Capture — taxonomia de falhas e sucessos de workflow
+
+**O que é:** Estrutura de `docs/patterns/` que registra padrões de desenvolvimento que funcionaram e que falharam — não prompts específicos, mas princípios: "diagnóstico sem dado empírico = loop", "especificar artefato de saída reduz iterações", "auditoria troca modo cognitivo de construtivo para destrutivo".
+
+**Por que é útil:** Os mesmos anti-padrões reaparecem em projetos diferentes. Capturar uma vez, aplicar sempre.
+
+**Pré-condição:** Nenhuma técnica — só disciplina de captura ao final de cada sessão. Iniciado em 2026-05-24 com catálogo inicial de 10 padrões do histórico do projeto.
+
 ### Semantic Search — `sentinel search "query"`
 
 **O que é:** Busca semântica por similaridade vetorial nos documentos do projeto (ADRs, knowledge base, sentinel-log, TECHNICAL-DEBT). Usa Gemini Embedding API + SQLite para armazenar vetores. Retorna documentos relacionados por significado, não por keyword.
@@ -116,15 +124,7 @@ Ideias com mérito técnico validado, sem data definida. Cada uma tem uma **pré
 
 **Pré-condição:** Semantic Search implementado + base de conhecimento com 50+ documentos.
 
-### Pattern Capture — taxonomia de falhas e sucessos de workflow
-
-**O que é:** Estrutura de `~/knowledge/meta/patterns.md` que registra padrões de desenvolvimento que funcionaram e que falharam — não prompts específicos, mas princípios: "diagnóstico sem dado empírico = loop", "especificar artefato de saída reduz iterações", "auditoria troca modo cognitivo de construtivo para destrutivo".
-
-**Por que é útil:** Os mesmos anti-padrões reaparecem em projetos diferentes. Capturar uma vez, aplicar sempre. A `Audit Depth Rule` definida nesta sessão é um exemplo concreto deste padrão.
-
-**Pré-condição:** Nenhuma técnica — só disciplina de captura ao final de cada sessão. Pode começar hoje.
-
 ---
 
-*Atualizado em: 2026-05-14*
+*Atualizado em: 2026-05-24*
 *Assinado: Sovereign Council*

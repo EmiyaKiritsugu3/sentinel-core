@@ -4,6 +4,8 @@ import { useSentinelData } from '../hooks/useSentinelData';
 
 interface GraphCanvasProps {
   onCyReady?: (cy: cytoscape.Core) => void;
+  onNodeSelect?: (node: cytoscape.NodeSingular) => void;
+  onGraphTap?: () => void;
 }
 
 /**
@@ -15,7 +17,7 @@ interface GraphCanvasProps {
  * @param onCyReady - Optional callback invoked with the created Cytoscape `cy` instance once it is initialized
  * @returns The React element containing the Cytoscape mounting container and a "Sentinel Live View" label
  */
-export function GraphCanvas({ onCyReady }: GraphCanvasProps) {
+export function GraphCanvas({ onCyReady, onNodeSelect, onGraphTap }: GraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cyInstance, setCyInstance] = useState<cytoscape.Core | null>(null);
 
@@ -64,7 +66,17 @@ export function GraphCanvas({ onCyReady }: GraphCanvasProps) {
     setCyInstance(cy);
     onCyReady?.(cy);
 
+    cy.on('tap', 'node', (evt) => {
+      onNodeSelect?.(evt.target);
+    });
+    cy.on('tap', (evt) => {
+      if (evt.target === cy) {
+        onGraphTap?.();
+      }
+    });
+
     return () => {
+      cy.removeListener('tap');
       cy.destroy();
     };
   }, []);
