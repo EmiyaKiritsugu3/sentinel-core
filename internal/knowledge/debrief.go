@@ -170,32 +170,44 @@ func (s *DebriefService) saveToGraph(ctx context.Context, sessionID, path string
 		return fmt.Errorf("debrief: begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	decisions := s.buffer.Decisions()
-	errors_ := s.buffer.Errors()
-	patterns := s.buffer.Patterns()
 	allEvents := s.buffer.Snapshot()
+
+	var decisionCount, errorCount, patternCount int
 	domainSet := make(map[string]bool)
+	domains := make([]string, 0)
 	for _, e := range allEvents {
+		switch e.Type {
+		case EventDecision:
+			decisionCount++
+		case EventError:
+			errorCount++
+		case EventPattern:
+			patternCount++
+		}
 		if e.Domain != "" {
 			domainSet[e.Domain] = true
 		}
 	}
-	domains := make([]string, 0, len(domainSet))
 	for d := range domainSet {
 		domains = append(domains, d)
 	}
+
 	_, err = tx.ExecContext(ctx,
 		`INSERT INTO knowledge_sessions (id, markdown_path, started_at, ended_at, event_count, decision_count, error_count, pattern_count, domains) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		sessionID, path, now.Add(-time.Hour), now, len(allEvents), len(decisions), len(errors_), len(patterns), strings.Join(domains, ","),
+		sessionID, path, now.Add(-time.Hour), now, len(allEvents), decisionCount, errorCount, patternCount, strings.Join(domains, ","),
 	)
 	if err != nil {
 		return fmt.Errorf("debrief: insert session: %w", err)
 	}
 	for _, e := range allEvents {
+		eventTS := e.Timestamp
+		if eventTS.IsZero() {
+			eventTS = now
+		}
 		tags := strings.Join(e.Tags, ",")
 		_, err = tx.ExecContext(ctx,
-			`INSERT INTO session_events (session_id, event_type, domain, summary, detail, file_path, tags) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			sessionID, string(e.Type), e.Domain, e.Summary, e.Detail, e.File, tags,
+			`INSERT INTO session_events (session_id, event_type, domain, summary, detail, file_path, tags, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			sessionID, string(e.Type), e.Domain, e.Summary, e.Detail, e.File, tags, eventTS,
 		)
 		if err != nil {
 			return fmt.Errorf("debrief: insert event: %w", err)
