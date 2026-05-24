@@ -137,6 +137,9 @@ func openInEditor(content string, svc *knowledge.DebriefService, ctx context.Con
 		editorCmd = "vi"
 	}
 	parts := strings.Fields(editorCmd)
+	if len(parts) == 0 {
+		return fmt.Errorf("debrief: EDITOR environment variable is empty or whitespace")
+	}
 	c := exec.Command(parts[0], append(parts[1:], tmpFile.Name())...)
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
