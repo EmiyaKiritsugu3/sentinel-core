@@ -49,39 +49,46 @@ func NewAggregator(db *sqlite.DB) (*Aggregator, error) {
 func (a *Aggregator) FetchStats(ctx context.Context) (*ProjectStats, error) {
 	stats := &ProjectStats{}
 
-	// 1. Node count
-	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM nodes").Scan(&stats.TotalNodes); err != nil {
+	// 1. Consolidate Node counts into a single query to fix N+1 issue
+	nodeQuery := `
+		SELECT
+			COUNT(*),
+			SUM(CASE WHEN type = 'file' THEN 1 ELSE 0 END),
+			SUM(CASE WHEN type = 'function' THEN 1 ELSE 0 END),
+			SUM(CASE WHEN type = 'struct' THEN 1 ELSE 0 END)
+		FROM nodes`
+
+	var totalFiles, totalFunctions, totalStructs sql.NullInt64
+	if err := a.db.Conn.QueryRowContext(ctx, nodeQuery).Scan(&stats.TotalNodes, &totalFiles, &totalFunctions, &totalStructs); err != nil {
 		return nil, fmt.Errorf("aggregator: failed to count nodes: %w", err)
 	}
-	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM nodes WHERE type = 'file'").Scan(&stats.TotalFiles); err != nil {
-		return nil, fmt.Errorf("aggregator: failed to count files: %w", err)
-	}
-	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM nodes WHERE type = 'function'").Scan(&stats.TotalFunctions); err != nil {
-		return nil, fmt.Errorf("aggregator: failed to count functions: %w", err)
-	}
-	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM nodes WHERE type = 'struct'").Scan(&stats.TotalStructs); err != nil {
-		return nil, fmt.Errorf("aggregator: failed to count structs: %w", err)
-	}
 
-	// 2. Task count
-	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM tasks").Scan(&stats.TotalTasks); err != nil {
+	stats.TotalFiles = int(totalFiles.Int64)
+	stats.TotalFunctions = int(totalFunctions.Int64)
+	stats.TotalStructs = int(totalStructs.Int64)
+
+	// 2. Consolidate Task counts and avg into a single query
+	taskQuery := `
+		SELECT
+			COUNT(*),
+			SUM(CASE WHEN status = 'DONE' THEN 1 ELSE 0 END),
+			SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END),
+			AVG(CASE WHEN status = 'DONE' THEN math_delta ELSE NULL END)
+		FROM tasks`
+
+	var completedTasks, failedTasks sql.NullInt64
+	var avgDelta sql.NullFloat64
+	if err := a.db.Conn.QueryRowContext(ctx, taskQuery).Scan(&stats.TotalTasks, &completedTasks, &failedTasks, &avgDelta); err != nil {
 		return nil, fmt.Errorf("aggregator: failed to count tasks: %w", err)
 	}
-	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM tasks WHERE status = 'DONE'").Scan(&stats.CompletedTasks); err != nil {
-		return nil, fmt.Errorf("aggregator: failed to count completed tasks: %w", err)
-	}
-	if err := a.db.Conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM tasks WHERE status = 'FAILED'").Scan(&stats.FailedTasks); err != nil {
-		return nil, fmt.Errorf("aggregator: failed to count failed tasks: %w", err)
-	}
+
+	stats.CompletedTasks = int(completedTasks.Int64)
+	stats.FailedTasks = int(failedTasks.Int64)
 
 	// 3. Success Rate and SME calculation
 	if stats.TotalTasks > 0 {
 		stats.SuccessRate = float64(stats.CompletedTasks) / float64(stats.TotalTasks) * 100
 
-		var avgDelta sql.NullFloat64
-		if err := a.db.Conn.QueryRowContext(ctx, "SELECT AVG(math_delta) FROM tasks WHERE status = 'DONE'").Scan(&avgDelta); err != nil {
-			return nil, fmt.Errorf("aggregator: failed to calculate avg math delta: %w", err)
-		}
 		if avgDelta.Valid {
 			stats.AvgMathDelta = avgDelta.Float64
 		}
