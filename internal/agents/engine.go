@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/bridge"
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/knowledge"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/math"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/reflect"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
@@ -280,6 +281,12 @@ func (e *Engine) Execute(ctx *AgentContext) (retErr error) {
 		// Phase 5: Check for Termination (Final Sovereign Audit)
 		if shouldTerminate(toolCalls, textResponses) {
 			slog.Info("termination detected", "reason", "audit_report")
+			knowledge.GlobalBuffer.Record(knowledge.SessionEvent{
+				Type:    knowledge.EventDecision,
+				Domain:  "engine",
+				Summary: "Agent terminated: audit report submitted",
+				Tags:    []string{"termination"},
+			})
 			break
 		}
 
@@ -392,6 +399,12 @@ func (e *Engine) executePhase(ctx *AgentContext, toolCalls []map[string]interfac
 	if err != nil {
 		slog.Error("tool execution error", "error", err)
 		ctx.FailureCount++
+		knowledge.GlobalBuffer.Record(knowledge.SessionEvent{
+			Type:    knowledge.EventError,
+			Domain:  "engine",
+			Summary: fmt.Sprintf("Tool execution failed: %v", err),
+			Tags:    []string{"tool", "error"},
+		})
 
 		if e.shouldEscalate(ctx) {
 			e.escalate(ctx)
@@ -620,6 +633,12 @@ func (e *Engine) runPACDeliberation(ctx *AgentContext) (string, error) {
 	}
 
 	slog.Info("PAC deliberation complete", "final", result.Final, "reason", result.Reason)
+	knowledge.GlobalBuffer.Record(knowledge.SessionEvent{
+		Type:    knowledge.EventDecision,
+		Domain:  "engine",
+		Summary: "PAC deliberation: " + result.Reason,
+		Tags:    []string{"pac", "deliberation"},
+	})
 	return result.Reason, nil
 }
 
