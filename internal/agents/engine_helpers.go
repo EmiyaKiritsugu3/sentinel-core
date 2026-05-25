@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/EmiyaKiritsugu3/sentinel-core/internal/knowledge"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/math"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/google/generative-ai-go/genai"
@@ -79,6 +80,12 @@ func checkGateA(lambda, effectiveMaxLambda float64) (intervene bool, message str
 	if lambda > effectiveMaxLambda {
 		msg := fmt.Sprintf("GATE A INTERVENTION: Your action-to-thought ratio is too high (%.2f). You are hallucinating excessive code without planning. Re-evaluate your strategy and output a detailed thought process before proceeding.", lambda)
 		slog.Warn("entropy threshold exceeded", "lambda", lambda, "max", effectiveMaxLambda)
+		knowledge.GlobalBuffer.Record(knowledge.SessionEvent{
+			Type:    knowledge.EventPattern,
+			Domain:  "engine",
+			Summary: fmt.Sprintf("Gate A: entropy threshold exceeded (λ=%.2f > max=%.2f)", lambda, effectiveMaxLambda),
+			Tags:    []string{"gate-a", "entropy", "intervention"},
+		})
 		return true, msg
 	}
 	return false, ""
@@ -102,6 +109,12 @@ func checkGateA5(stepLambda, previousLambda float64, divergenceCount int) (newCo
 				divergence,
 			)
 			slog.Warn("logic drift detected", "divergence", divergence, "consecutive", newCount)
+			knowledge.GlobalBuffer.Record(knowledge.SessionEvent{
+				Type:    knowledge.EventPattern,
+				Domain:  "engine",
+				Summary: "Gate A.5: logic drift detected",
+				Tags:    []string{"gate-a5", "divergence", "intervention"},
+			})
 			return newCount, true, msg
 		}
 		return newCount, false, ""
