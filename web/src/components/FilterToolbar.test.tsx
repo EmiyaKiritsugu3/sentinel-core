@@ -3,7 +3,15 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { FilterToolbar } from './FilterToolbar';
 
 vi.mock('../stores', () => {
-  let state: any = {
+  const state: {
+    enabledTypes: Set<string>;
+    searchText: string;
+    selectedPackage: string | null;
+    toggleType: () => void;
+    setSearchText: () => void;
+    setSelectedPackage: () => void;
+    reset: () => void;
+  } = {
     enabledTypes: new Set() as Set<string>,
     searchText: '',
     selectedPackage: null,
@@ -13,7 +21,7 @@ vi.mock('../stores', () => {
     reset: vi.fn(),
   };
   return {
-    useFilterStore: (selector?: any) => {
+    useFilterStore: (selector?: (s: typeof state) => unknown) => {
       if (typeof selector === 'function') return selector(state);
       return state;
     },
