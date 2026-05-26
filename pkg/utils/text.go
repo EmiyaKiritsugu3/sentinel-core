@@ -5,17 +5,23 @@ import (
 	"strings"
 )
 
+var sanitizeIDReplacer = strings.NewReplacer(
+	":", "_",
+	"/", "_",
+	".", "_",
+	"-", "_",
+	" ", "_",
+)
+
 // SanitizeID remove caracteres que quebram a sintaxe do Mermaid ou do SQLite
 func SanitizeID(id string) string {
-	replacer := strings.NewReplacer(
-		":", "_",
-		"/", "_",
-		".", "_",
-		"-", "_",
-		" ", "_",
-	)
-	return replacer.Replace(id)
+	return sanitizeIDReplacer.Replace(id)
 }
+
+var (
+	slugifySpecialCharsRegex = regexp.MustCompile(`[^a-z0-9\s-]+`)
+	slugifyDoubleHyphenRegex = regexp.MustCompile(`-+`)
+)
 
 // Slugify transforms a string into a file-name-friendly format
 func Slugify(text string) string {
@@ -23,16 +29,14 @@ func Slugify(text string) string {
 	res := strings.ToLower(text)
 
 	// 2. Remove special characters (keep only letters, numbers and spaces)
-	reg := regexp.MustCompile(`[^a-z0-9\s-]+`)
-	res = reg.ReplaceAllString(res, "")
+	res = slugifySpecialCharsRegex.ReplaceAllString(res, "")
 
 	// 3. Replace spaces and underscores with hyphens
 	res = strings.ReplaceAll(res, " ", "-")
 	res = strings.ReplaceAll(res, "_", "-")
 
 	// 4. Remove duplicate hyphens
-	regDouble := regexp.MustCompile(`-+`)
-	res = regDouble.ReplaceAllString(res, "-")
+	res = slugifyDoubleHyphenRegex.ReplaceAllString(res, "-")
 
 	// 5. Trim hyphens at edges
 	res = strings.Trim(res, "-")

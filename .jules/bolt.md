@@ -1,3 +1,6 @@
 ## 2026-05-23 - Avoid strings.TrimSpace on unbounded text chunks
 **Learning:** `strings.TrimSpace` evaluates both the beginning and the end of a string. When parsing large agent output chunks to check if they start with a thought block prefix (e.g. `<think>`), this causes an unnecessary `O(N)` traversal of potentially massive trailing content (actions, logs, etc.) just to check the prefix.
 **Action:** When validating string prefixes with potential leading whitespace, manually scan and skip the leading whitespace using a fast loop rather than calling `strings.TrimSpace`, especially when the string can be unbounded in length.
+## 2023-10-27 - Cache regex and replacers in utility functions
+**Learning:** Functions like `Slugify` and `SanitizeID` in Go might look simple, but running `regexp.MustCompile` and `strings.NewReplacer` inside them on every call causes significant performance degradation due to repeated allocations and compilation. In heavily utilized utility functions, these should be moved to package-level variables.
+**Action:** When creating utility string functions, compile regular expressions and create replacers once at the package level using `var`, rather than inside the function scope, to drastically improve throughput.
