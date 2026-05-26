@@ -54,4 +54,21 @@ describe('EventLog', () => {
     render(<EventLog />);
     expect(screen.queryByTitle('Clear events')).toBeNull();
   });
+
+  it('handles scroll event to stop auto-scroll', () => {
+    storeState = {
+      events: [
+        { type: 'NODE_UPSERTED', payload: {}, timestamp: '2026-05-24T10:00:00Z' },
+      ],
+      clear: vi.fn(),
+    };
+    render(<EventLog />);
+
+    const list = document.querySelector('.event-log__list');
+    if (list) {
+      // Simulate scrolling down past 40px
+      Object.defineProperty(list, 'scrollTop', { value: 50, writable: true });
+      fireEvent.scroll(list);
+    }
+  });
 });

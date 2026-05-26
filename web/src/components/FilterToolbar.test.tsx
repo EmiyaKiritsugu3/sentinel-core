@@ -53,6 +53,14 @@ describe('FilterToolbar', () => {
     expect(store.setSearchText).toHaveBeenCalledWith('auth');
   });
 
+  it('calls setSelectedPackage on select change', () => {
+    const store = useFilterStore();
+    render(<FilterToolbar packages={['pkgA', 'pkgB']} />);
+    const select = screen.getByLabelText('Filter by package');
+    fireEvent.change(select, { target: { value: 'pkgA' } });
+    expect(store.setSelectedPackage).toHaveBeenCalledWith('pkgA');
+  });
+
   it('calls reset on button click', () => {
     const store = useFilterStore();
     render(<FilterToolbar packages={[]} />);
