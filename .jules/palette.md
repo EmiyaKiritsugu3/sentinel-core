@@ -1,0 +1,3 @@
+## 2024-05-24 - Missing ARIA Labels on Core UI Components
+**Learning:** Found an app-wide pattern of missing `aria-label` attributes on icon-only buttons (like close and clear buttons) and form elements without visible labels (like search inputs and package filter selects) in core UI components (EventLog, InfoPanel, FilterToolbar). This negatively impacts screen reader accessibility.
+**Action:** When creating or reviewing UI components, especially utility toolbars or panels, ensure that all interactive elements, particularly those relying on visual icons or placeholders, have explicit accessible names via `aria-label` or `aria-labelledby`.
