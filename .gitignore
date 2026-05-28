@@ -34,5 +34,8 @@ coverage-agents.out
 graphify-out/extraction.json
 graphify-out/graph.pkl
 
+# JS coverage
+web/coverage/
+
 # Superpowers plans & specs (committed separately per milestone)
 docs/superpowers/
