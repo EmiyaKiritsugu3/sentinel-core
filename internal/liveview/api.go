@@ -154,6 +154,20 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			return
 		}
 
+		baseDir, err := filepath.Abs(".")
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
+			return
+		}
+
+		absPath, err := filepath.Abs(filepath.Join(baseDir, cleanPath))
+		if err != nil || !strings.HasPrefix(absPath, baseDir+string(filepath.Separator)) {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
+			return
+		}
+
 		startStr := r.URL.Query().Get("start")
 		endStr := r.URL.Query().Get("end")
 
@@ -170,7 +184,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			}
 		}
 
-		content, err := os.ReadFile(cleanPath)
+		content, err := os.ReadFile(absPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				w.WriteHeader(http.StatusNotFound)
