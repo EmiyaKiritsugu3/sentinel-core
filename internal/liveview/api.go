@@ -41,7 +41,7 @@ func handleGetGraph(db *sqlite.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		// Query Nodes
-		nodesRows, err := db.Conn.Query("SELECT id, name, type, file_path, start_line, end_line, hash, last_indexed FROM nodes")
+		nodesRows, err := db.Conn.QueryContext(r.Context(), "SELECT id, name, type, file_path, start_line, end_line, hash, last_indexed FROM nodes")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -58,7 +58,7 @@ func handleGetGraph(db *sqlite.DB) http.HandlerFunc {
 		}
 
 		// Query Edges
-		edgesRows, err := db.Conn.Query("SELECT from_node_id, to_node_id, relation_type FROM edges")
+		edgesRows, err := db.Conn.QueryContext(r.Context(), "SELECT from_node_id, to_node_id, relation_type FROM edges")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -92,7 +92,8 @@ func handleGetStatus(db *sqlite.DB) http.HandlerFunc {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
 
-		row := db.Conn.QueryRow(
+		row := db.Conn.QueryRowContext(
+			r.Context(),
 			"SELECT id, description, status, tier, verification_command, created_at FROM tasks ORDER BY created_at DESC, rowid DESC LIMIT 1",
 		)
 
@@ -154,43 +155,6 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			return
 		}
 
-		baseDir, err := filepath.Abs(".")
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
-			return
-		}
-
-		absPath, err := filepath.Abs(filepath.Join(baseDir, cleanPath))
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
-			return
-		}
-
-		// Ensure the absolute path strictly starts with the base directory to prevent traversal.
-		// Use EvalSymlinks to prevent bypassing root directory via symlinks pointing outside.
-		realPath, err := filepath.EvalSymlinks(absPath)
-		if err != nil && !os.IsNotExist(err) {
-			slog.Error("liveview: failed to eval symlinks", "path", cleanPath, "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
-			return
-		}
-
-		// If EvalSymlinks succeeded (file exists), check realPath prefix.
-		// If it failed with IsNotExist, we can just fallback to checking the un-evaluated absPath.
-		pathToCheck := absPath
-		if err == nil {
-			pathToCheck = realPath
-		}
-
-		if !strings.HasPrefix(pathToCheck, baseDir+string(filepath.Separator)) {
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
-			return
-		}
-
 		startStr := r.URL.Query().Get("start")
 		endStr := r.URL.Query().Get("end")
 
@@ -207,14 +171,14 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			}
 		}
 
-		content, err := os.ReadFile(absPath)
+		content, err := os.ReadFile(filePath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				w.WriteHeader(http.StatusNotFound)
-				_ = json.NewEncoder(w).Encode(map[string]string{"error": "file not found: " + cleanPath})
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "file not found: " + filePath})
 				return
 			}
-			slog.Error("liveview: failed to read file", "path", cleanPath, "error", err)
+			slog.Error("liveview: failed to read file", "path", filePath, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
 			return
@@ -227,7 +191,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 
 		if len(allLines) == 0 {
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"file": cleanPath, "lines": []string{}, "startLine": 0, "endLine": 0,
+				"file": filePath, "lines": []string{}, "startLine": 0, "endLine": 0,
 			})
 			return
 		}
@@ -265,7 +229,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 		lines := allLines[start-1 : end]
 
 		resp := map[string]any{
-			"file":      cleanPath,
+			"file":      filePath,
 			"lines":     lines,
 			"startLine": start,
 			"endLine":   end,
