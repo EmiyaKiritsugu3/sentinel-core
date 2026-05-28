@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useEventLogStore } from '../stores';
 import type { GraphEvent } from '../stores/types';
+import type { StoredGraphEvent } from '../stores/eventLogStore';
 import './EventLog.css';
 
 /**
@@ -46,8 +47,9 @@ export function EventLog() {
         {events.length === 0 ? (
           <div className="event-log__empty">No events yet</div>
         ) : (
-          events.map((event, i) => (
-            <EventRow key={`${event.timestamp}-${i}`} event={event} />
+          events.map((event) => (
+            // Use the stable event._id so React can cleanly reconcile the list when items are prepended
+            <EventRow key={event._id} event={event} />
           ))
         )}
       </div>
@@ -55,7 +57,8 @@ export function EventLog() {
   );
 }
 
-function EventRow({ event }: { event: GraphEvent }) {
+// Memoize to avoid O(N) re-renders when the parent event list adds a new event at the top
+const EventRow = React.memo(function EventRow({ event }: { event: StoredGraphEvent }) {
   const time = event.timestamp
     ? new Date(event.timestamp).toLocaleTimeString()
     : '';
@@ -74,7 +77,7 @@ function EventRow({ event }: { event: GraphEvent }) {
       )}
     </div>
   );
-}
+});
 
 /** Produces a concise one-line summary from the event payload. */
 function summarizePayload(event: GraphEvent): string {

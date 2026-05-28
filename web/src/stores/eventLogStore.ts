@@ -3,19 +3,26 @@ import type { GraphEvent } from './types';
 
 const MAX_EVENTS = 500;
 
+export interface StoredGraphEvent extends GraphEvent {
+  _id: number;
+}
+
 export interface EventLogState {
   /** Ring buffer of recent events, newest first. */
-  events: GraphEvent[];
+  events: StoredGraphEvent[];
   addEvent: (event: GraphEvent) => void;
   clear: () => void;
 }
+
+let eventCounter = 0;
 
 export const useEventLogStore = create<EventLogState>((set) => ({
   events: [],
 
   addEvent: (event) =>
     set((state) => {
-      const next = [event, ...state.events];
+      const storedEvent: StoredGraphEvent = { ...event, _id: ++eventCounter };
+      const next = [storedEvent, ...state.events];
       if (next.length > MAX_EVENTS) {
         next.length = MAX_EVENTS;
       }
