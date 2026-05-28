@@ -25,8 +25,8 @@ describe('EventLog', () => {
   it('renders events and shows count', () => {
     storeState = {
       events: [
-        { type: 'NODE_UPSERTED', payload: { Name: 'main' }, timestamp: '2026-05-24T10:00:00Z' },
-        { type: 'EDGE_CREATED', payload: { From: 'a', To: 'b' }, timestamp: '2026-05-24T10:00:01Z' },
+        { _id: 1, type: 'NODE_UPSERTED', payload: { Name: 'main' }, timestamp: '2026-05-24T10:00:00Z' },
+        { _id: 2, type: 'EDGE_CREATED', payload: { From: 'a', To: 'b' }, timestamp: '2026-05-24T10:00:01Z' },
       ],
       clear: vi.fn(),
     };
@@ -41,7 +41,7 @@ describe('EventLog', () => {
     const clearFn = vi.fn();
     storeState = {
       events: [
-        { type: 'NODE_UPSERTED', payload: {}, timestamp: '2026-05-24T10:00:00Z' },
+        { _id: 1, type: 'NODE_UPSERTED', payload: {}, timestamp: '2026-05-24T10:00:00Z' },
       ],
       clear: clearFn,
     };
