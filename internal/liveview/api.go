@@ -147,7 +147,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			return
 		}
 
-			cleanPath := filepath.Clean(filePath)
+		cleanPath := filepath.Clean(filePath)
 		if filepath.IsAbs(cleanPath) || strings.HasPrefix(cleanPath, "..") {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
@@ -170,11 +170,11 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			}
 		}
 
-		content, err := os.ReadFile(filePath)
+		content, err := os.ReadFile(cleanPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				w.WriteHeader(http.StatusNotFound)
-				_ = json.NewEncoder(w).Encode(map[string]string{"error": "file not found: " + filePath})
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "file not found: " + cleanPath})
 				return
 			}
 			slog.Error("liveview: failed to read file", "path", filePath, "error", err)
