@@ -147,7 +147,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			return
 		}
 
-		cleanPath := filepath.Clean(filePath)
+			cleanPath := filepath.Clean(filePath)
 		if filepath.IsAbs(cleanPath) || strings.HasPrefix(cleanPath, "..") {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
@@ -162,7 +162,30 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 		}
 
 		absPath, err := filepath.Abs(filepath.Join(baseDir, cleanPath))
-		if err != nil || !strings.HasPrefix(absPath, baseDir+string(filepath.Separator)) {
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
+			return
+		}
+
+		// Ensure the absolute path strictly starts with the base directory to prevent traversal.
+		// Use EvalSymlinks to prevent bypassing root directory via symlinks pointing outside.
+		realPath, err := filepath.EvalSymlinks(absPath)
+		if err != nil && !os.IsNotExist(err) {
+			slog.Error("liveview: failed to eval symlinks", "path", cleanPath, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
+			return
+		}
+
+		// If EvalSymlinks succeeded (file exists), check realPath prefix.
+		// If it failed with IsNotExist, we can just fallback to checking the un-evaluated absPath.
+		pathToCheck := absPath
+		if err == nil {
+			pathToCheck = realPath
+		}
+
+		if !strings.HasPrefix(pathToCheck, baseDir+string(filepath.Separator)) {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
 			return
@@ -191,7 +214,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 				_ = json.NewEncoder(w).Encode(map[string]string{"error": "file not found: " + cleanPath})
 				return
 			}
-			slog.Error("liveview: failed to read file", "path", filePath, "error", err)
+			slog.Error("liveview: failed to read file", "path", cleanPath, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
 			return
@@ -204,7 +227,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 
 		if len(allLines) == 0 {
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"file": filePath, "lines": []string{}, "startLine": 0, "endLine": 0,
+				"file": cleanPath, "lines": []string{}, "startLine": 0, "endLine": 0,
 			})
 			return
 		}
@@ -242,7 +265,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 		lines := allLines[start-1 : end]
 
 		resp := map[string]any{
-			"file":      filePath,
+			"file":      cleanPath,
 			"lines":     lines,
 			"startLine": start,
 			"endLine":   end,
