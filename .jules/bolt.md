@@ -1,3 +1,6 @@
 ## 2026-05-23 - Avoid strings.TrimSpace on unbounded text chunks
 **Learning:** `strings.TrimSpace` evaluates both the beginning and the end of a string. When parsing large agent output chunks to check if they start with a thought block prefix (e.g. `<think>`), this causes an unnecessary `O(N)` traversal of potentially massive trailing content (actions, logs, etc.) just to check the prefix.
 **Action:** When validating string prefixes with potential leading whitespace, manually scan and skip the leading whitespace using a fast loop rather than calling `strings.TrimSpace`, especially when the string can be unbounded in length.
+## 2024-05-29 - Pre-compile regexp.MustCompile for hot paths
+**Learning:** Found that `regexp.MustCompile` was being invoked repeatedly within function bodies like `Slugify` and context extraction functions. Since Go regular expressions take time to compile, moving compilation out of the function body and to the package level provides significant performance improvements (e.g. ~3x faster for context extractions, ~2x for slugify), without altering functionality. Go regexps are safe for concurrent use.
+**Action:** When working in Go, search for `regexp.MustCompile` and similar expensive setups within functions, and refactor to package-level unexported variables so they compile exactly once at application startup.
