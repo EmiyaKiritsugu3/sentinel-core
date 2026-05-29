@@ -4,11 +4,17 @@ import { StatusHUD } from './StatusHUD';
 
 // Mock Zustand store
 const mockPoll = vi.fn();
-let mockState: any = { task: null, loading: false, error: null, poll: mockPoll };
+type MockState = {
+  task: Record<string, unknown> | null;
+  loading: boolean;
+  error: string | null;
+  poll: typeof mockPoll;
+};
+let mockState: MockState = { task: null, loading: false, error: null, poll: mockPoll };
 
 vi.mock('../stores', () => {
   return {
-    useStatusStore: (selector?: any) => {
+    useStatusStore: (selector?: (s: MockState) => unknown) => {
       if (typeof selector === 'function') return selector(mockState);
       return mockState;
     },

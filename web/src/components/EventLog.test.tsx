@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { EventLog } from './EventLog';
 
-let storeState: any = { events: [], clear: vi.fn() };
+let storeState: { events: unknown[]; clear: () => void } = { events: [], clear: vi.fn() };
 
 vi.mock('../stores', () => ({
-  useEventLogStore: (selector?: any) => {
+  useEventLogStore: (selector?: (state: typeof storeState) => unknown) => {
     if (typeof selector === 'function') return selector(storeState);
     return storeState;
   },
@@ -53,5 +53,22 @@ describe('EventLog', () => {
   it('does not show clear button when empty', () => {
     render(<EventLog />);
     expect(screen.queryByTitle('Clear events')).toBeNull();
+  });
+
+  it('handles scroll event to stop auto-scroll', () => {
+    storeState = {
+      events: [
+        { type: 'NODE_UPSERTED', payload: {}, timestamp: '2026-05-24T10:00:00Z' },
+      ],
+      clear: vi.fn(),
+    };
+    render(<EventLog />);
+
+    const list = document.querySelector('.event-log__list');
+    if (list) {
+      // Simulate scrolling down past 40px
+      Object.defineProperty(list, 'scrollTop', { value: 50, writable: true });
+      fireEvent.scroll(list);
+    }
   });
 });
