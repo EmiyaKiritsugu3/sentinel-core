@@ -42,12 +42,14 @@ export function FilterToolbar({ packages }: FilterToolbarProps) {
         type="text"
         className="filter-toolbar__search"
         placeholder="Search nodes..."
+        aria-label="Search nodes"
         value={searchText}
         onChange={e => setSearchText(e.target.value)}
       />
 
       <select
         className="filter-toolbar__select"
+        aria-label="Filter by package"
         value={selectedPackage ?? ''}
         onChange={e => setSelectedPackage(e.target.value || null)}
       >
