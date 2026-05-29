@@ -1,0 +1,3 @@
+## 2024-05-29 - Accessible Dynamic Status Notifications & Icons
+**Learning:** Icon-only buttons and highly dynamic status UI elements (like the StatusHUD) often lack context for screen readers. Even with descriptive class names, if standard accessibility properties (`aria-label`, `role="status"`, `aria-live`) aren't used, critical feedback is missed by assistive technologies.
+**Action:** Always ensure that any icon-only interactive elements contain `aria-label`s, and dynamic, polled status indicators use appropriate ARIA live regions (`role="status"` with `aria-live="polite"` for general updates, `role="alert"` with `aria-live="assertive"` for errors) so that changes are seamlessly announced to all users without requiring a page reload or explicit focus.
