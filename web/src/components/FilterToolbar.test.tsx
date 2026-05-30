@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { FilterToolbar } from './FilterToolbar';
 
 vi.mock('../stores', () => {
-  let state: any = {
+  const state: any = {
     enabledTypes: new Set() as Set<string>,
     searchText: '',
     selectedPackage: null,
