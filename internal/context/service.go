@@ -28,6 +28,12 @@ func NewContextService() *ContextService {
 	}
 }
 
+var (
+	// ⚡ Bolt Optimization: Pre-compile regular expressions to avoid recompilation on every call.
+	docRe     = regexp.MustCompile(`\[src=([^\]]+)\]`)
+	conceptRe = regexp.MustCompile(`NODE ([^\[]+)`)
+)
+
 // QueryResult holds the output of a graphify query.
 type QueryResult struct {
 	RawOutput string
@@ -59,9 +65,11 @@ func (s *ContextService) Query(query string, budget int) (*QueryResult, error) {
 }
 
 func extractDocuments(raw string) []string {
-	re := regexp.MustCompile(`\[src=([^\]]+)\]`)
-	matches := re.FindAllStringSubmatch(raw, -1)
-	seen := make(map[string]bool)
+	matches := docRe.FindAllStringSubmatch(raw, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool, len(matches))
 	var docs []string
 	for _, m := range matches {
 		p := strings.TrimSpace(m[1])
@@ -74,9 +82,11 @@ func extractDocuments(raw string) []string {
 }
 
 func extractConcepts(raw string) []string {
-	re := regexp.MustCompile(`NODE ([^\[]+)`)
-	matches := re.FindAllStringSubmatch(raw, -1)
-	seen := make(map[string]bool)
+	matches := conceptRe.FindAllStringSubmatch(raw, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool, len(matches))
 	var concepts []string
 	for _, m := range matches {
 		c := strings.TrimSpace(m[1])
