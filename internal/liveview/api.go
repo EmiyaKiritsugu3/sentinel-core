@@ -13,9 +13,27 @@ import (
 	"strconv"
 	"strings"
 
+	"net/url"
+
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 )
+
+func setSecureCORS(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return
+	}
+	host := u.Hostname() // strips port
+	if host == "localhost" || host == "127.0.0.1" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Vary", "Origin")
+	}
+}
 
 // GraphSnapshot is a JSON-serializable graph state.
 type GraphSnapshot struct {
@@ -37,11 +55,11 @@ type TaskStatus struct {
 func handleGetGraph(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers for local development
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setSecureCORS(w, r)
 		w.Header().Set("Content-Type", "application/json")
 
 		// Query Nodes
-		nodesRows, err := db.Conn.Query("SELECT id, name, type, file_path, start_line, end_line, hash, last_indexed FROM nodes")
+		nodesRows, err := db.Conn.QueryContext(r.Context(), "SELECT id, name, type, file_path, start_line, end_line, hash, last_indexed FROM nodes")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -58,7 +76,7 @@ func handleGetGraph(db *sqlite.DB) http.HandlerFunc {
 		}
 
 		// Query Edges
-		edgesRows, err := db.Conn.Query("SELECT from_node_id, to_node_id, relation_type FROM edges")
+		edgesRows, err := db.Conn.QueryContext(r.Context(), "SELECT from_node_id, to_node_id, relation_type FROM edges")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -89,10 +107,10 @@ func handleGetGraph(db *sqlite.DB) http.HandlerFunc {
 
 func handleGetStatus(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setSecureCORS(w, r)
 		w.Header().Set("Content-Type", "application/json")
 
-		row := db.Conn.QueryRow(
+		row := db.Conn.QueryRowContext(r.Context(),
 			"SELECT id, description, status, tier, verification_command, created_at FROM tasks ORDER BY created_at DESC, rowid DESC LIMIT 1",
 		)
 
@@ -137,7 +155,7 @@ func handleGetStatus(db *sqlite.DB) http.HandlerFunc {
 
 func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setSecureCORS(w, r)
 		w.Header().Set("Content-Type", "application/json")
 
 		filePath := r.URL.Query().Get("path")
@@ -240,7 +258,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 
 func handleListADR(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setSecureCORS(w, r)
 		w.Header().Set("Content-Type", "application/json")
 
 		entries, err := os.ReadDir("docs/architecture/adr")
@@ -288,7 +306,7 @@ func handleListADR(db *sqlite.DB) http.HandlerFunc {
 
 func handleGetADR(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setSecureCORS(w, r)
 		w.Header().Set("Content-Type", "application/json")
 
 		filename := strings.TrimPrefix(r.URL.Path, "/api/adr/")
