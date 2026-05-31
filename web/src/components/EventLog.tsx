@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 import { useEventLogStore } from '../stores';
 import type { GraphEvent } from '../stores/types';
 import './EventLog.css';
@@ -55,7 +55,8 @@ export function EventLog() {
   );
 }
 
-function EventRow({ event }: { event: GraphEvent }) {
+// ⚡ Bolt: memoize to prevent O(n) re-renders on new events
+const EventRow = memo(function EventRow({ event }: { event: GraphEvent }) {
   const time = event.timestamp
     ? new Date(event.timestamp).toLocaleTimeString()
     : '';
@@ -74,7 +75,7 @@ function EventRow({ event }: { event: GraphEvent }) {
       )}
     </div>
   );
-}
+});
 
 /** Produces a concise one-line summary from the event payload. */
 function summarizePayload(event: GraphEvent): string {
