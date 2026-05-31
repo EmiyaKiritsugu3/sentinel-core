@@ -44,12 +44,14 @@ export function FilterToolbar({ packages }: FilterToolbarProps) {
         placeholder="Search nodes..."
         value={searchText}
         onChange={e => setSearchText(e.target.value)}
+        aria-label="Search nodes"
       />
 
       <select
         className="filter-toolbar__select"
         value={selectedPackage ?? ''}
         onChange={e => setSelectedPackage(e.target.value || null)}
+        aria-label="Filter by package"
       >
         <option value="">All packages</option>
         {packages.map(p => (
