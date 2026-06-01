@@ -142,6 +142,11 @@ func persistMetrics(ctx context.Context, db *sqlite.DB, stateID string, tokensUs
 func shouldTerminate(toolCalls []map[string]interface{}, textResponses []string) bool {
 	if len(toolCalls) == 0 {
 		for _, text := range textResponses {
+			// ⚡ Bolt: Fast paths for common casings to avoid Lowercase allocations
+			if strings.Contains(text, "Sovereign Audit") || strings.Contains(text, "sovereign audit") {
+				return true
+			}
+			// ⚡ Bolt: Fallback for other arbitrary casings to preserve exact functionality
 			if strings.Contains(strings.ToLower(text), "sovereign audit") {
 				return true
 			}
