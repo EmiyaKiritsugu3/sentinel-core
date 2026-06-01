@@ -123,7 +123,7 @@ export function InfoPanel({ node, baseUrl, onClose }: InfoPanelProps) {
       {/* Header */}
       <div className="info-panel__header">
         <span className="info-panel__node-id">{node.id}</span>
-        <button className="info-panel__close" onClick={onClose} title="Close">
+        <button className="info-panel__close" onClick={onClose} title="Close" aria-label="Close panel">
           X
         </button>
       </div>
@@ -219,6 +219,7 @@ export function InfoPanel({ node, baseUrl, onClose }: InfoPanelProps) {
                   <button
                     className="info-panel__adr-link"
                     onClick={() => handleAdrClick(adr)}
+                    aria-label={`View ADR: ${adr.title || adr.filename}`}
                   >
                     {adr.title || adr.filename}
                   </button>

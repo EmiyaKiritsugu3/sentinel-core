@@ -68,7 +68,7 @@ export function StatusHUD() {
 
   if (error) {
     return (
-      <div className="status-hud status-hud--error">
+      <div className="status-hud status-hud--error" role="status" aria-live="polite">
         ⚠ Failed to fetch status: {error}
       </div>
     );
@@ -77,14 +77,14 @@ export function StatusHUD() {
   if (!task) {
     if (loading) {
       return (
-        <div className="status-hud">
+        <div className="status-hud" role="status" aria-live="polite">
           <span className="status-dot" />
           Loading...
         </div>
       );
     }
     return (
-      <div className="status-hud status-hud--idle">
+      <div className="status-hud status-hud--idle" role="status" aria-live="polite">
         No active task
       </div>
     );
@@ -99,7 +99,7 @@ export function StatusHUD() {
   }
 
   return (
-    <div className="status-hud">
+    <div className="status-hud" role="status" aria-live="polite">
       <span className="status-hud__label">{task.description}</span>
       <StatusBadge status={task.status} />
       {task.tier && (
