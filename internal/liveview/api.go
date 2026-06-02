@@ -292,13 +292,14 @@ func handleGetADR(db *sqlite.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		filename := strings.TrimPrefix(r.URL.Path, "/api/adr/")
-		if filename == "" || strings.Contains(filename, "..") || strings.HasPrefix(filename, "/") {
+		cleanPath := filepath.Clean(filename)
+		if filename == "" || filepath.IsAbs(cleanPath) || strings.HasPrefix(cleanPath, "..") {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
 			return
 		}
 
-		fullPath := filepath.Join("docs/architecture/adr", filename)
+		fullPath := filepath.Join("docs/architecture/adr", cleanPath)
 		absPath, err := filepath.Abs(fullPath)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
