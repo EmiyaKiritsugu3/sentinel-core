@@ -70,7 +70,14 @@ func (r *Runner) ExecuteAudit(taskID string, command string) (bool, error) {
 	}
 
 	logQuery := `INSERT INTO audit_logs (task_id, command, output, exit_code) VALUES (?, ?, ?, ?)`
-	_, dbErr := r.db.Conn.Exec(logQuery, taskID, command, out.String(), exitCode)
+
+	// Create a new context specifically for the database write.
+	// We cannot reuse the 'ctx' from above because if the command timed out,
+	// 'ctx' will be cancelled, preventing this critical audit log from being saved.
+	dbCtx, dbCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer dbCancel()
+
+	_, dbErr := r.db.Conn.ExecContext(dbCtx, logQuery, taskID, command, out.String(), exitCode)
 	if dbErr != nil {
 		return false, fmt.Errorf("audit: failed to save log for task %s: %w", taskID, dbErr)
 	}
