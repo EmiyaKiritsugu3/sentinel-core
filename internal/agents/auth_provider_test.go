@@ -6,12 +6,12 @@ import (
 )
 
 func TestSovereignAuthProvider_GetAPIKey(t *testing.T) {
-	t.Parallel()
+	// Do not use t.Parallel() because we mutate global environment variables
 	t.Run("returns key when GOOGLE_API_KEY is set", func(t *testing.T) {
-		t.Parallel()
 		expectedKey := "test-api-key"
+		oldKey := os.Getenv("GOOGLE_API_KEY")
 		_ = os.Setenv("GOOGLE_API_KEY", expectedKey)
-		defer func() { _ = os.Unsetenv("GOOGLE_API_KEY") }()
+		defer func() { _ = os.Setenv("GOOGLE_API_KEY", oldKey) }()
 
 		provider := &SovereignAuthProvider{}
 		key, err := provider.GetAPIKey()
@@ -25,8 +25,9 @@ func TestSovereignAuthProvider_GetAPIKey(t *testing.T) {
 	})
 
 	t.Run("returns error when GOOGLE_API_KEY is not set", func(t *testing.T) {
-		t.Parallel()
+		oldKey := os.Getenv("GOOGLE_API_KEY")
 		_ = os.Unsetenv("GOOGLE_API_KEY")
+		defer func() { _ = os.Setenv("GOOGLE_API_KEY", oldKey) }()
 
 		provider := &SovereignAuthProvider{}
 		_, err := provider.GetAPIKey()
