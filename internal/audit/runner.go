@@ -70,7 +70,13 @@ func (r *Runner) ExecuteAudit(taskID string, command string) (bool, error) {
 	}
 
 	logQuery := `INSERT INTO audit_logs (task_id, command, output, exit_code) VALUES (?, ?, ?, ?)`
-	_, dbErr := r.db.Conn.Exec(logQuery, taskID, command, out.String(), exitCode)
+
+	// Security Enhancement: Add bounded timeout to database logging operation
+	// to prevent potential Denial of Service (DoS) via connection exhaustion if
+	// the database becomes unresponsive.
+	logCtx, logCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer logCancel()
+	_, dbErr := r.db.Conn.ExecContext(logCtx, logQuery, taskID, command, out.String(), exitCode)
 	if dbErr != nil {
 		return false, fmt.Errorf("audit: failed to save log for task %s: %w", taskID, dbErr)
 	}
