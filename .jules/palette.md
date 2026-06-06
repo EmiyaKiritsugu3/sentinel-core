@@ -1,0 +1,3 @@
+## 2026-05-24 - Accessibility improvements for Cytoscape graphs
+**Learning:** Cytoscape.js canvas containers often lack native accessibility. They are rendered as divs and intercept standard keyboard navigation. Adding `role="region"`, a descriptive `aria-label`, and `tabIndex={0}` allows screen readers to announce the graph area, and users can navigate to it via keyboard, while focus-visible styles indicate when it is active.
+**Action:** Always wrap or configure custom canvas/WebGL visualizations with semantic ARIA roles, labels, and keyboard focus management to ensure they are discoverable by assistive technologies.
