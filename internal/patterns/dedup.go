@@ -49,15 +49,17 @@ func tagOverlap(a, b string) float64 {
 		return 0.0
 	}
 
-	setB := make(map[string]bool, len(tagsB))
-	for _, t := range tagsB {
-		setB[strings.ToLower(t)] = true
-	}
-
 	matches := 0
-	for _, t := range tagsA {
-		if setB[strings.ToLower(t)] {
-			matches++
+	// ⚡ Bolt Optimization: Replace map allocation and strings.ToLower allocations
+	// with a nested loop using strings.EqualFold. Since tag lists are typically very
+	// short, O(N*M) with zero allocations is significantly faster than O(N+M)
+	// with map and string allocations.
+	for _, tA := range tagsA {
+		for _, tB := range tagsB {
+			if strings.EqualFold(tA, tB) {
+				matches++
+				break
+			}
 		}
 	}
 	return float64(matches) / float64(len(tagsA))
