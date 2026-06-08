@@ -49,15 +49,16 @@ func tagOverlap(a, b string) float64 {
 		return 0.0
 	}
 
-	setB := make(map[string]bool, len(tagsB))
-	for _, t := range tagsB {
-		setB[strings.ToLower(t)] = true
-	}
-
+	// Optimization: For short slices of tags, a nested loop using strings.EqualFold
+	// avoids heap allocations (from building a map and calling strings.ToLower)
+	// and performs faster despite O(N*M) time complexity.
 	matches := 0
-	for _, t := range tagsA {
-		if setB[strings.ToLower(t)] {
-			matches++
+	for _, ta := range tagsA {
+		for _, tb := range tagsB {
+			if strings.EqualFold(ta, tb) {
+				matches++
+				break
+			}
 		}
 	}
 	return float64(matches) / float64(len(tagsA))
