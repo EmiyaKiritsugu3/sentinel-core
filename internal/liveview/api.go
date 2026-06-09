@@ -41,7 +41,7 @@ func handleGetGraph(db *sqlite.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		// Query Nodes
-		nodesRows, err := db.Conn.Query("SELECT id, name, type, file_path, start_line, end_line, hash, last_indexed FROM nodes")
+		nodesRows, err := db.Conn.QueryContext(r.Context(), "SELECT id, name, type, file_path, start_line, end_line, hash, last_indexed FROM nodes")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -58,7 +58,7 @@ func handleGetGraph(db *sqlite.DB) http.HandlerFunc {
 		}
 
 		// Query Edges
-		edgesRows, err := db.Conn.Query("SELECT from_node_id, to_node_id, relation_type FROM edges")
+		edgesRows, err := db.Conn.QueryContext(r.Context(), "SELECT from_node_id, to_node_id, relation_type FROM edges")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -92,7 +92,8 @@ func handleGetStatus(db *sqlite.DB) http.HandlerFunc {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
 
-		row := db.Conn.QueryRow(
+		row := db.Conn.QueryRowContext(
+			r.Context(),
 			"SELECT id, description, status, tier, verification_command, created_at FROM tasks ORDER BY created_at DESC, rowid DESC LIMIT 1",
 		)
 
