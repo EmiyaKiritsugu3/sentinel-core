@@ -33,7 +33,7 @@ export function EventLog() {
         <span className="event-log__title">Event Log</span>
         <span className="event-log__count">{events.length}</span>
         {events.length > 0 && (
-          <button className="event-log__clear" onClick={clear} title="Clear events">
+          <button className="event-log__clear" onClick={clear} title="Clear events" aria-label="Clear events">
             ✕
           </button>
         )}
@@ -42,6 +42,9 @@ export function EventLog() {
         className="event-log__list"
         ref={listRef}
         onScroll={handleScroll}
+        role="log"
+        aria-live="polite"
+        aria-atomic="false"
       >
         {events.length === 0 ? (
           <div className="event-log__empty">No events yet</div>
