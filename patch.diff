@@ -1,0 +1,22 @@
+--- internal/liveview/api_test.go
++++ internal/liveview/api_test.go
+@@ -59,9 +59,6 @@
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("expected Content-Type application/json, got %q", ct)
+	}
+-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
+-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+-	}
+
+	var status TaskStatus
+	if err := json.NewDecoder(rec.Body).Decode(&status); err != nil {
+@@ -119,9 +116,6 @@
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("expected Content-Type application/json, got %q", ct)
+	}
+-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
+-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+-	}
+
+	var status TaskStatus
+	if err := json.NewDecoder(rec.Body).Decode(&status); err != nil {

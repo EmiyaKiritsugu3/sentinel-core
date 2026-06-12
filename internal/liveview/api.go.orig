@@ -51,7 +51,7 @@ func setCORS(w http.ResponseWriter, r *http.Request) {
 func handleGetGraph(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers for local development
-		setCORS(w, r)
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
 
 		// Query Nodes
@@ -103,7 +103,7 @@ func handleGetGraph(db *sqlite.DB) http.HandlerFunc {
 
 func handleGetStatus(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		setCORS(w, r)
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
 
 		row := db.Conn.QueryRow(
@@ -151,7 +151,7 @@ func handleGetStatus(db *sqlite.DB) http.HandlerFunc {
 
 func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		setCORS(w, r)
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
 
 		filePath := r.URL.Query().Get("path")
@@ -254,7 +254,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 
 func handleListADR(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		setCORS(w, r)
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
 
 		entries, err := os.ReadDir("docs/architecture/adr")
@@ -302,7 +302,7 @@ func handleListADR(db *sqlite.DB) http.HandlerFunc {
 
 func handleGetADR(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		setCORS(w, r)
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
 
 		filename := strings.TrimPrefix(r.URL.Path, "/api/adr/")
