@@ -42,6 +42,9 @@ func levenshteinDistance(a, b string) int {
 	return prev[lb]
 }
 
+// ⚡ Bolt Optimization: For short string slices like tags, a nested loop with
+// strings.EqualFold avoids heap allocations for a map and multiple strings.ToLower
+// calls, improving performance despite O(N*M) time complexity.
 func tagOverlap(a, b string) float64 {
 	tagsA := parseTags(a)
 	tagsB := parseTags(b)
@@ -49,15 +52,13 @@ func tagOverlap(a, b string) float64 {
 		return 0.0
 	}
 
-	setB := make(map[string]bool, len(tagsB))
-	for _, t := range tagsB {
-		setB[strings.ToLower(t)] = true
-	}
-
 	matches := 0
-	for _, t := range tagsA {
-		if setB[strings.ToLower(t)] {
-			matches++
+	for _, ta := range tagsA {
+		for _, tb := range tagsB {
+			if strings.EqualFold(ta, tb) {
+				matches++
+				break
+			}
 		}
 	}
 	return float64(matches) / float64(len(tagsA))
