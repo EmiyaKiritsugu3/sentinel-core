@@ -100,3 +100,51 @@ func TestServer_ConcurrentNotify(t *testing.T) {
 	wg.Wait()
 	// Should not block or panic
 }
+
+func TestUpgraderCheckOrigin(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		want       bool
+	}{
+		{
+			name:       "No Origin",
+			origin:     "",
+			want:       true,
+		},
+		{
+			name:       "Invalid URL",
+			origin:     "://bad-url",
+			want:       false,
+		},
+		{
+			name:       "Allowed Localhost",
+			origin:     "http://localhost:5173",
+			want:       true,
+		},
+		{
+			name:       "Allowed 127.0.0.1",
+			origin:     "http://127.0.0.1:3000",
+			want:       true,
+		},
+		{
+			name:       "Disallowed Origin",
+			origin:     "http://evil.com",
+			want:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+
+			got := upgrader.CheckOrigin(req)
+			if got != tt.want {
+				t.Errorf("expected CheckOrigin %v, got %v", tt.want, got)
+			}
+		})
+	}
+}
