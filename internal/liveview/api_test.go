@@ -51,6 +51,7 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -60,8 +61,11 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
+	}
+	if vary := rec.Header().Get("Vary"); vary != "Origin" {
+		t.Errorf("expected Vary Origin, got %q", vary)
 	}
 
 	var status TaskStatus
@@ -111,6 +115,7 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -120,8 +125,11 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
+	}
+	if vary := rec.Header().Get("Vary"); vary != "Origin" {
+		t.Errorf("expected Vary Origin, got %q", vary)
 	}
 
 	var status TaskStatus
@@ -183,5 +191,62 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	}
 	if errBody["error"] != "internal server error" {
 		t.Errorf("expected error message, got %q", errBody["error"])
+	}
+}
+
+func TestSetCORS(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		wantHeader string
+	}{
+		{
+			name:       "No Origin",
+			origin:     "",
+			wantHeader: "",
+		},
+		{
+			name:       "Invalid URL",
+			origin:     "://bad-url",
+			wantHeader: "",
+		},
+		{
+			name:       "Allowed Localhost",
+			origin:     "http://localhost:5173",
+			wantHeader: "http://localhost:5173",
+		},
+		{
+			name:       "Allowed 127.0.0.1",
+			origin:     "http://127.0.0.1:3000",
+			wantHeader: "http://127.0.0.1:3000",
+		},
+		{
+			name:       "Disallowed Origin",
+			origin:     "http://evil.com",
+			wantHeader: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+
+			setCORS(rec, req)
+
+			got := rec.Header().Get("Access-Control-Allow-Origin")
+			if got != tt.wantHeader {
+				t.Errorf("expected ACAO %q, got %q", tt.wantHeader, got)
+			}
+
+			if tt.wantHeader != "" {
+				if vary := rec.Header().Get("Vary"); vary != "Origin" {
+					t.Errorf("expected Vary: Origin, got %q", vary)
+				}
+			}
+		})
 	}
 }
