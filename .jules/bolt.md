@@ -1,3 +1,6 @@
 ## 2026-05-23 - Avoid strings.TrimSpace on unbounded text chunks
 **Learning:** `strings.TrimSpace` evaluates both the beginning and the end of a string. When parsing large agent output chunks to check if they start with a thought block prefix (e.g. `<think>`), this causes an unnecessary `O(N)` traversal of potentially massive trailing content (actions, logs, etc.) just to check the prefix.
 **Action:** When validating string prefixes with potential leading whitespace, manually scan and skip the leading whitespace using a fast loop rather than calling `strings.TrimSpace`, especially when the string can be unbounded in length.
+## 2026-05-23 - Optimize string checking to avoid heap allocations
+**Learning:** Using `len(strings.Split(s, sep))` for checking delimiter counts and doing `strings.ToLower(s)` on multiple small strings in a loop or before comparing them incurs a high heap allocation penalty which can cause performance bottlenecks in high-throughput operations. In Go, these operations are common but slow compared to their allocation-free alternatives.
+**Action:** When counting occurrences of a delimiter, always use `strings.Count(s, sep)`. When doing case-insensitive comparisons on small strings, it's often significantly faster to use a nested loop with `strings.EqualFold(a, b)` instead of copying the strings via `strings.ToLower`.
