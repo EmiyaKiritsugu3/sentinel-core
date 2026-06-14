@@ -12,6 +12,35 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+func TestSetSecureCORS(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		expectCORS string
+	}{
+		{"Empty Origin", "", ""},
+		{"Valid Localhost", "http://localhost:5173", "http://localhost:5173"},
+		{"Valid 127.0.0.1", "http://127.0.0.1:8080", "http://127.0.0.1:8080"},
+		{"Invalid Origin Host", "http://evil.com", ""},
+		{"Parse Error", ":invalid", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+			setSecureCORS(rec, req)
+
+			if got := rec.Header().Get("Access-Control-Allow-Origin"); got != tt.expectCORS {
+				t.Errorf("expected %q, got %q", tt.expectCORS, got)
+			}
+		})
+	}
+}
+
 // createTasksTable creates the tasks table in the given DB for testing.
 // Uses IF NOT EXISTS for idempotency across subtests.
 func createTasksTable(t *testing.T, db *sql.DB) {
@@ -51,6 +80,7 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -60,8 +90,8 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -111,6 +141,7 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://127.0.0.1:8080")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -120,8 +151,8 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://127.0.0.1:8080" {
+		t.Errorf("expected Access-Control-Allow-Origin http://127.0.0.1:8080, got %q", acao)
 	}
 
 	var status TaskStatus
