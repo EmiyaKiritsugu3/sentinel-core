@@ -1,0 +1,4 @@
+## 2025-05-24 - Overly Permissive CORS Configuration
+**Vulnerability:** Found `Access-Control-Allow-Origin: *` across all liveview API endpoints. This allows any website to make cross-origin requests and read sensitive application state (graph data, code snippets, ADRs, and internal task status).
+**Learning:** Developers often use wildcard CORS during local development to avoid port matching issues with frontend servers (e.g., Vite on port 5173). However, this creates a CSRF/data exfiltration risk where a malicious site visited by the developer could silently connect to their local API.
+**Prevention:** Implement dynamic CORS headers using `url.Parse` on the `Origin` header to extract and validate the hostname. Explicitly allowlist only safe local hostnames (`localhost`, `127.0.0.1`). Always include the `Vary: Origin` header when dynamically generating the `Access-Control-Allow-Origin` response to prevent caching issues.
