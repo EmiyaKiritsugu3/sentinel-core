@@ -1,3 +1,6 @@
 ## 2026-05-23 - Avoid strings.TrimSpace on unbounded text chunks
 **Learning:** `strings.TrimSpace` evaluates both the beginning and the end of a string. When parsing large agent output chunks to check if they start with a thought block prefix (e.g. `<think>`), this causes an unnecessary `O(N)` traversal of potentially massive trailing content (actions, logs, etc.) just to check the prefix.
 **Action:** When validating string prefixes with potential leading whitespace, manually scan and skip the leading whitespace using a fast loop rather than calling `strings.TrimSpace`, especially when the string can be unbounded in length.
+## 2026-05-23 - Fast paths for string overlap checks
+**Learning:** In Go, replacing an O(N) map-based approach with an O(N^2) nested loop using `strings.EqualFold` avoids map allocation and heap string allocations. However, doing so unbounded leads to significant performance regressions (CPU DoS) for large slice inputs.
+**Action:** When implementing this optimization, use bounds checking (e.g., `len(tagsA) <= 10`) to restrict the O(N^2) nested loop to a fast path for small inputs, while keeping the original O(N) map-based approach as a fallback for large inputs.

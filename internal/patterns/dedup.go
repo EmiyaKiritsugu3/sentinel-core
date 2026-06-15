@@ -49,6 +49,22 @@ func tagOverlap(a, b string) float64 {
 		return 0.0
 	}
 
+	// Fast path: for small number of tags (e.g., standard user input), a nested loop with
+	// strings.EqualFold avoids map allocation and strings.ToLower allocations.
+	if len(tagsA) <= 10 && len(tagsB) <= 10 {
+		matches := 0
+		for _, ta := range tagsA {
+			for _, tb := range tagsB {
+				if strings.EqualFold(ta, tb) {
+					matches++
+					break
+				}
+			}
+		}
+		return float64(matches) / float64(len(tagsA))
+	}
+
+	// Slow path: for large numbers of tags, use O(N) map lookup to prevent O(N^2) regressions
 	setB := make(map[string]bool, len(tagsB))
 	for _, t := range tagsB {
 		setB[strings.ToLower(t)] = true
