@@ -178,3 +178,14 @@ func TestServer_ServeWS_OriginCheck(t *testing.T) {
 		})
 	}
 }
+
+func TestServer_StartHTTP_InvalidDB(t *testing.T) {
+	t.Parallel()
+	server := NewServer()
+
+	// Create a DB but skip initialization, testing the ValidateDB error path
+	err := server.StartHTTP(8080, nil)
+	if err == nil {
+		t.Errorf("expected error for nil DB")
+	}
+}
