@@ -1,3 +1,6 @@
 ## 2026-05-23 - Avoid strings.TrimSpace on unbounded text chunks
 **Learning:** `strings.TrimSpace` evaluates both the beginning and the end of a string. When parsing large agent output chunks to check if they start with a thought block prefix (e.g. `<think>`), this causes an unnecessary `O(N)` traversal of potentially massive trailing content (actions, logs, etc.) just to check the prefix.
 **Action:** When validating string prefixes with potential leading whitespace, manually scan and skip the leading whitespace using a fast loop rather than calling `strings.TrimSpace`, especially when the string can be unbounded in length.
+## 2026-05-23 - Avoid allocations in map-based case-insensitive string checks
+**Learning:** Checking for string matches by building a map with `strings.ToLower` creates memory overhead (map structure, heap-allocated string copies). For very small slices, the overhead of building the map and converting the strings outweighs the `O(N)` lookup advantage over an `O(N^2)` nested loop using `strings.EqualFold`.
+**Action:** When performing case-insensitive intersection/overlap checks between string slices, check the slice sizes. If both are small (e.g. `<= 10`), add a fast path that uses nested loops and `strings.EqualFold` to avoid all heap allocations. Fallback to the map approach for larger slices to avoid CPU DoS.
