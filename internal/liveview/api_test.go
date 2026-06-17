@@ -12,6 +12,73 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+func TestSetLocalCORS(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		origin     string
+		wantOrigin string
+		wantVary   string
+	}{
+		{
+			name:       "empty origin",
+			origin:     "",
+			wantOrigin: "",
+			wantVary:   "",
+		},
+		{
+			name:       "invalid url",
+			origin:     "://invalid-url",
+			wantOrigin: "",
+			wantVary:   "",
+		},
+		{
+			name:       "valid localhost",
+			origin:     "http://localhost:5173",
+			wantOrigin: "http://localhost:5173",
+			wantVary:   "Origin",
+		},
+		{
+			name:       "valid 127.0.0.1",
+			origin:     "http://127.0.0.1:3000",
+			wantOrigin: "http://127.0.0.1:3000",
+			wantVary:   "Origin",
+		},
+		{
+			name:       "external origin",
+			origin:     "https://example.com",
+			wantOrigin: "",
+			wantVary:   "",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+			if tc.origin != "" {
+				req.Header.Set("Origin", tc.origin)
+			}
+			rec := httptest.NewRecorder()
+
+			setLocalCORS(rec, req)
+
+			gotOrigin := rec.Header().Get("Access-Control-Allow-Origin")
+			if gotOrigin != tc.wantOrigin {
+				t.Errorf("expected origin %q, got %q", tc.wantOrigin, gotOrigin)
+			}
+
+			gotVary := rec.Header().Get("Vary")
+			if gotVary != tc.wantVary {
+				t.Errorf("expected vary %q, got %q", tc.wantVary, gotVary)
+			}
+		})
+	}
+}
+
 // createTasksTable creates the tasks table in the given DB for testing.
 // Uses IF NOT EXISTS for idempotency across subtests.
 func createTasksTable(t *testing.T, db *sql.DB) {
