@@ -243,3 +243,35 @@ func TestSetLocalCORS(t *testing.T) {
 		})
 	}
 }
+
+func TestHandlersCORS(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	// Just create a dummy tables so queries don't panic immediately before we check CORS
+	_, _ = db.Conn.Exec("CREATE TABLE nodes (id TEXT); CREATE TABLE edges (id TEXT);")
+
+	handlers := map[string]http.HandlerFunc{
+		"/api/graph": handleGetGraph(db),
+		"/api/code":  handleGetCode(db),
+		"/api/adr":   handleListADR(db),
+		"/api/adr/":  handleGetADR(db),
+	}
+
+	for path, handler := range handlers {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			req.Header.Set("Origin", "http://localhost:5173")
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+				t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173 for %s, got %q", path, acao)
+			}
+		})
+	}
+}
