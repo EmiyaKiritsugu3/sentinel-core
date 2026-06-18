@@ -51,6 +51,7 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -60,8 +61,8 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -111,6 +112,7 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -120,8 +122,8 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -164,6 +166,7 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -183,5 +186,92 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	}
 	if errBody["error"] != "internal server error" {
 		t.Errorf("expected error message, got %q", errBody["error"])
+	}
+}
+
+func TestSetLocalCORS(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		expectCORS string
+	}{
+		{
+			name:       "valid localhost",
+			origin:     "http://localhost:5173",
+			expectCORS: "http://localhost:5173",
+		},
+		{
+			name:       "valid local IP",
+			origin:     "http://127.0.0.1:8080",
+			expectCORS: "http://127.0.0.1:8080",
+		},
+		{
+			name:       "invalid external origin",
+			origin:     "https://evil.com",
+			expectCORS: "",
+		},
+		{
+			name:       "empty origin",
+			origin:     "",
+			expectCORS: "",
+		},
+		{
+			name:       "invalid URL",
+			origin:     "://invalid",
+			expectCORS: "",
+		},
+		{
+			name:       "subdomain of localhost bypass attempt",
+			origin:     "http://evil.localhost.com:5173",
+			expectCORS: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+			setLocalCORS(rec, req)
+
+			acao := rec.Header().Get("Access-Control-Allow-Origin")
+			if acao != tt.expectCORS {
+				t.Errorf("expected Access-Control-Allow-Origin %q, got %q", tt.expectCORS, acao)
+			}
+		})
+	}
+}
+
+func TestHandlersCORS(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	// Just create a dummy tables so queries don't panic immediately before we check CORS
+	_, _ = db.Conn.Exec("CREATE TABLE nodes (id TEXT); CREATE TABLE edges (id TEXT);")
+
+	handlers := map[string]http.HandlerFunc{
+		"/api/graph": handleGetGraph(db),
+		"/api/code":  handleGetCode(db),
+		"/api/adr":   handleListADR(db),
+		"/api/adr/":  handleGetADR(db),
+	}
+
+	for path, handler := range handlers {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			req.Header.Set("Origin", "http://localhost:5173")
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+				t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173 for %s, got %q", path, acao)
+			}
+		})
 	}
 }
