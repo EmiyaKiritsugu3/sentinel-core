@@ -123,7 +123,7 @@ export function InfoPanel({ node, baseUrl, onClose }: InfoPanelProps) {
       {/* Header */}
       <div className="info-panel__header">
         <span className="info-panel__node-id">{node.id}</span>
-        <button className="info-panel__close" onClick={onClose} title="Close">
+        <button className="info-panel__close" aria-label="Close info panel" onClick={onClose} title="Close">
           X
         </button>
       </div>
