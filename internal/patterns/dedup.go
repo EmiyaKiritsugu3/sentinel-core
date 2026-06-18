@@ -63,16 +63,23 @@ func tagOverlap(a, b string) float64 {
 	return float64(matches) / float64(len(tagsA))
 }
 
+// ⚡ Bolt Optimization: Avoid intermediate slice allocation from strings.Split
 func parseTags(s string) []string {
 	if s == "" {
 		return nil
 	}
-	parts := strings.Split(s, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			result = append(result, p)
+
+	commas := strings.Count(s, ",")
+	result := make([]string, 0, commas+1)
+
+	start := 0
+	for i := 0; i <= len(s); i++ {
+		if i == len(s) || s[i] == ',' {
+			p := strings.TrimSpace(s[start:i])
+			if p != "" {
+				result = append(result, p)
+			}
+			start = i + 1
 		}
 	}
 	return result
