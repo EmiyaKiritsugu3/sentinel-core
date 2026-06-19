@@ -213,3 +213,17 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 		t.Errorf("expected error message, got %q", errBody["error"])
 	}
 }
+
+func TestSetCORS_BadURL(t *testing.T) {
+	t.Parallel()
+	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	// Add control characters to origin to make url.Parse fail
+	req.Header.Set("Origin", "http://local\x7Fhost:5173")
+	rec := httptest.NewRecorder()
+
+	setCORS(rec, req)
+
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected no Access-Control-Allow-Origin for bad URL, got %q", acao)
+	}
+}
