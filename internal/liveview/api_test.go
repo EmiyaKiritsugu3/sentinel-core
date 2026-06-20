@@ -187,3 +187,59 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 		t.Errorf("expected error message, got %q", errBody["error"])
 	}
 }
+
+func TestSetCORS(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		wantHeader string
+	}{
+		{
+			name:       "empty origin",
+			origin:     "",
+			wantHeader: "",
+		},
+		{
+			name:       "valid localhost",
+			origin:     "http://localhost:5173",
+			wantHeader: "http://localhost:5173",
+		},
+		{
+			name:       "valid 127.0.0.1",
+			origin:     "http://127.0.0.1:3000",
+			wantHeader: "http://127.0.0.1:3000",
+		},
+		{
+			name:       "unauthorized hostname",
+			origin:     "http://example.com",
+			wantHeader: "",
+		},
+		{
+			name:       "unauthorized localhost subdomain",
+			origin:     "http://evil.localhost.com",
+			wantHeader: "",
+		},
+		{
+			name:       "invalid url",
+			origin:     "://invalid-url",
+			wantHeader: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+
+			setCORS(rec, req)
+
+			got := rec.Header().Get("Access-Control-Allow-Origin")
+			if got != tt.wantHeader {
+				t.Errorf("setCORS() Access-Control-Allow-Origin = %v, want %v", got, tt.wantHeader)
+			}
+		})
+	}
+}
