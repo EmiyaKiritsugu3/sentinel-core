@@ -12,6 +12,43 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+func TestSetCorsHeaders(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		origin     string
+		expectACAO string
+		expectVary string
+	}{
+		{"No Origin", "", "", ""},
+		{"Valid Localhost", "http://localhost:5173", "http://localhost:5173", "Origin"},
+		{"Valid 127.0.0.1", "http://127.0.0.1:8080", "http://127.0.0.1:8080", "Origin"},
+		{"Invalid Origin", "http://evil.com", "", ""},
+		{"Invalid Malformed Origin", "http://%", "", ""},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+			setCorsHeaders(rec, req)
+
+			if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != tt.expectACAO {
+				t.Errorf("expected Access-Control-Allow-Origin %q, got %q", tt.expectACAO, acao)
+			}
+			if vary := rec.Header().Get("Vary"); vary != tt.expectVary {
+				t.Errorf("expected Vary %q, got %q", tt.expectVary, vary)
+			}
+		})
+	}
+}
+
 // createTasksTable creates the tasks table in the given DB for testing.
 // Uses IF NOT EXISTS for idempotency across subtests.
 func createTasksTable(t *testing.T, db *sql.DB) {
@@ -51,6 +88,7 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -60,8 +98,8 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -111,6 +149,7 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -120,8 +159,8 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -183,5 +222,65 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	}
 	if errBody["error"] != "internal server error" {
 		t.Errorf("expected error message, got %q", errBody["error"])
+	}
+}
+
+func TestHandleGetGraph_CORS(t *testing.T) {
+	t.Parallel()
+	rawDB, _ := sql.Open("sqlite", ":memory:")
+	defer rawDB.Close()
+	db := &sqlite.DB{Conn: rawDB}
+
+	// Ensure nodes and edges tables exist so we don't just panic/error out before headers
+	_, _ = db.Conn.Exec("CREATE TABLE nodes (id TEXT, name TEXT, type TEXT, file_path TEXT, start_line INT, end_line INT, hash TEXT, last_indexed TEXT)")
+	_, _ = db.Conn.Exec("CREATE TABLE edges (from_node_id TEXT, to_node_id TEXT, relation_type TEXT)")
+
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
+	}
+}
+
+func TestHandleGetCode_CORS(t *testing.T) {
+	t.Parallel()
+	handler := handleGetCode(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/code?path=.", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
+	}
+}
+
+func TestHandleListADR_CORS(t *testing.T) {
+	t.Parallel()
+	handler := handleListADR(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
+	}
+}
+
+func TestHandleGetADR_CORS(t *testing.T) {
+	t.Parallel()
+	handler := handleGetADR(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr/test", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
 	}
 }
