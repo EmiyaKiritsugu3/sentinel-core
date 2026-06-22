@@ -229,3 +229,55 @@ func TestSetSafeCORSHeader(t *testing.T) {
 		}
 	})
 }
+
+func TestOtherHandlers_CORS(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+
+	// Create required tables so handlers don't panic before reaching CORS logic
+	createTasksTable(t, rawDB)
+	_, err = rawDB.Exec(`
+		CREATE TABLE IF NOT EXISTS nodes (
+			id TEXT PRIMARY KEY,
+			name TEXT,
+			type TEXT,
+			file_path TEXT,
+			start_line INTEGER,
+			end_line INTEGER,
+			hash TEXT,
+			last_indexed TIMESTAMP
+		);
+		CREATE TABLE IF NOT EXISTS edges (
+			from_node_id TEXT,
+			to_node_id TEXT,
+			relation_type TEXT
+		);
+	`)
+	if err != nil {
+		t.Fatalf("create dummy tables: %v", err)
+	}
+
+	db := &sqlite.DB{Conn: rawDB}
+
+	handlers := map[string]http.HandlerFunc{
+		"GetGraph": handleGetGraph(db),
+		"GetCode":  handleGetCode(db),
+		"ListADR":  handleListADR(db),
+		"GetADR":   handleGetADR(db),
+	}
+
+	for name, handler := range handlers {
+		t.Run(name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req.Header.Set("Origin", "http://localhost:5173")
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+				t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
+			}
+		})
+	}
+}
