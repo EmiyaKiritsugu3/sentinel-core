@@ -188,3 +188,44 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 		t.Errorf("expected error message, got %q", errBody["error"])
 	}
 }
+
+func TestSetSafeCORSHeader(t *testing.T) {
+	t.Run("MissingOrigin", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		setSafeCORSHeader(rec, req)
+		if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+			t.Errorf("expected empty CORS header, got %q", acao)
+		}
+	})
+
+	t.Run("InvalidURL", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("Origin", "http://192.168.0.%ZZ/") // %ZZ is an invalid escape sequence
+		rec := httptest.NewRecorder()
+		setSafeCORSHeader(rec, req)
+		if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+			t.Errorf("expected empty CORS header, got %q", acao)
+		}
+	})
+
+	t.Run("UntrustedHost", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("Origin", "http://evil.com")
+		rec := httptest.NewRecorder()
+		setSafeCORSHeader(rec, req)
+		if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+			t.Errorf("expected empty CORS header, got %q", acao)
+		}
+	})
+
+	t.Run("ValidHost127", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("Origin", "http://127.0.0.1:5173")
+		rec := httptest.NewRecorder()
+		setSafeCORSHeader(rec, req)
+		if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://127.0.0.1:5173" {
+			t.Errorf("expected http://127.0.0.1:5173, got %q", acao)
+		}
+	})
+}

@@ -358,6 +358,7 @@ func setSafeCORSHeader(w http.ResponseWriter, r *http.Request) {
 	}
 	host := u.Hostname()
 	if host == "localhost" || host == "127.0.0.1" {
+		w.Header().Add("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 	}
 }
