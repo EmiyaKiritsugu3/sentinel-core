@@ -1,3 +1,6 @@
 ## 2026-05-23 - Avoid strings.TrimSpace on unbounded text chunks
 **Learning:** `strings.TrimSpace` evaluates both the beginning and the end of a string. When parsing large agent output chunks to check if they start with a thought block prefix (e.g. `<think>`), this causes an unnecessary `O(N)` traversal of potentially massive trailing content (actions, logs, etc.) just to check the prefix.
 **Action:** When validating string prefixes with potential leading whitespace, manually scan and skip the leading whitespace using a fast loop rather than calling `strings.TrimSpace`, especially when the string can be unbounded in length.
+## 2026-05-25 - Avoid N+1 and repeated single scalar queries in database counts
+**Learning:** Issuing multiple individual `COUNT` queries in SQLite for different states of the same table (e.g. counting nodes with different `type`s, or tasks with different `status`es) results in a redundant N+1 query issue. Because SQLite connection context switches and parsing have overhead, aggregating multiple counts into one query drastically reduces roundtrips.
+**Action:** Use consolidated query techniques using `SUM(CASE WHEN ... THEN 1 ELSE 0 END)` or `COUNT(CASE WHEN ... THEN 1 END)` alongside a standard `COUNT(*)` to return multiple metrics in a single row query, preventing N+1 db calls.
