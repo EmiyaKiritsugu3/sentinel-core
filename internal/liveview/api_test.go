@@ -51,6 +51,7 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -60,8 +61,11 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
+	}
+	if vary := rec.Header().Get("Vary"); vary != "Origin" {
+		t.Errorf("expected Vary Origin, got %q", vary)
 	}
 
 	var status TaskStatus
@@ -111,6 +115,7 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -120,8 +125,11 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
+	}
+	if vary := rec.Header().Get("Vary"); vary != "Origin" {
+		t.Errorf("expected Vary Origin, got %q", vary)
 	}
 
 	var status TaskStatus
@@ -164,6 +172,7 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -183,5 +192,109 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	}
 	if errBody["error"] != "internal server error" {
 		t.Errorf("expected error message, got %q", errBody["error"])
+	}
+}
+
+func TestHandleGetGraph_CORS(t *testing.T) {
+	t.Parallel()
+
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	_, err = db.Conn.ExecContext(context.Background(), `
+		CREATE TABLE IF NOT EXISTS nodes (id TEXT, name TEXT, type TEXT, file_path TEXT, start_line INTEGER, end_line INTEGER, hash TEXT, last_indexed TEXT);
+		CREATE TABLE IF NOT EXISTS edges (from_node_id TEXT, to_node_id TEXT, relation_type TEXT);
+	`)
+	if err != nil {
+		t.Fatalf("setup mock tables: %v", err)
+	}
+
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	req.Header.Set("Origin", "http://127.0.0.1:3000")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://127.0.0.1:3000" {
+		t.Errorf("expected Access-Control-Allow-Origin http://127.0.0.1:3000, got %q", acao)
+	}
+	if vary := rec.Header().Get("Vary"); vary != "Origin" {
+		t.Errorf("expected Vary Origin, got %q", vary)
+	}
+}
+
+func TestHandleGetCode_CORS(t *testing.T) {
+	t.Parallel()
+
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleGetCode(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/code?path=main.go", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:5173" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:5173, got %q", acao)
+	}
+	if vary := rec.Header().Get("Vary"); vary != "Origin" {
+		t.Errorf("expected Vary Origin, got %q", vary)
+	}
+}
+
+func TestHandleListADR_CORS(t *testing.T) {
+	t.Parallel()
+
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleListADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	req.Header.Set("Origin", "http://127.0.0.1:8080")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://127.0.0.1:8080" {
+		t.Errorf("expected Access-Control-Allow-Origin http://127.0.0.1:8080, got %q", acao)
+	}
+	if vary := rec.Header().Get("Vary"); vary != "Origin" {
+		t.Errorf("expected Vary Origin, got %q", vary)
+	}
+}
+
+func TestHandleGetADR_CORS(t *testing.T) {
+	t.Parallel()
+
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleGetADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr/ADR-001-test.md", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:3000" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:3000, got %q", acao)
+	}
+	if vary := rec.Header().Get("Vary"); vary != "Origin" {
+		t.Errorf("expected Vary Origin, got %q", vary)
 	}
 }
