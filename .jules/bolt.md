@@ -1,3 +1,6 @@
 ## 2026-05-23 - Avoid strings.TrimSpace on unbounded text chunks
 **Learning:** `strings.TrimSpace` evaluates both the beginning and the end of a string. When parsing large agent output chunks to check if they start with a thought block prefix (e.g. `<think>`), this causes an unnecessary `O(N)` traversal of potentially massive trailing content (actions, logs, etc.) just to check the prefix.
 **Action:** When validating string prefixes with potential leading whitespace, manually scan and skip the leading whitespace using a fast loop rather than calling `strings.TrimSpace`, especially when the string can be unbounded in length.
+## 2026-05-23 - Optimize string splitting allocations
+**Learning:** `strings.Split` allocates a new `[]string` slice every time, scaling with the number of delimited parts. When parsing text into slices in high-throughput paths, this causes significant GC pressure.
+**Action:** Use `strings.Count(s, sep)` to accurately pre-allocate the capacity of the result slice, then manually iterate over the string using `strings.IndexByte` to slice and extract the substrings. This avoids intermediate slice allocations and significantly reduces `allocs/op` (e.g., from 2 to 1 in `parseTags`) and execution time.
