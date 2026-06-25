@@ -219,3 +219,50 @@ func TestCORS_InvalidOrigin(t *testing.T) {
 		t.Errorf("expected empty Vary, got %q", vary)
 	}
 }
+
+func TestCORS_InvalidURLParseError(t *testing.T) {
+	t.Parallel()
+
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	createTasksTable(t, rawDB)
+
+	handler := handleGetStatus(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	// Malformed escape sequence to force url.Parse error
+	req.Header.Set("Origin", "http://%ZZlocalhost")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected empty Access-Control-Allow-Origin, got %q", acao)
+	}
+}
+
+func TestCORS_MissingOrigin(t *testing.T) {
+	t.Parallel()
+
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	createTasksTable(t, rawDB)
+
+	handler := handleGetStatus(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	// Origin header intentionally missing
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected empty Access-Control-Allow-Origin, got %q", acao)
+	}
+}
