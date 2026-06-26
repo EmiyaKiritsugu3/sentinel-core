@@ -37,6 +37,42 @@ func createTasksTable(t *testing.T, db *sql.DB) {
 	}
 }
 
+func TestSetCORS(t *testing.T) {
+	t.Parallel()
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		setCORS(w, r)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	tests := []struct {
+		name         string
+		origin       string
+		expectedCORS string
+	}{
+		{"No Origin", "", ""},
+		{"Valid Localhost", "http://localhost:3000", "http://localhost:3000"},
+		{"Valid 127.0.0.1", "http://127.0.0.1:5173", "http://127.0.0.1:5173"},
+		{"Invalid Origin", "http://evil.com", ""},
+		{"Invalid Localhost subdomain", "http://localhost.evil.com", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != tt.expectedCORS {
+				t.Errorf("expected Access-Control-Allow-Origin %q, got %q", tt.expectedCORS, acao)
+			}
+		})
+	}
+}
+
 func TestHandleGetStatus_NoTasks(t *testing.T) {
 	t.Parallel()
 
@@ -60,8 +96,8 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected empty Access-Control-Allow-Origin, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -120,8 +156,8 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected empty Access-Control-Allow-Origin, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -184,4 +220,119 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	if errBody["error"] != "internal server error" {
 		t.Errorf("expected error message, got %q", errBody["error"])
 	}
+}
+
+func TestHandleGetGraph_NoTables(t *testing.T) {
+	t.Parallel()
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 when tables missing, got %d", rec.Code)
+	}
+}
+
+func TestHandleGetCode_MissingPath(t *testing.T) {
+	t.Parallel()
+	handler := handleGetCode(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/code", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for missing path, got %d", rec.Code)
+	}
+}
+
+func TestHandleGetADR_InvalidPath(t *testing.T) {
+	t.Parallel()
+	handler := handleGetADR(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr/../secret.txt", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for path traversal, got %d", rec.Code)
+	}
+}
+
+func TestHandleGetADR_RootPath(t *testing.T) {
+	t.Parallel()
+	handler := handleGetADR(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr//root.txt", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for root path, got %d", rec.Code)
+	}
+}
+
+func TestHandleGetADR_NoFile(t *testing.T) {
+	t.Parallel()
+	handler := handleGetADR(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for missing path, got %d", rec.Code)
+	}
+}
+
+func TestHandleGetGraph(t *testing.T) {
+	t.Parallel()
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	_, err = rawDB.Exec(`
+		CREATE TABLE IF NOT EXISTS nodes (
+			id TEXT PRIMARY KEY, name TEXT, type TEXT, file_path TEXT, start_line INTEGER, end_line INTEGER, hash TEXT, last_indexed TIMESTAMP
+		);
+		CREATE TABLE IF NOT EXISTS edges (
+			from_node_id TEXT, to_node_id TEXT, relation_type TEXT
+		);
+	`)
+	if err != nil {
+		t.Fatalf("create tables: %v", err)
+	}
+
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+}
+
+func TestHandleGetCode(t *testing.T) {
+	t.Parallel()
+	handler := handleGetCode(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/code?path=api.go", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleListADR(t *testing.T) {
+	t.Parallel()
+	handler := handleListADR(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleGetADR(t *testing.T) {
+	t.Parallel()
+	handler := handleGetADR(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr/ADR-001.md", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
 }
