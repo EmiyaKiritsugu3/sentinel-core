@@ -63,17 +63,29 @@ func tagOverlap(a, b string) float64 {
 	return float64(matches) / float64(len(tagsA))
 }
 
+// parseTags splits a string by comma and returns a slice of trimmed strings.
+// It avoids strings.Split to minimize intermediate slice allocations.
 func parseTags(s string) []string {
 	if s == "" {
 		return nil
 	}
-	parts := strings.Split(s, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
+	count := strings.Count(s, ",")
+	result := make([]string, 0, count+1)
+
+	for {
+		i := strings.IndexByte(s, ',')
+		if i == -1 {
+			p := strings.TrimSpace(s)
+			if p != "" {
+				result = append(result, p)
+			}
+			break
+		}
+		p := strings.TrimSpace(s[:i])
 		if p != "" {
 			result = append(result, p)
 		}
+		s = s[i+1:]
 	}
 	return result
 }
@@ -94,9 +106,11 @@ func (s *PatternStore) FindSimilar(ctx context.Context, title string, tags []str
 	}
 
 	tagsStr := strings.Join(tags, ",")
+	// Hoist ToLower(title) to avoid repeated allocations in the loop
+	lowerTitle := strings.ToLower(title)
 	var similar []Pattern
 	for _, p := range all {
-		if levenshteinDistance(strings.ToLower(title), strings.ToLower(p.Title)) <= levenshteinThreshold {
+		if levenshteinDistance(lowerTitle, strings.ToLower(p.Title)) <= levenshteinThreshold {
 			similar = append(similar, p)
 			continue
 		}
