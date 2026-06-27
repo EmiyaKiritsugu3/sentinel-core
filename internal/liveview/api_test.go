@@ -242,3 +242,26 @@ func TestHandleGetStatus_WithInvalidCORS(t *testing.T) {
 		t.Errorf("expected Access-Control-Allow-Origin to be empty for invalid origin, got %q", acao)
 	}
 }
+
+func TestOtherHandlers_CORSCoverage(t *testing.T) {
+	t.Parallel()
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handlers := []http.HandlerFunc{
+		handleGetGraph(db),
+		handleGetCode(db),
+		handleListADR(db),
+		handleGetADR(db),
+	}
+
+	for _, h := range handlers {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+	}
+}
