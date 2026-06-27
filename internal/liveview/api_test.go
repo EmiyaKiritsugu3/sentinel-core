@@ -214,3 +214,31 @@ func TestHandleGetStatus_WithCORS(t *testing.T) {
 		t.Errorf("expected Vary 'Origin', got %q", vary)
 	}
 }
+
+func TestHandleGetStatus_WithInvalidCORS(t *testing.T) {
+	t.Parallel()
+
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	createTasksTable(t, rawDB)
+
+	handler := handleGetStatus(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+
+	// Use an invalid URL that fails url.Parse
+	req.Header.Set("Origin", "http://%ZZlocalhost")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected Access-Control-Allow-Origin to be empty for invalid origin, got %q", acao)
+	}
+}
