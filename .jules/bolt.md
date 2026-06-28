@@ -1,3 +1,6 @@
 ## 2026-05-23 - Avoid strings.TrimSpace on unbounded text chunks
 **Learning:** `strings.TrimSpace` evaluates both the beginning and the end of a string. When parsing large agent output chunks to check if they start with a thought block prefix (e.g. `<think>`), this causes an unnecessary `O(N)` traversal of potentially massive trailing content (actions, logs, etc.) just to check the prefix.
 **Action:** When validating string prefixes with potential leading whitespace, manually scan and skip the leading whitespace using a fast loop rather than calling `strings.TrimSpace`, especially when the string can be unbounded in length.
+## 2026-06-28 - Optimizing String Splitting in Hot Paths
+**Learning:** Checking word counts by allocating a slice via `strings.Split` in frequently called parsing paths (like intent classification) incurs heavy allocation overhead in Go.
+**Action:** Use `strings.Count(s, sep)` for zero-allocation counting when you only need the count and not the actual separated strings. For specific substring matching, adding fast paths with `strings.Contains` for expected cases drastically outperforms blanket `strings.ToLower` checks. Always benchmark both the "match" and "no-match" scenarios.
