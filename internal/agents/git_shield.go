@@ -84,8 +84,18 @@ func (g *GitShield) CleanupWorktrees() error {
 		return err
 	}
 
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
+	s := output
+	for len(s) > 0 {
+		idx := strings.IndexByte(s, '\n')
+		var line string
+		if idx == -1 {
+			line = s
+			s = ""
+		} else {
+			line = s[:idx]
+			s = s[idx+1:]
+		}
+
 		if strings.HasPrefix(line, "worktree ") {
 			path := strings.TrimPrefix(line, "worktree ")
 			if strings.Contains(path, "sentinel-task-") {

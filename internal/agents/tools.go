@@ -548,9 +548,18 @@ func (t *RunTool) Execute(ctx context.Context, args map[string]interface{}) (str
 	output := out.String()
 	// [PID-SENTINEL] Auditor Constraint: Context Protection
 	// Limit output to ~10KB or 200 lines to prevent context exhaustion
-	lines := strings.Split(output, "\n")
-	if len(lines) > 200 {
-		output = strings.Join(lines[:200], "\n") + "\n... [TRUNCATED] Too many lines of output."
+	linesFound := 0
+	idx := -1
+	for i := 0; i < 200; i++ {
+		next := strings.IndexByte(output[idx+1:], '\n')
+		if next == -1 {
+			break
+		}
+		idx += next + 1
+		linesFound++
+	}
+	if linesFound == 200 && idx < len(output) {
+		output = output[:idx] + "\n... [TRUNCATED] Too many lines of output."
 	}
 	if len(output) > 10000 {
 		output = output[:10000] + "\n... [TRUNCATED] Output too large."
