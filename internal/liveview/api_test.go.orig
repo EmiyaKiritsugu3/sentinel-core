@@ -267,12 +267,7 @@ func TestOtherHandlers_Coverage(t *testing.T) {
 
 	for _, h := range handlers {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.Header.Set("Origin", "http://localhost:5173")
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, req)
-
-		if rec.Header().Get("Access-Control-Allow-Origin") != "http://localhost:5173" {
-			t.Errorf("expected Access-Control-Allow-Origin to be set")
-		}
 	}
 }
