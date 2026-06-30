@@ -162,7 +162,19 @@ func NewInstructCmd(db *sqlite.DB) *cobra.Command {
 }
 
 func isVagueIntent(intent string) bool {
-	return len(strings.Split(intent, " ")) < 3 || strings.Contains(strings.ToLower(intent), "performance")
+	// ⚡ Bolt Optimization: Use strings.Count to prevent O(n) slice allocations from strings.Split
+	if strings.Count(intent, " ") < 2 {
+		return true
+	}
+	// "performance" exact match fast paths avoid strings.ToLower allocations
+	if strings.Contains(intent, "performance") || strings.Contains(intent, "Performance") {
+		return true
+	}
+	// Fast bailout to avoid strings.ToLower if characteristic letters are missing
+	if !strings.ContainsAny(intent, "Pp") {
+		return false
+	}
+	return strings.Contains(strings.ToLower(intent), "performance")
 }
 
 func performDiagnostic(ctx context.Context, db *sqlite.DB) string {
