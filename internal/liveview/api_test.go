@@ -60,8 +60,8 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected empty Access-Control-Allow-Origin for non-CORS request, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -120,8 +120,8 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected empty Access-Control-Allow-Origin for non-CORS request, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -183,5 +183,44 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	}
 	if errBody["error"] != "internal server error" {
 		t.Errorf("expected error message, got %q", errBody["error"])
+	}
+}
+
+func TestSetCORSHeaders(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		expectCORS bool
+	}{
+		{"No Origin", "", false},
+		{"Localhost", "http://localhost:5173", true},
+		{"127.0.0.1", "http://127.0.0.1:8080", true},
+		{"Malicious", "http://evil.com", false},
+		{"Invalid URL", ":invalid", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+			setCORSHeaders(rec, req)
+
+			acao := rec.Header().Get("Access-Control-Allow-Origin")
+			if tt.expectCORS {
+				if acao != tt.origin {
+					t.Errorf("expected %q, got %q", tt.origin, acao)
+				}
+				if vary := rec.Header().Get("Vary"); vary != "Origin" {
+					t.Errorf("expected Vary: Origin, got %q", vary)
+				}
+			} else {
+				if acao != "" {
+					t.Errorf("expected empty string, got %q", acao)
+				}
+			}
+		})
 	}
 }
