@@ -28,6 +28,16 @@ var intentKeywords = map[Intent][]string{
 	IntentReview:    {"review", "audit", "check", "verify", "analyze", "validate", "revisar", "auditar"},
 }
 
+var intentKeywordsLookup = map[string]Intent{}
+
+func init() {
+	for intent, keywords := range intentKeywords {
+		for _, kw := range keywords {
+			intentKeywordsLookup[kw] = intent
+		}
+	}
+}
+
 // AIClassifier is the interface for AI-powered intent classification.
 // The zero value (nil) means heuristic-only mode.
 type AIClassifier interface {
@@ -72,39 +82,32 @@ func heuristicClassify(description string) (Intent, float64) {
 	lower := strings.ToLower(description)
 	words := strings.Fields(lower)
 
-	hits := map[Intent]int{}
+	hits := make(map[Intent]int, 4)
 	for _, word := range words {
-		for intent, keywords := range intentKeywords {
-			for _, kw := range keywords {
-				word = strings.Trim(word, ".,:;!?()[]{}\"'")
-				if word == kw {
-					hits[intent]++
-				}
-			}
+		word = strings.Trim(word, ".,:;!?()[]{}\"'")
+		if intent, ok := intentKeywordsLookup[word]; ok {
+			hits[intent]++
 		}
 	}
 
-	categoriesHit := 0
+	categoriesHit := len(hits)
+	if categoriesHit == 0 {
+		return IntentUnknown, 0.00
+	}
+
 	var bestIntent Intent
 	bestCount := 0
 	for intent, count := range hits {
-		if count > 0 {
-			categoriesHit++
-		}
 		if count > bestCount {
 			bestCount = count
 			bestIntent = intent
 		}
 	}
 
-	switch categoriesHit {
-	case 0:
-		return IntentUnknown, 0.00
-	case 1:
+	if categoriesHit == 1 {
 		return bestIntent, 0.85
-	default:
-		return bestIntent, 0.30
 	}
+	return bestIntent, 0.30
 }
 
 // NilClassifier is a null object for AIClassifier. Use in tests and
