@@ -185,3 +185,73 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 		t.Errorf("expected error message, got %q", errBody["error"])
 	}
 }
+
+func TestSetCORSHeaders(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		expectCORS bool
+	}{
+		{
+			name:       "No Origin",
+			origin:     "",
+			expectCORS: false,
+		},
+		{
+			name:       "Invalid URL",
+			origin:     "%ZZ",
+			expectCORS: false,
+		},
+		{
+			name:       "Localhost",
+			origin:     "http://localhost:3000",
+			expectCORS: true,
+		},
+		{
+			name:       "127.0.0.1",
+			origin:     "http://127.0.0.1:8080",
+			expectCORS: true,
+		},
+		{
+			name:       "External Origin",
+			origin:     "https://example.com",
+			expectCORS: false,
+		},
+		{
+			name:       "Localhost Subdomain",
+			origin:     "http://sub.localhost:3000",
+			expectCORS: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+
+			setCORSHeaders(rec, req)
+
+			acao := rec.Header().Get("Access-Control-Allow-Origin")
+			vary := rec.Header().Get("Vary")
+
+			if tt.expectCORS {
+				if acao != tt.origin {
+					t.Errorf("expected Access-Control-Allow-Origin %q, got %q", tt.origin, acao)
+				}
+				if vary != "Origin" {
+					t.Errorf("expected Vary Origin, got %q", vary)
+				}
+			} else {
+				if acao != "" {
+					t.Errorf("expected empty Access-Control-Allow-Origin, got %q", acao)
+				}
+				if vary != "" {
+					t.Errorf("expected empty Vary, got %q", vary)
+				}
+			}
+		})
+	}
+}
