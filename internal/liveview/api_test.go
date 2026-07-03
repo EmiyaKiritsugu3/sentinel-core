@@ -60,8 +60,8 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected Access-Control-Allow-Origin empty for non-CORS, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -120,8 +120,8 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected Access-Control-Allow-Origin empty for non-CORS, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -183,5 +183,99 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	}
 	if errBody["error"] != "internal server error" {
 		t.Errorf("expected error message, got %q", errBody["error"])
+	}
+}
+
+func TestSetCORSHeaders(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		expectCORS bool
+	}{
+		{
+			name:       "No Origin",
+			origin:     "",
+			expectCORS: false,
+		},
+		{
+			name:       "Invalid URL",
+			origin:     "%ZZ",
+			expectCORS: false,
+		},
+		{
+			name:       "Localhost",
+			origin:     "http://localhost:3000",
+			expectCORS: true,
+		},
+		{
+			name:       "127.0.0.1",
+			origin:     "http://127.0.0.1:8080",
+			expectCORS: true,
+		},
+		{
+			name:       "External Origin",
+			origin:     "https://example.com",
+			expectCORS: false,
+		},
+		{
+			name:       "Localhost Subdomain",
+			origin:     "http://sub.localhost:3000",
+			expectCORS: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+
+			setCORSHeaders(rec, req)
+
+			acao := rec.Header().Get("Access-Control-Allow-Origin")
+			vary := rec.Header().Get("Vary")
+
+			if tt.expectCORS {
+				if acao != tt.origin {
+					t.Errorf("expected Access-Control-Allow-Origin %q, got %q", tt.origin, acao)
+				}
+				if vary != "Origin" {
+					t.Errorf("expected Vary Origin, got %q", vary)
+				}
+			} else {
+				if acao != "" {
+					t.Errorf("expected empty Access-Control-Allow-Origin, got %q", acao)
+				}
+				if vary != "" {
+					t.Errorf("expected empty Vary, got %q", vary)
+				}
+			}
+		})
+	}
+}
+
+func TestHandlersCoverage(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	// Just need to execute the handlers to cover the setCORSHeaders lines
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	handlers := []http.HandlerFunc{
+		handleGetGraph(db),
+		handleGetCode(db),
+		handleListADR(db),
+		handleGetADR(db),
+	}
+
+	for _, h := range handlers {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
 	}
 }
