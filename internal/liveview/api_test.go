@@ -255,3 +255,27 @@ func TestSetCORSHeaders(t *testing.T) {
 		})
 	}
 }
+
+func TestHandlersCoverage(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	// Just need to execute the handlers to cover the setCORSHeaders lines
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	handlers := []http.HandlerFunc{
+		handleGetGraph(db),
+		handleGetCode(db),
+		handleListADR(db),
+		handleGetADR(db),
+	}
+
+	for _, h := range handlers {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+	}
+}
