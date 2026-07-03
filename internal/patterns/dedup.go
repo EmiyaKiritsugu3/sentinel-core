@@ -67,14 +67,27 @@ func parseTags(s string) []string {
 	if s == "" {
 		return nil
 	}
-	parts := strings.Split(s, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
+	// Bolt: optimization to avoid intermediate slice allocation from strings.Split
+	count := strings.Count(s, ",") + 1
+	result := make([]string, 0, count)
+
+	for {
+		idx := strings.IndexByte(s, ',')
+		if idx == -1 {
+			p := strings.TrimSpace(s)
+			if p != "" {
+				result = append(result, p)
+			}
+			break
+		}
+
+		p := strings.TrimSpace(s[:idx])
 		if p != "" {
 			result = append(result, p)
 		}
+		s = s[idx+1:]
 	}
+
 	return result
 }
 
