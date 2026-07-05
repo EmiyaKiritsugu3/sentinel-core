@@ -60,8 +60,8 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected Access-Control-Allow-Origin empty for non-CORS, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -120,8 +120,8 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected Access-Control-Allow-Origin empty for non-CORS, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -184,4 +184,97 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	if errBody["error"] != "internal server error" {
 		t.Errorf("expected error message, got %q", errBody["error"])
 	}
+}
+
+func TestSetCORSHeaders(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		expectCORS bool
+	}{
+		{"Valid Localhost", "http://localhost:5173", true},
+		{"Valid 127.0.0.1", "http://127.0.0.1:8080", true},
+		{"No Origin", "", false},
+		{"Invalid Origin", "https://evil.com", false},
+		{"Invalid Origin Bypass Attempt", "http://localhost.evil.com", false},
+		{"Invalid Origin Port Bypass", "http://evil.com:5173", false},
+		{"Invalid Origin Localhost Subdomain", "http://sub.localhost", false},
+		{"Invalid URL", "http://%ZZ", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+
+			setCORSHeaders(rec, req)
+
+			acao := rec.Header().Get("Access-Control-Allow-Origin")
+			vary := rec.Header().Get("Vary")
+
+			if tt.expectCORS {
+				if acao != tt.origin {
+					t.Errorf("expected Access-Control-Allow-Origin %q, got %q", tt.origin, acao)
+				}
+				if vary != "Origin" {
+					t.Errorf("expected Vary Origin, got %q", vary)
+				}
+			} else {
+				if acao != "" {
+					t.Errorf("expected no Access-Control-Allow-Origin, got %q", acao)
+				}
+				if vary != "" {
+					t.Errorf("expected no Vary header, got %q", vary)
+				}
+			}
+		})
+	}
+}
+
+func TestHandleGetGraph_Coverage(t *testing.T) {
+	t.Parallel()
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	_, _ = db.Conn.Exec("CREATE TABLE IF NOT EXISTS nodes (id TEXT, name TEXT, type TEXT, file_path TEXT, start_line INT, end_line INT, hash TEXT, last_indexed TEXT)")
+	_, _ = db.Conn.Exec("CREATE TABLE IF NOT EXISTS edges (from_node_id TEXT, to_node_id TEXT, relation_type TEXT)")
+
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleGetCode_Coverage(t *testing.T) {
+	t.Parallel()
+	db := &sqlite.DB{}
+	handler := handleGetCode(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/code?path=api.go", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleListADR_Coverage(t *testing.T) {
+	t.Parallel()
+	db := &sqlite.DB{}
+	handler := handleListADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleGetADR_Coverage(t *testing.T) {
+	t.Parallel()
+	db := &sqlite.DB{}
+	handler := handleGetADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr/ADR-001.md", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
 }
