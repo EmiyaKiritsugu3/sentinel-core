@@ -199,6 +199,7 @@ func TestSetCORSHeaders(t *testing.T) {
 		{"Invalid Origin Bypass Attempt", "http://localhost.evil.com", false},
 		{"Invalid Origin Port Bypass", "http://evil.com:5173", false},
 		{"Invalid Origin Localhost Subdomain", "http://sub.localhost", false},
+		{"Invalid URL", "http://%ZZ", false},
 	}
 
 	for _, tt := range tests {
