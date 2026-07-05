@@ -233,3 +233,48 @@ func TestSetCORSHeaders(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleGetGraph_Coverage(t *testing.T) {
+	t.Parallel()
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	_, _ = db.Conn.Exec("CREATE TABLE IF NOT EXISTS nodes (id TEXT, name TEXT, type TEXT, file_path TEXT, start_line INT, end_line INT, hash TEXT, last_indexed TEXT)")
+	_, _ = db.Conn.Exec("CREATE TABLE IF NOT EXISTS edges (from_node_id TEXT, to_node_id TEXT, relation_type TEXT)")
+
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleGetCode_Coverage(t *testing.T) {
+	t.Parallel()
+	db := &sqlite.DB{}
+	handler := handleGetCode(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/code?path=api.go", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleListADR_Coverage(t *testing.T) {
+	t.Parallel()
+	db := &sqlite.DB{}
+	handler := handleListADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleGetADR_Coverage(t *testing.T) {
+	t.Parallel()
+	db := &sqlite.DB{}
+	handler := handleGetADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr/ADR-001.md", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
