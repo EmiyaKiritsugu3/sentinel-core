@@ -185,3 +185,104 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 		t.Errorf("expected error message, got %q", errBody["error"])
 	}
 }
+
+func TestSetCORS(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		expectCORS string
+		expectVary string
+	}{
+		{"EmptyOrigin", "", "", ""},
+		{"Localhost", "http://localhost:3000", "http://localhost:3000", "Origin"},
+		{"Localhost127", "http://127.0.0.1:5173", "http://127.0.0.1:5173", "Origin"},
+		{"Malicious", "http://evil.com", "", ""},
+		{"Malformed", "%ZZ", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+			setCORS(rec, req)
+
+			if got := rec.Header().Get("Access-Control-Allow-Origin"); got != tt.expectCORS {
+				t.Errorf("expected ACAO %q, got %q", tt.expectCORS, got)
+			}
+			if got := rec.Header().Get("Vary"); got != tt.expectVary {
+				t.Errorf("expected Vary %q, got %q", tt.expectVary, got)
+			}
+		})
+	}
+}
+
+func TestOtherHandlers(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+
+	_, err = rawDB.Exec(`
+		CREATE TABLE IF NOT EXISTS nodes (
+			id TEXT PRIMARY KEY,
+			name TEXT,
+			type TEXT,
+			file_path TEXT,
+			start_line INTEGER,
+			end_line INTEGER,
+			hash TEXT,
+			last_indexed TIMESTAMP
+		);
+		CREATE TABLE IF NOT EXISTS edges (
+			from_node_id TEXT,
+			to_node_id TEXT,
+			relation_type TEXT
+		);
+	`)
+	if err != nil {
+		t.Fatalf("create nodes/edges tables: %v", err)
+	}
+
+	db := &sqlite.DB{Conn: rawDB}
+
+	t.Run("GetGraph", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+		rec := httptest.NewRecorder()
+		handleGetGraph(db).ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+	})
+
+	t.Run("GetCode", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/code?path=api.go", nil)
+		rec := httptest.NewRecorder()
+		handleGetCode(db).ServeHTTP(rec, req)
+		// It might return 400 or 404 or 200 depending on cwd, we just want to cover setCORS
+		if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+			t.Errorf("expected empty ACAO, got %q", acao)
+		}
+	})
+
+	t.Run("ListADR", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+		rec := httptest.NewRecorder()
+		handleListADR(db).ServeHTTP(rec, req)
+		if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+			t.Errorf("expected empty ACAO, got %q", acao)
+		}
+	})
+
+	t.Run("GetADR", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/adr/ADR-001.md", nil)
+		rec := httptest.NewRecorder()
+		handleGetADR(db).ServeHTTP(rec, req)
+		if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+			t.Errorf("expected empty ACAO, got %q", acao)
+		}
+	})
+}
