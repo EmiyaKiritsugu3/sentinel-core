@@ -219,3 +219,91 @@ func TestSetCORSHeaders(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleGetGraph(t *testing.T) {
+	t.Parallel()
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	_, err = db.Conn.Exec("CREATE TABLE IF NOT EXISTS nodes (id TEXT PRIMARY KEY, name TEXT, type TEXT, file_path TEXT, start_line INTEGER, end_line INTEGER, hash TEXT, last_indexed TIMESTAMP)")
+	if err != nil {
+		t.Fatalf("create nodes table: %v", err)
+	}
+	_, err = db.Conn.Exec("CREATE TABLE IF NOT EXISTS edges (from_node_id TEXT, to_node_id TEXT, relation_type TEXT)")
+	if err != nil {
+		t.Fatalf("create edges table: %v", err)
+	}
+
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected empty string for ACAO, got %q", acao)
+	}
+}
+
+func TestHandleGetCode(t *testing.T) {
+	t.Parallel()
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleGetCode(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/code?path=../../test", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected empty string for ACAO, got %q", acao)
+	}
+}
+
+func TestHandleListADR(t *testing.T) {
+	t.Parallel()
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleListADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected empty string for ACAO, got %q", acao)
+	}
+}
+
+func TestHandleGetADR(t *testing.T) {
+	t.Parallel()
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleGetADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr/../test", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected empty string for ACAO, got %q", acao)
+	}
+}
