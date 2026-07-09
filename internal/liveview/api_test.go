@@ -185,3 +185,37 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 		t.Errorf("expected error message, got %q", errBody["error"])
 	}
 }
+
+func TestSetCORSHeaders(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name       string
+		origin     string
+		wantOrigin string
+		wantVary   string
+	}{
+		{"No Origin", "", "", ""},
+		{"Valid localhost", "http://localhost:3000", "http://localhost:3000", "Origin"},
+		{"Valid 127.0.0.1", "http://127.0.0.1:8080", "http://127.0.0.1:8080", "Origin"},
+		{"Invalid Origin", "http://example.com", "", ""},
+		{"Malformed Origin", "http://%ZZ", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+			setCORSHeaders(rec, req)
+
+			if got := rec.Header().Get("Access-Control-Allow-Origin"); got != tt.wantOrigin {
+				t.Errorf("got ACAO %q, want %q", got, tt.wantOrigin)
+			}
+			if got := rec.Header().Get("Vary"); got != tt.wantVary {
+				t.Errorf("got Vary %q, want %q", got, tt.wantVary)
+			}
+		})
+	}
+}
