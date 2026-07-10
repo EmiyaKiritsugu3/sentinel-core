@@ -1,3 +1,6 @@
 ## 2026-05-23 - Avoid strings.TrimSpace on unbounded text chunks
 **Learning:** `strings.TrimSpace` evaluates both the beginning and the end of a string. When parsing large agent output chunks to check if they start with a thought block prefix (e.g. `<think>`), this causes an unnecessary `O(N)` traversal of potentially massive trailing content (actions, logs, etc.) just to check the prefix.
 **Action:** When validating string prefixes with potential leading whitespace, manually scan and skip the leading whitespace using a fast loop rather than calling `strings.TrimSpace`, especially when the string can be unbounded in length.
+## 2026-07-10 - O(N²) Loop to O(N) Hash Map Lookup for Intent Classification
+**Learning:** When building an inverted index (hash map) to replace a nested slice iteration (e.g., mapping keywords to categories), be careful if a single keyword can map to multiple categories. Using `map[string]Category` forces a 1:1 mapping and non-deterministic assignment due to Go's random map iteration order during initialization.
+**Action:** Use a slice value in the map (e.g., `map[string][]Category`) to preserve the original 1:N semantics and prevent classification regressions while still achieving O(1) lookup performance.
