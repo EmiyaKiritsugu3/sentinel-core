@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
@@ -186,7 +187,6 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	}
 }
 
-
 func TestSetCORSHeaders(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -225,5 +225,212 @@ func TestSetCORSHeaders(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestHandleGetGraph_Coverage(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+	_, _ = db.Conn.Exec("CREATE TABLE IF NOT EXISTS nodes (id TEXT PRIMARY KEY, name TEXT, type TEXT, file_path TEXT, start_line INTEGER, end_line INTEGER, hash TEXT, last_indexed TIMESTAMP)")
+	_, _ = db.Conn.Exec("CREATE TABLE IF NOT EXISTS edges (from_node_id TEXT, to_node_id TEXT, relation_type TEXT)")
+
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+}
+
+func TestHandleGetCode_Coverage(t *testing.T) {
+	handler := handleGetCode(nil)
+
+	// Test missing path
+	req := httptest.NewRequest(http.MethodGet, "/api/code", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rec.Code)
+	}
+
+	// Test invalid path
+	req = httptest.NewRequest(http.MethodGet, "/api/code?path=../../../etc/passwd", nil)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestHandleGetCode_FileLines(t *testing.T) {
+	handler := handleGetCode(nil)
+
+	err := os.WriteFile("lines_test_file.txt", []byte("line1\nline2\nline3\n"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove("lines_test_file.txt")
+
+	// Test full file
+	req := httptest.NewRequest(http.MethodGet, "/api/code?path=lines_test_file.txt", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+
+	// Test valid start and end
+	req = httptest.NewRequest(http.MethodGet, "/api/code?path=lines_test_file.txt&start=1&end=2", nil)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+
+	// Test start > end
+	req = httptest.NewRequest(http.MethodGet, "/api/code?path=lines_test_file.txt&start=3&end=1", nil)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+
+	// Test invalid start param
+	req = httptest.NewRequest(http.MethodGet, "/api/code?path=lines_test_file.txt&start=abc", nil)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rec.Code)
+	}
+
+	// Test invalid end param
+	req = httptest.NewRequest(http.MethodGet, "/api/code?path=lines_test_file.txt&end=abc", nil)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestHandleListADR_SuccessWithDir(t *testing.T) {
+	err := os.MkdirAll("docs/architecture/adr", 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll("docs")
+
+	err = os.WriteFile("docs/architecture/adr/ADR-0001-test.md", []byte("# ADR 1"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler := handleListADR(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+}
+
+func TestHandleGetADR_SuccessWithDir(t *testing.T) {
+	err := os.MkdirAll("docs/architecture/adr", 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll("docs")
+
+	err = os.WriteFile("docs/architecture/adr/ADR-0002-test-success.md", []byte("# ADR 2"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler := handleGetADR(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr/ADR-0002-test-success.md", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d, body: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandleGetADR_FileNotFound(t *testing.T) {
+	err := os.MkdirAll("docs/architecture/adr", 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll("docs")
+
+	handler := handleGetADR(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr/ADR-9999-missing.md", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rec.Code)
+	}
+}
+
+func TestHandleGetGraph_NoTables(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+	// Missing tables should trigger 500 error
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rec.Code)
+	}
+}
+
+func TestHandleGetGraph_MissingEdges(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+	_, _ = db.Conn.Exec("CREATE TABLE IF NOT EXISTS nodes (id TEXT PRIMARY KEY, name TEXT, type TEXT, file_path TEXT, start_line INTEGER, end_line INTEGER, hash TEXT, last_indexed TIMESTAMP)")
+	// Missing edges table should trigger 500 error
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rec.Code)
+	}
+}
+
+func TestHandleGetGraph_Success(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+	_, _ = db.Conn.Exec("CREATE TABLE IF NOT EXISTS nodes (id TEXT PRIMARY KEY, name TEXT, type TEXT, file_path TEXT, start_line INTEGER, end_line INTEGER, hash TEXT, last_indexed TIMESTAMP)")
+	_, _ = db.Conn.Exec("CREATE TABLE IF NOT EXISTS edges (from_node_id TEXT, to_node_id TEXT, relation_type TEXT)")
+
+	_, _ = db.Conn.Exec("INSERT INTO nodes (id, name, type) VALUES ('n1', 'Node 1', 'func')")
+	_, _ = db.Conn.Exec("INSERT INTO edges (from_node_id, to_node_id, relation_type) VALUES ('n1', 'n2', 'calls')")
+
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
 	}
 }
