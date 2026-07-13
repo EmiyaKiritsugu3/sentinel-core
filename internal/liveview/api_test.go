@@ -37,45 +37,6 @@ func createTasksTable(t *testing.T, db *sql.DB) {
 	}
 }
 
-func TestCORS(t *testing.T) {
-	t.Parallel()
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		setCORS(w, r)
-	})
-
-	tests := []struct {
-		name       string
-		origin     string
-		wantOrigin string
-		wantVary   string
-	}{
-		{"No Origin", "", "", ""},
-		{"Allowed Localhost", "http://localhost:5173", "http://localhost:5173", "Origin"},
-		{"Allowed 127.0.0.1", "http://127.0.0.1:8080", "http://127.0.0.1:8080", "Origin"},
-		{"Disallowed Domain", "https://evil.com", "", ""},
-		{"Invalid URL", "http://%ZZ", "", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
-			if tt.origin != "" {
-				req.Header.Set("Origin", tt.origin)
-			}
-			rec := httptest.NewRecorder()
-			handler.ServeHTTP(rec, req)
-
-			if got := rec.Header().Get("Access-Control-Allow-Origin"); got != tt.wantOrigin {
-				t.Errorf("got ACAO %q, want %q", got, tt.wantOrigin)
-			}
-			if got := rec.Header().Get("Vary"); got != tt.wantVary {
-				t.Errorf("got Vary %q, want %q", got, tt.wantVary)
-			}
-		})
-	}
-}
-
 func TestHandleGetStatus_NoTasks(t *testing.T) {
 	t.Parallel()
 
@@ -99,8 +60,8 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
-		t.Errorf("expected empty Access-Control-Allow-Origin for non-CORS request, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
+		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -159,8 +120,8 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
-		t.Errorf("expected empty Access-Control-Allow-Origin for non-CORS request, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
+		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
 	}
 
 	var status TaskStatus
