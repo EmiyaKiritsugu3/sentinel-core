@@ -246,3 +246,99 @@ func TestSetCORS(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleGetGraph_NoTables(t *testing.T) {
+	t.Parallel()
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	_, _ = db.Conn.ExecContext(context.Background(), `
+		CREATE TABLE IF NOT EXISTS nodes (
+			id TEXT PRIMARY KEY,
+			name TEXT,
+			type TEXT,
+			file_path TEXT,
+			start_line INTEGER,
+			end_line INTEGER,
+			hash TEXT,
+			last_indexed TIMESTAMP
+		);
+		CREATE TABLE IF NOT EXISTS edges (
+			from_node_id TEXT,
+			to_node_id TEXT,
+			relation_type TEXT
+		);
+	`)
+
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleGetCode_MissingPath(t *testing.T) {
+	t.Parallel()
+	db := &sqlite.DB{} // doesn't use DB
+	handler := handleGetCode(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/code", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleListADR(t *testing.T) {
+	t.Parallel()
+	db := &sqlite.DB{} // doesn't use DB
+	handler := handleListADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleGetADR(t *testing.T) {
+	t.Parallel()
+	db := &sqlite.DB{} // doesn't use DB
+	handler := handleGetADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr/invalid", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleGetCode_ValidFile(t *testing.T) {
+	t.Parallel()
+	db := &sqlite.DB{} // doesn't use DB
+	handler := handleGetCode(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/code?path=api.go", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleGetCode_StartEnd(t *testing.T) {
+	t.Parallel()
+	db := &sqlite.DB{} // doesn't use DB
+	handler := handleGetCode(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/code?path=api.go&start=1&end=5", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleListADR_Valid(t *testing.T) {
+	t.Parallel()
+	db := &sqlite.DB{} // doesn't use DB
+	handler := handleListADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
+
+func TestHandleGetADR_Valid(t *testing.T) {
+	t.Parallel()
+	db := &sqlite.DB{} // doesn't use DB
+	handler := handleGetADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr/ADR-01-Test.md", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+}
