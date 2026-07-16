@@ -185,3 +185,59 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 		t.Errorf("expected error message, got %q", errBody["error"])
 	}
 }
+
+func TestSetLocalCORS(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		expectCORS string
+	}{
+		{
+			name:       "No Origin",
+			origin:     "",
+			expectCORS: "",
+		},
+		{
+			name:       "Valid localhost",
+			origin:     "http://localhost:5173",
+			expectCORS: "http://localhost:5173",
+		},
+		{
+			name:       "Valid 127.0.0.1",
+			origin:     "http://127.0.0.1:8080",
+			expectCORS: "http://127.0.0.1:8080",
+		},
+		{
+			name:       "Invalid Host",
+			origin:     "http://example.com",
+			expectCORS: "",
+		},
+		{
+			name:       "Invalid URL scheme",
+			origin:     "http://%ZZ",
+			expectCORS: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+
+			setLocalCORS(rec, req)
+
+			vary := rec.Header().Get("Vary")
+			if vary != "Origin" {
+				t.Errorf("expected Vary: Origin, got %q", vary)
+			}
+
+			cors := rec.Header().Get("Access-Control-Allow-Origin")
+			if cors != tt.expectCORS {
+				t.Errorf("expected Access-Control-Allow-Origin: %q, got %q", tt.expectCORS, cors)
+			}
+		})
+	}
+}
