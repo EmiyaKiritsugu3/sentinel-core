@@ -241,3 +241,63 @@ func TestSetLocalCORS(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleGetGraph_CORS(t *testing.T) {
+	rawDB, _ := sql.Open("sqlite", ":memory:")
+	defer rawDB.Close()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Header().Get("Vary") != "Origin" {
+		t.Errorf("expected Vary: Origin")
+	}
+}
+
+func TestHandleGetCode_CORS(t *testing.T) {
+	rawDB, _ := sql.Open("sqlite", ":memory:")
+	defer rawDB.Close()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleGetCode(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/code?path=.", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Header().Get("Vary") != "Origin" {
+		t.Errorf("expected Vary: Origin")
+	}
+}
+
+func TestHandleListADR_CORS(t *testing.T) {
+	rawDB, _ := sql.Open("sqlite", ":memory:")
+	defer rawDB.Close()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleListADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Header().Get("Vary") != "Origin" {
+		t.Errorf("expected Vary: Origin")
+	}
+}
+
+func TestHandleGetADR_CORS(t *testing.T) {
+	rawDB, _ := sql.Open("sqlite", ":memory:")
+	defer rawDB.Close()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleGetADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr/ADR-001", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Header().Get("Vary") != "Origin" {
+		t.Errorf("expected Vary: Origin")
+	}
+}
