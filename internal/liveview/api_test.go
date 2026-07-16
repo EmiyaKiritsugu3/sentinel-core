@@ -60,8 +60,8 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected Access-Control-Allow-Origin \"\", got %q", acao)
 	}
 
 	var status TaskStatus
@@ -120,8 +120,8 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected Access-Control-Allow-Origin \"\", got %q", acao)
 	}
 
 	var status TaskStatus
@@ -183,5 +183,121 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	}
 	if errBody["error"] != "internal server error" {
 		t.Errorf("expected error message, got %q", errBody["error"])
+	}
+}
+
+func TestSetLocalCORS(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		expectCORS string
+	}{
+		{
+			name:       "No Origin",
+			origin:     "",
+			expectCORS: "",
+		},
+		{
+			name:       "Valid localhost",
+			origin:     "http://localhost:5173",
+			expectCORS: "http://localhost:5173",
+		},
+		{
+			name:       "Valid 127.0.0.1",
+			origin:     "http://127.0.0.1:8080",
+			expectCORS: "http://127.0.0.1:8080",
+		},
+		{
+			name:       "Invalid Host",
+			origin:     "http://example.com",
+			expectCORS: "",
+		},
+		{
+			name:       "Invalid URL scheme",
+			origin:     "http://%ZZ",
+			expectCORS: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+
+			setLocalCORS(rec, req)
+
+			vary := rec.Header().Get("Vary")
+			if vary != "Origin" {
+				t.Errorf("expected Vary: Origin, got %q", vary)
+			}
+
+			cors := rec.Header().Get("Access-Control-Allow-Origin")
+			if cors != tt.expectCORS {
+				t.Errorf("expected Access-Control-Allow-Origin: %q, got %q", tt.expectCORS, cors)
+			}
+		})
+	}
+}
+
+func TestHandleGetGraph_CORS(t *testing.T) {
+	rawDB, _ := sql.Open("sqlite", ":memory:")
+	defer rawDB.Close()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Header().Get("Vary") != "Origin" {
+		t.Errorf("expected Vary: Origin")
+	}
+}
+
+func TestHandleGetCode_CORS(t *testing.T) {
+	rawDB, _ := sql.Open("sqlite", ":memory:")
+	defer rawDB.Close()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleGetCode(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/code?path=.", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Header().Get("Vary") != "Origin" {
+		t.Errorf("expected Vary: Origin")
+	}
+}
+
+func TestHandleListADR_CORS(t *testing.T) {
+	rawDB, _ := sql.Open("sqlite", ":memory:")
+	defer rawDB.Close()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleListADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Header().Get("Vary") != "Origin" {
+		t.Errorf("expected Vary: Origin")
+	}
+}
+
+func TestHandleGetADR_CORS(t *testing.T) {
+	rawDB, _ := sql.Open("sqlite", ":memory:")
+	defer rawDB.Close()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleGetADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr/ADR-001", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Header().Get("Vary") != "Origin" {
+		t.Errorf("expected Vary: Origin")
 	}
 }
