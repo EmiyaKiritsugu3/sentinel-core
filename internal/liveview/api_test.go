@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"os"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	_ "modernc.org/sqlite"
@@ -183,5 +184,91 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	}
 	if errBody["error"] != "internal server error" {
 		t.Errorf("expected error message, got %q", errBody["error"])
+	}
+}
+
+func TestHandleGetCode(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("failed to init db: %v", err)
+	}
+	defer rawDB.Close()
+	db := &sqlite.DB{Conn: rawDB}
+
+	tmpFile := "test_code.txt"
+	err = os.WriteFile(tmpFile, []byte("line1\nline2\nline3\n"), 0644)
+	if err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+	defer os.Remove(tmpFile)
+
+	req := httptest.NewRequest("GET", "/api/code?path="+tmpFile, nil)
+	w := httptest.NewRecorder()
+
+	handler := handleGetCode(db)
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %v", w.Code)
+	}
+
+	var resp map[string]interface{}
+	err = json.Unmarshal(w.Body.Bytes(), &resp)
+	if err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	lines, ok := resp["lines"].([]interface{})
+	if !ok {
+		t.Fatalf("expected lines in response")
+	}
+
+	if len(lines) != 3 {
+		t.Errorf("expected 3 lines, got %d", len(lines))
+	}
+}
+
+func TestHandleGetADR(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("failed to init db: %v", err)
+	}
+	defer rawDB.Close()
+	db := &sqlite.DB{Conn: rawDB}
+
+	err = os.MkdirAll("docs/architecture/adr", 0755)
+	if err != nil {
+		t.Fatalf("failed to create adr dir: %v", err)
+	}
+	defer os.RemoveAll("docs")
+
+	err = os.WriteFile("docs/architecture/adr/ADR-01-Test.md", []byte("# Test ADR\nThis is a test ADR."), 0644)
+	if err != nil {
+		t.Fatalf("failed to write adr file: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/adr/ADR-01-Test.md", nil)
+	w := httptest.NewRecorder()
+
+	handler := handleGetADR(db)
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %v", w.Code)
+	}
+
+	var resp map[string]interface{}
+	err = json.Unmarshal(w.Body.Bytes(), &resp)
+	if err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	content, ok := resp["content"].(string)
+	if !ok {
+		t.Fatalf("expected content in response")
+	}
+
+	if content != "# Test ADR\nThis is a test ADR." {
+		t.Errorf("unexpected content: %s", content)
 	}
 }
