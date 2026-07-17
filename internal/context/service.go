@@ -1,6 +1,7 @@
 package context
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -117,15 +118,29 @@ func Format(result *QueryResult, query string, limit int) string {
 // Inject reads a markdown file, replaces or appends the Sentinel Context
 // section, and writes it back.
 func Inject(filePath, content string) error {
-	data, err := os.ReadFile(filePath)
+	file, err := os.Open(filePath) //nolint:gosec // filePath is provided internally
 	if err != nil {
 		if os.IsNotExist(err) {
 			return os.WriteFile(filePath, []byte(content), 0644)
 		}
-		return fmt.Errorf("context: read %s: %w", filePath, err)
+		return fmt.Errorf("context: open %s: %w", filePath, err)
+	}
+	defer func() { _ = file.Close() }()
+
+	var sb strings.Builder
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		sb.WriteString(scanner.Text() + "\n")
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("context: scan %s: %w", filePath, err)
+	}
+	data := sb.String()
+	if len(data) > 0 && data[len(data)-1] == '\n' {
+		data = data[:len(data)-1]
 	}
 
-	original := string(data)
+	original := data
 	startIdx := strings.Index(original, sectionHeader)
 	if startIdx >= 0 {
 		endIdx := strings.Index(original[startIdx:], sectionFooter)
