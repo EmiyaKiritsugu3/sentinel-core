@@ -2,6 +2,7 @@
 package liveview
 
 import (
+	"bufio"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -170,22 +171,30 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			}
 		}
 
-		content, err := os.ReadFile(filePath)
+		file, err := os.Open(filePath) //nolint:gosec // filePath is sanitized above
 		if err != nil {
 			if os.IsNotExist(err) {
 				w.WriteHeader(http.StatusNotFound)
 				_ = json.NewEncoder(w).Encode(map[string]string{"error": "file not found: " + filePath})
 				return
 			}
-			slog.Error("liveview: failed to read file", "path", filePath, "error", err)
+			slog.Error("liveview: failed to open file", "path", filePath, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
 			return
 		}
+		defer func() { _ = file.Close() }()
 
-		allLines := strings.Split(string(content), "\n")
-		if len(allLines) > 0 && allLines[len(allLines)-1] == "" {
-			allLines = allLines[:len(allLines)-1]
+		var allLines []string
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			allLines = append(allLines, scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			slog.Error("liveview: failed to scan file", "path", filePath, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
+			return
 		}
 
 		if len(allLines) == 0 {
@@ -313,17 +322,34 @@ func handleGetADR(db *sqlite.DB) http.HandlerFunc {
 			return
 		}
 
-		content, err := os.ReadFile(absPath)
+		file, err := os.Open(absPath) //nolint:gosec // absPath is validated against adrDir
 		if err != nil {
 			if os.IsNotExist(err) {
 				w.WriteHeader(http.StatusNotFound)
 				_ = json.NewEncoder(w).Encode(map[string]string{"error": "file not found: " + filename})
 				return
 			}
-			slog.Error("liveview: failed to read ADR file", "filename", filename, "error", err)
+			slog.Error("liveview: failed to open ADR file", "filename", filename, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
 			return
+		}
+		defer func() { _ = file.Close() }()
+
+		var sb strings.Builder
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			sb.WriteString(scanner.Text() + "\n")
+		}
+		if err := scanner.Err(); err != nil {
+			slog.Error("liveview: failed to scan ADR file", "filename", filename, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
+			return
+		}
+		content := sb.String()
+		if len(content) > 0 && content[len(content)-1] == '\n' {
+			content = content[:len(content)-1]
 		}
 
 		rest := strings.TrimPrefix(filename, "ADR-")
