@@ -28,6 +28,18 @@ var intentKeywords = map[Intent][]string{
 	IntentReview:    {"review", "audit", "check", "verify", "analyze", "validate", "revisar", "auditar"},
 }
 
+// intentKeywordMap caches keyword to Intent mappings for O(1) lookups.
+var intentKeywordMap map[string][]Intent
+
+func init() {
+	intentKeywordMap = make(map[string][]Intent)
+	for intent, keywords := range intentKeywords {
+		for _, kw := range keywords {
+			intentKeywordMap[kw] = append(intentKeywordMap[kw], intent)
+		}
+	}
+}
+
 // AIClassifier is the interface for AI-powered intent classification.
 // The zero value (nil) means heuristic-only mode.
 type AIClassifier interface {
@@ -74,12 +86,11 @@ func heuristicClassify(description string) (Intent, float64) {
 
 	hits := map[Intent]int{}
 	for _, word := range words {
-		for intent, keywords := range intentKeywords {
-			for _, kw := range keywords {
-				word = strings.Trim(word, ".,:;!?()[]{}\"'")
-				if word == kw {
-					hits[intent]++
-				}
+		// ⚡ Optimize: Replaced O(n²) nested loops over intentKeywords with an O(1) map lookup
+		word = strings.Trim(word, ".,:;!?()[]{}\"'")
+		if intents, found := intentKeywordMap[word]; found {
+			for _, intent := range intents {
+				hits[intent]++
 			}
 		}
 	}
