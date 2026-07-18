@@ -60,8 +60,8 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected Access-Control-Allow-Origin \"\", got %q", acao)
 	}
 
 	var status TaskStatus
@@ -120,8 +120,8 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected Access-Control-Allow-Origin \"\", got %q", acao)
 	}
 
 	var status TaskStatus
@@ -183,5 +183,70 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	}
 	if errBody["error"] != "internal server error" {
 		t.Errorf("expected error message, got %q", errBody["error"])
+	}
+}
+
+func TestSetLocalCORS(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		expectCORS bool
+	}{
+		{
+			name:       "No Origin",
+			origin:     "",
+			expectCORS: false,
+		},
+		{
+			name:       "Valid Localhost",
+			origin:     "http://localhost:5173",
+			expectCORS: true,
+		},
+		{
+			name:       "Valid 127.0.0.1",
+			origin:     "http://127.0.0.1:8080",
+			expectCORS: true,
+		},
+		{
+			name:       "Invalid Host",
+			origin:     "http://example.com",
+			expectCORS: false,
+		},
+		{
+			name:       "Malformed URL",
+			origin:     "http://%ZZ",
+			expectCORS: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/api/status", nil)
+			if tc.origin != "" {
+				req.Header.Set("Origin", tc.origin)
+			}
+			rec := httptest.NewRecorder()
+
+			setLocalCORS(rec, req)
+
+			acao := rec.Header().Get("Access-Control-Allow-Origin")
+			vary := rec.Header().Get("Vary")
+
+			if tc.expectCORS {
+				if acao != tc.origin {
+					t.Errorf("expected Access-Control-Allow-Origin %q, got %q", tc.origin, acao)
+				}
+				if vary != "Origin" {
+					t.Errorf("expected Vary Origin, got %q", vary)
+				}
+			} else {
+				if acao != "" {
+					t.Errorf("expected empty Access-Control-Allow-Origin, got %q", acao)
+				}
+				if vary != "" {
+					t.Errorf("expected empty Vary, got %q", vary)
+				}
+			}
+		})
 	}
 }
