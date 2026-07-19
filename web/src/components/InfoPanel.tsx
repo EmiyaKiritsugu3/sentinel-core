@@ -48,15 +48,8 @@ export function InfoPanel({ node, baseUrl, onClose }: InfoPanelProps) {
 
   /* Fetch code snippet */
   useEffect(() => {
-    if (!canFetchCode) {
-      queueMicrotask(() => setCodeState({ status: 'idle' }));
-      return;
-    }
-
-    let active = true;
-    queueMicrotask(() => {
-      if (active) setCodeState({ status: 'loading' });
-    });
+    if (!canFetchCode) return;
+    setCodeState({ status: 'loading' });
 
     const params = new URLSearchParams({
       path: node.file_path!,
@@ -73,21 +66,16 @@ export function InfoPanel({ node, baseUrl, onClose }: InfoPanelProps) {
         return res.json();
       })
       .then((data: { lines: string[] }) => {
-        if (active) setCodeState({ status: 'ok', data: data.lines });
+        setCodeState({ status: 'ok', data: data.lines });
       })
       .catch((err: Error) => {
-        if (active) setCodeState({ status: 'error', message: err.message });
+        setCodeState({ status: 'error', message: err.message });
       });
-
-    return () => { active = false; };
   }, [node.file_path, node.start_line, node.end_line, baseUrl, canFetchCode]);
 
   /* Fetch ADR list */
   useEffect(() => {
-    let active = true;
-    queueMicrotask(() => {
-      if (active) setAdrListState({ status: 'loading' });
-    });
+    setAdrListState({ status: 'loading' });
 
     fetch(`${baseUrl}/api/adr`)
       .then(async (res) => {
@@ -98,13 +86,11 @@ export function InfoPanel({ node, baseUrl, onClose }: InfoPanelProps) {
         return res.json();
       })
       .then((data: { adrs: ADRInfo[] }) => {
-        if (active) setAdrListState({ status: 'ok', data: data.adrs });
+        setAdrListState({ status: 'ok', data: data.adrs });
       })
       .catch((err: Error) => {
-        if (active) setAdrListState({ status: 'error', message: err.message });
+        setAdrListState({ status: 'error', message: err.message });
       });
-
-    return () => { active = false; };
   }, [baseUrl]);
 
   /* ADR filtering */
@@ -137,7 +123,7 @@ export function InfoPanel({ node, baseUrl, onClose }: InfoPanelProps) {
       {/* Header */}
       <div className="info-panel__header">
         <span className="info-panel__node-id">{node.id}</span>
-        <button className="info-panel__close" onClick={onClose} title="Close" aria-label="Close Info Panel">
+        <button type="button" className="info-panel__close" onClick={onClose} title="Close" aria-label="Close Info Panel">
           X
         </button>
       </div>
@@ -231,6 +217,7 @@ export function InfoPanel({ node, baseUrl, onClose }: InfoPanelProps) {
               {relatedAdrs.map((adr) => (
                 <li key={adr.id}>
                   <button
+                    type="button"
                     className="info-panel__adr-link"
                     onClick={() => handleAdrClick(adr)}
                   >
