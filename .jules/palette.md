@@ -1,0 +1,3 @@
+## 2024-05-24 - React useEffect Loading State ESLint Fixes
+**Learning:** Fixing ESLint warnings about synchronous state updates inside `useEffect` before async fetches by queuing microtasks or directly deferring the initial state update resolves the warning but may introduce testing complexities if `vitest` expects strictly synchronous initial renders. Adding missing `type="button"` attributes to native HTML buttons inside React components is required to prevent implicit form submission behaviors and satisfy SonarCloud Maintainability gates (C Rating drop).
+**Action:** Always explicitly declare `type="button"` for non-submit buttons in React components to proactively pass SonarCloud maintainability checks and prevent unexpected form interactions.
