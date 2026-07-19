@@ -185,3 +185,68 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 		t.Errorf("expected error message, got %q", errBody["error"])
 	}
 }
+
+func TestSetSecureCORS(t *testing.T) {
+	tests := []struct {
+		name           string
+		origin         string
+		expectedOrigin string
+		expectedVary   string
+	}{
+		{
+			name:           "Empty Origin",
+			origin:         "",
+			expectedOrigin: "",
+			expectedVary:   "",
+		},
+		{
+			name:           "Invalid URL Origin",
+			origin:         "http://%ZZlocalhost", // Deliberately malformed escape sequence
+			expectedOrigin: "",
+			expectedVary:   "",
+		},
+		{
+			name:           "Valid Localhost Origin",
+			origin:         "http://localhost:5173",
+			expectedOrigin: "http://localhost:5173",
+			expectedVary:   "Origin",
+		},
+		{
+			name:           "Valid IP Origin",
+			origin:         "http://127.0.0.1:8080",
+			expectedOrigin: "http://127.0.0.1:8080",
+			expectedVary:   "Origin",
+		},
+		{
+			name:           "Invalid Remote Origin",
+			origin:         "http://example.com",
+			expectedOrigin: "",
+			expectedVary:   "",
+		},
+		{
+			name:           "Invalid Attacker Localhost Subdomain",
+			origin:         "http://localhost.attacker.com",
+			expectedOrigin: "",
+			expectedVary:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+
+			setSecureCORS(rec, req)
+
+			if got := rec.Header().Get("Access-Control-Allow-Origin"); got != tt.expectedOrigin {
+				t.Errorf("expected Access-Control-Allow-Origin %q, got %q", tt.expectedOrigin, got)
+			}
+			if got := rec.Header().Get("Vary"); got != tt.expectedVary {
+				t.Errorf("expected Vary %q, got %q", tt.expectedVary, got)
+			}
+		})
+	}
+}
