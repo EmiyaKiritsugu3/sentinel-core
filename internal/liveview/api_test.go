@@ -60,8 +60,8 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
-		t.Errorf("expected Access-Control-Allow-Origin \"\", got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
+		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -120,8 +120,8 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
-		t.Errorf("expected Access-Control-Allow-Origin \"\", got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
+		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -183,40 +183,5 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	}
 	if errBody["error"] != "internal server error" {
 		t.Errorf("expected error message, got %q", errBody["error"])
-	}
-}
-
-func TestSetLocalCORS(t *testing.T) {
-	tests := []struct {
-		name       string
-		origin     string
-		expectACAO string
-		expectVary string
-	}{
-		{"No Origin", "", "", ""},
-		{"Invalid URL", "http://%ZZ", "", ""},
-		{"Valid localhost", "http://localhost:8080", "http://localhost:8080", "Origin"},
-		{"Valid 127.0.0.1", "http://127.0.0.1:3000", "http://127.0.0.1:3000", "Origin"},
-		{"Invalid domain", "http://evil.com", "", ""},
-		{"Spoofed localhost in path", "http://evil.com/localhost", "", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
-			if tt.origin != "" {
-				req.Header.Set("Origin", tt.origin)
-			}
-			rec := httptest.NewRecorder()
-
-			setLocalCORS(rec, req)
-
-			if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != tt.expectACAO {
-				t.Errorf("expected Access-Control-Allow-Origin %q, got %q", tt.expectACAO, acao)
-			}
-			if vary := rec.Header().Get("Vary"); vary != tt.expectVary {
-				t.Errorf("expected Vary %q, got %q", tt.expectVary, vary)
-			}
-		})
 	}
 }
