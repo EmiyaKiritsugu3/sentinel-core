@@ -60,8 +60,8 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected Access-Control-Allow-Origin \"\", got %q", acao)
 	}
 
 	var status TaskStatus
@@ -120,8 +120,8 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "" {
+		t.Errorf("expected Access-Control-Allow-Origin \"\", got %q", acao)
 	}
 
 	var status TaskStatus
@@ -183,5 +183,33 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	}
 	if errBody["error"] != "internal server error" {
 		t.Errorf("expected error message, got %q", errBody["error"])
+	}
+}
+
+func TestSetLocalCORS(t *testing.T) {
+	tests := []struct {
+		origin string
+		want   string
+	}{
+		{"", ""},
+		{"http://localhost:5173", "http://localhost:5173"},
+		{"http://127.0.0.1:8080", "http://127.0.0.1:8080"},
+		{"http://evil.com", ""},
+		{"https://evil.com", ""},
+		{"null", ""}, // sometimes sent by browsers for local files
+	}
+
+	for _, tt := range tests {
+		req := httptest.NewRequest("GET", "/", nil)
+		if tt.origin != "" {
+			req.Header.Set("Origin", tt.origin)
+		}
+		rec := httptest.NewRecorder()
+		setLocalCORS(rec, req)
+
+		got := rec.Header().Get("Access-Control-Allow-Origin")
+		if got != tt.want {
+			t.Errorf("setLocalCORS(%q) = %q, want %q", tt.origin, got, tt.want)
+		}
 	}
 }
