@@ -24,6 +24,7 @@ describe('StatusHUD', () => {
   it('shows idle state when no task', () => {
     render(<StatusHUD />);
     expect(screen.getByText('No active task')).toBeDefined();
+    expect(screen.getByRole('status')).toBeDefined();
   });
 
   it('shows loading state with dot', () => {
@@ -31,12 +32,14 @@ describe('StatusHUD', () => {
     render(<StatusHUD />);
     expect(screen.getByText('Loading...')).toBeDefined();
     expect(document.querySelector('.status-dot')).toBeDefined();
+    expect(screen.getByRole('status')).toBeDefined();
   });
 
   it('shows error state', () => {
     mockState.error = 'Network error';
     render(<StatusHUD />);
     expect(screen.getByText(/Failed to fetch/)).toBeDefined();
+    expect(screen.getByRole('alert')).toBeDefined();
   });
 
   it('shows task details when task loaded', () => {
@@ -52,5 +55,6 @@ describe('StatusHUD', () => {
     expect(screen.getByText('Add Auth Service')).toBeDefined();
     expect(screen.getByText('IN_PROGRESS')).toBeDefined();
     expect(screen.getByText('T1')).toBeDefined();
+    expect(screen.getByRole('status')).toBeDefined();
   });
 });
