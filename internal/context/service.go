@@ -58,9 +58,15 @@ func (s *ContextService) Query(query string, budget int) (*QueryResult, error) {
 	}, nil
 }
 
+// Pre-compile context regexes at the package level to avoid
+// per-call CPU overhead during extractions.
+var (
+	docRegex     = regexp.MustCompile(`\[src=([^\]]+)\]`)
+	conceptRegex = regexp.MustCompile(`NODE ([^\[]+)`)
+)
+
 func extractDocuments(raw string) []string {
-	re := regexp.MustCompile(`\[src=([^\]]+)\]`)
-	matches := re.FindAllStringSubmatch(raw, -1)
+	matches := docRegex.FindAllStringSubmatch(raw, -1)
 	seen := make(map[string]bool)
 	var docs []string
 	for _, m := range matches {
@@ -74,8 +80,7 @@ func extractDocuments(raw string) []string {
 }
 
 func extractConcepts(raw string) []string {
-	re := regexp.MustCompile(`NODE ([^\[]+)`)
-	matches := re.FindAllStringSubmatch(raw, -1)
+	matches := conceptRegex.FindAllStringSubmatch(raw, -1)
 	seen := make(map[string]bool)
 	var concepts []string
 	for _, m := range matches {
