@@ -185,3 +185,37 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 		t.Errorf("expected error message, got %q", errBody["error"])
 	}
 }
+
+func TestSetCORS(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		origin         string
+		expectedHeader string
+	}{
+		{"no origin", "", ""},
+		{"valid localhost", "http://localhost:5173", "http://localhost:5173"},
+		{"valid 127.0.0.1", "http://127.0.0.1:8080", "http://127.0.0.1:8080"},
+		{"invalid origin", "http://example.com", ""},
+		{"malformed origin", "http://%42:8080", ""},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+			setCORS(rec, req)
+
+			acao := rec.Header().Get("Access-Control-Allow-Origin")
+			if acao != tt.expectedHeader {
+				t.Errorf("expected %q, got %q", tt.expectedHeader, acao)
+			}
+		})
+	}
+}
