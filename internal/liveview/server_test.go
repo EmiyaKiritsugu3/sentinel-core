@@ -14,6 +14,36 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+func TestServer_UpgraderCheckOrigin(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		origin   string
+		expected bool
+	}{
+		{"Empty Origin", "", true},
+		{"Valid localhost", "http://localhost:3000", true},
+		{"Valid 127.0.0.1", "http://127.0.0.1:5173", true},
+		{"Invalid Origin", "http://example.com", false},
+		{"Invalid URL", "://invalid-url", false},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			req, _ := http.NewRequest("GET", "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			if got := upgrader.CheckOrigin(req); got != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, got)
+			}
+		})
+	}
+}
+
 func TestServer_Broadcast(t *testing.T) {
 	t.Parallel()
 	server := NewServer()
