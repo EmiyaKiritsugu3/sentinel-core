@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os/exec"
@@ -21,8 +22,8 @@ func NewGitShield(workingDir string, v Validator) *GitShield {
 }
 
 // run executes a git command directly without shell wrapping (Standard #10).
-func (g *GitShield) run(args ...string) (string, error) {
-	cmd := exec.Command("git", args...) //nolint:noctx,gosec // git commands are local
+func (g *GitShield) run(ctx context.Context, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", args...) //nolint:gosec // git commands are local
 	cmd.Dir = g.WorkingDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -36,11 +37,11 @@ func (g *GitShield) CreateTaskBranch(taskID string) (string, error) {
 	slug := utils.Slugify(taskID)
 	branchName := fmt.Sprintf("sentinel/task-%s", slug)
 
-	_, err := g.run("checkout", "-b", branchName)
+	_, err := g.run(context.Background(), "checkout", "-b", branchName)
 	if err != nil {
 		// If branch exists, just switch to it
 		if strings.Contains(err.Error(), "already exists") {
-			_, err = g.run("checkout", branchName)
+			_, err = g.run(context.Background(), "checkout", branchName)
 			if err != nil {
 				return "", err
 			}
@@ -61,7 +62,7 @@ func (g *GitShield) CreateWorktree(taskID string, branch string) (string, error)
 		return "", fmt.Errorf("git: invalid worktree path: %w", err)
 	}
 
-	_, err := g.run("worktree", "add", path, branch)
+	_, err := g.run(context.Background(), "worktree", "add", path, branch)
 	if err != nil {
 		return "", fmt.Errorf("git: failed to create worktree: %w", err)
 	}
@@ -71,7 +72,7 @@ func (g *GitShield) CreateWorktree(taskID string, branch string) (string, error)
 
 // RemoveWorktree removes a specific worktree by path.
 func (g *GitShield) RemoveWorktree(path string) error {
-	if _, err := g.run("worktree", "remove", "--force", path); err != nil {
+	if _, err := g.run(context.Background(), "worktree", "remove", "--force", path); err != nil {
 		return fmt.Errorf("git: failed to remove worktree at %s: %w", path, err)
 	}
 	return nil
@@ -79,7 +80,7 @@ func (g *GitShield) RemoveWorktree(path string) error {
 
 // CleanupWorktrees removes all sentinel-task worktrees (Sovereign GC).
 func (g *GitShield) CleanupWorktrees() error {
-	output, err := g.run("worktree", "list", "--porcelain")
+	output, err := g.run(context.Background(), "worktree", "list", "--porcelain")
 	if err != nil {
 		return err
 	}
@@ -89,7 +90,7 @@ func (g *GitShield) CleanupWorktrees() error {
 		if strings.HasPrefix(line, "worktree ") {
 			path := strings.TrimPrefix(line, "worktree ")
 			if strings.Contains(path, "sentinel-task-") {
-				if _, err := g.run("worktree", "remove", "--force", path); err != nil {
+				if _, err := g.run(context.Background(), "worktree", "remove", "--force", path); err != nil {
 					slog.Warn("failed to remove worktree", "path", path, "error", err)
 					continue
 				}
@@ -101,11 +102,11 @@ func (g *GitShield) CleanupWorktrees() error {
 
 // AtomicCommit stages all changes and creates a commit with the given message.
 func (g *GitShield) AtomicCommit(message string) error {
-	if _, err := g.run("add", "."); err != nil {
+	if _, err := g.run(context.Background(), "add", "."); err != nil {
 		return err
 	}
 
-	if _, err := g.run("commit", "-m", message); err != nil {
+	if _, err := g.run(context.Background(), "commit", "-m", message); err != nil {
 		// Handle "nothing to commit" case gracefully
 		if strings.Contains(err.Error(), "nothing to commit") {
 			return nil
