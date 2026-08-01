@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
@@ -667,5 +668,169 @@ func TestHandleListADR_ValidDir(t *testing.T) {
     var result map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
 		t.Fatalf("decode response: %v", err)
+	}
+}
+
+func TestHandleListADR_ValidWithFiles(t *testing.T) {
+	t.Parallel()
+
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleListADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+}
+
+func TestHandleListADR_WithMockDir(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll("docs/architecture/adr", 0755)
+	os.WriteFile("docs/architecture/adr/ADR-0001-test.md", []byte("test"), 0644)
+	os.WriteFile("docs/architecture/adr/ADR-0002.md", []byte("test"), 0644)
+	os.WriteFile("docs/architecture/adr/not-an-adr.txt", []byte("test"), 0644)
+	os.MkdirAll("docs/architecture/adr/ADR-0003-dir.md", 0755)
+
+	handler := handleListADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+
+    // delete docs/architecture/adr to trigger error for second request
+    os.RemoveAll("docs")
+    req2 := httptest.NewRequest(http.MethodGet, "/api/adr", nil)
+	rec2 := httptest.NewRecorder()
+	handler.ServeHTTP(rec2, req2)
+	if rec2.Code != http.StatusOK { // It still returns 200 with empty array on IsNotExist
+		t.Errorf("expected 200, got %d", rec2.Code)
+	}
+}
+
+
+func TestHandleGetADR_ValidPathWithMockDir(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.MkdirAll("docs/architecture/adr", 0755)
+	os.WriteFile("docs/architecture/adr/ADR-0000-test.md", []byte("test content"), 0644)
+
+	handler := handleGetADR(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/adr/ADR-0000-test.md", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+
+    var result map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+    if content, ok := result["content"].(string); !ok || content != "test content" {
+        t.Errorf("expected content 'test content', got %v", result["content"])
+    }
+}
+
+func TestHandleGetCode_ValidRequest(t *testing.T) {
+	t.Parallel()
+
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handler := handleGetCode(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/code?path=api_test.go&start=1&end=5", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+}
+
+func TestHandleGetCode_EmptyFile(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	os.WriteFile("empty.go", []byte(""), 0644)
+
+	handler := handleGetCode(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/code?path=empty.go", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+}
+
+
+func TestHandleGetGraph_ValidData(t *testing.T) {
+	t.Parallel()
+
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	createNodesEdgesTables(t, rawDB)
+
+    _, _ = rawDB.ExecContext(context.Background(), "INSERT INTO nodes (id, name, type, file_path, start_line, end_line, hash, last_indexed) VALUES ('n1', 'n1', 'func', 'f.go', 1, 2, 'hash', '2024-01-01')")
+    _, _ = rawDB.ExecContext(context.Background(), "INSERT INTO edges (from_node_id, to_node_id, relation_type) VALUES ('n1', 'n2', 'calls')")
+
+	handler := handleGetGraph(db)
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
 	}
 }

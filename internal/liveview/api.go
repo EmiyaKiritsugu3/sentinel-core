@@ -40,8 +40,7 @@ func handleGetGraph(db *sqlite.DB) http.HandlerFunc {
 		// Set CORS headers for local development
 		origin := r.Header.Get("Origin")
 		if origin != "" {
-			u, err := url.Parse(origin)
-			if err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1") {
+			if u, err := url.Parse(origin); err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1") {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 			}
 		}
@@ -98,8 +97,7 @@ func handleGetStatus(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		if origin != "" {
-			u, err := url.Parse(origin)
-			if err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1") {
+			if u, err := url.Parse(origin); err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1") {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 			}
 		}
@@ -152,8 +150,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		if origin != "" {
-			u, err := url.Parse(origin)
-			if err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1") {
+			if u, err := url.Parse(origin); err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1") {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 			}
 		}
@@ -261,8 +258,7 @@ func handleListADR(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		if origin != "" {
-			u, err := url.Parse(origin)
-			if err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1") {
+			if u, err := url.Parse(origin); err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1") {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 			}
 		}
@@ -315,8 +311,7 @@ func handleGetADR(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		if origin != "" {
-			u, err := url.Parse(origin)
-			if err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1") {
+			if u, err := url.Parse(origin); err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1") {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 			}
 		}
