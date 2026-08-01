@@ -74,9 +74,10 @@ func heuristicClassify(description string) (Intent, float64) {
 
 	hits := map[Intent]int{}
 	for _, word := range words {
+		// PERF: Trim word once per word, not once per keyword.
+		word = strings.Trim(word, ".,:;!?()[]{}\"'")
 		for intent, keywords := range intentKeywords {
 			for _, kw := range keywords {
-				word = strings.Trim(word, ".,:;!?()[]{}\"'")
 				if word == kw {
 					hits[intent]++
 				}
