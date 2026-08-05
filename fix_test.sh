@@ -1,0 +1,1 @@
+sed -i 's/req := httptest.NewRequest(http.MethodGet, "\/api\/status", nil)/req := httptest.NewRequest(http.MethodGet, "\/api\/status", nil)\n\treq.Header.Set("Origin", "http:\/\/localhost:5173")/g' internal/liveview/api_test.go
