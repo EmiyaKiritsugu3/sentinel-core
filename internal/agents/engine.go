@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/bridge"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/knowledge"
@@ -545,11 +544,16 @@ func (e *Engine) executeToolsWithResults(ctx *AgentContext, toolCalls []map[stri
 }
 
 // isExplicitThoughtBlock checks if the text starts with a thought block marker.
-// ⚡ Bolt Optimization: Avoids strings.TrimSpace to prevent O(N) scanning of trailing
-// whitespace on large text blocks. We only care about leading whitespace.
+// ⚡ Bolt Optimization: Avoids strings.TrimLeftFunc to prevent overhead of Unicode space
+// checking and function calls on large text blocks. We only care about leading ASCII whitespace.
 func isExplicitThoughtBlock(text string) bool {
-	trimmed := strings.TrimLeftFunc(text, unicode.IsSpace)
-	return strings.HasPrefix(trimmed, "<think>") || strings.HasPrefix(trimmed, "```thought")
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
+			return strings.HasPrefix(text[i:], "<think>") || strings.HasPrefix(text[i:], "```thought")
+		}
+	}
+	return false
 }
 
 // PACRecommendation represents a single angle's deliberation outcome.
