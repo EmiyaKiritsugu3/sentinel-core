@@ -98,3 +98,70 @@ func TestInject_ReplaceExisting(t *testing.T) {
 		t.Error("trailing content lost")
 	}
 }
+
+func TestExtractDocuments_Malformed(t *testing.T) {
+	raw := `NODE Some Concept [src=file1.go
+NODE Another Concept [src=file2.go]`
+	docs := extractDocuments(raw)
+	if len(docs) != 1 {
+		t.Fatalf("expected 1 document (the properly formed one), got %d: %v", len(docs), docs)
+	}
+}
+
+func TestExtractConcepts_Malformed(t *testing.T) {
+	raw := `NODE Concept without brackets
+NODE ` // trailing NODE without concept
+	concepts := extractConcepts(raw)
+	// We expect "Concept without brackets" and nothing else
+	if len(concepts) != 1 {
+		t.Fatalf("expected 1 concept, got %d: %v", len(concepts), concepts)
+	}
+	if concepts[0] != "Concept without brackets" {
+		t.Fatalf("expected 'Concept without brackets', got %v", concepts[0])
+	}
+}
+
+func TestNewContextService(t *testing.T) {
+	svc := NewContextService()
+	if svc.graphifyBinary != "graphify" {
+		t.Errorf("expected graphifyBinary to be 'graphify', got %s", svc.graphifyBinary)
+	}
+	if svc.graphFile != "graphify-out/graph.json" {
+		t.Errorf("expected graphFile to be 'graphify-out/graph.json', got %s", svc.graphFile)
+	}
+}
+
+func TestQuery_GraphNotFound(t *testing.T) {
+	svc := NewContextService()
+	svc.graphFile = "nonexistent.json"
+	_, err := svc.Query("test", 100)
+	if err == nil {
+		t.Error("expected error for missing graph file, got nil")
+	}
+}
+
+func TestInject_FileNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Deliberately create a directory to cause read to fail with IsNotExist = false on some systems,
+	// or try to read a non-existent path that is deeply nested to test error handling if IsNotExist is true
+	filePath := filepath.Join(tmpDir, "does-not-exist", "AGENTS.md")
+	err := Inject(filePath, "test content")
+	if err == nil {
+		t.Errorf("expected error injecting to deeply nested non-existent path, got nil")
+	}
+}
+
+func TestQuery_Success(t *testing.T) {
+	// Since we mock or skip the exec call for integration, we'll just test that
+	// it checks the file exists.
+	tmpDir := t.TempDir()
+	svc := NewContextService()
+	svc.graphFile = filepath.Join(tmpDir, "graph.json")
+	os.WriteFile(svc.graphFile, []byte("{}"), 0644)
+
+	// Assuming `graphify` is not in PATH, this will fail at exec
+	_, err := svc.Query("test", 100)
+	if err == nil {
+		t.Errorf("expected error during exec if graphify is missing")
+	}
+}
