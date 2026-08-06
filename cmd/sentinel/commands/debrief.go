@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/knowledge"
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/registry"
 	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
+	"github.com/google/shlex"
 	"github.com/spf13/cobra"
 )
 
@@ -136,11 +136,14 @@ func openInEditor(content string, svc *knowledge.DebriefService, ctx context.Con
 	if editorCmd == "" {
 		editorCmd = "vi"
 	}
-	parts := strings.Fields(editorCmd)
+	parts, err := shlex.Split(editorCmd)
+	if err != nil {
+		return fmt.Errorf("debrief: failed to parse EDITOR environment variable: %w", err)
+	}
 	if len(parts) == 0 {
 		return fmt.Errorf("debrief: EDITOR environment variable is empty or whitespace")
 	}
-	c := exec.Command(parts[0], append(parts[1:], tmpFile.Name())...)
+	c := exec.CommandContext(ctx, parts[0], append(parts[1:], tmpFile.Name())...)
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
