@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -59,31 +58,54 @@ func (s *ContextService) Query(query string, budget int) (*QueryResult, error) {
 }
 
 func extractDocuments(raw string) []string {
-	re := regexp.MustCompile(`\[src=([^\]]+)\]`)
-	matches := re.FindAllStringSubmatch(raw, -1)
 	seen := make(map[string]bool)
 	var docs []string
-	for _, m := range matches {
-		p := strings.TrimSpace(m[1])
+	start := 0
+	for {
+		idx := strings.Index(raw[start:], "[src=")
+		if idx == -1 {
+			break
+		}
+		start += idx + 5
+		endIdx := strings.Index(raw[start:], "]")
+		if endIdx == -1 {
+			break
+		}
+		p := strings.TrimSpace(raw[start : start+endIdx])
 		if !seen[p] {
 			seen[p] = true
 			docs = append(docs, p)
 		}
+		start += endIdx + 1
 	}
 	return docs
 }
 
 func extractConcepts(raw string) []string {
-	re := regexp.MustCompile(`NODE ([^\[]+)`)
-	matches := re.FindAllStringSubmatch(raw, -1)
 	seen := make(map[string]bool)
 	var concepts []string
-	for _, m := range matches {
-		c := strings.TrimSpace(m[1])
+	start := 0
+	for {
+		idx := strings.Index(raw[start:], "NODE ")
+		if idx == -1 {
+			break
+		}
+		start += idx + 5
+		endIdx := strings.Index(raw[start:], "[")
+		if endIdx == -1 {
+			nextIdx := strings.Index(raw[start:], "NODE ")
+			if nextIdx == -1 {
+				endIdx = len(raw) - start
+			} else {
+				endIdx = nextIdx
+			}
+		}
+		c := strings.TrimSpace(raw[start : start+endIdx])
 		if !seen[c] && len(c) > 3 {
 			seen[c] = true
 			concepts = append(concepts, c)
 		}
+		start += endIdx
 	}
 	return concepts
 }
