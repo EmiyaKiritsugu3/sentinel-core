@@ -14,7 +14,7 @@ var sanitizeReplacer = strings.NewReplacer(
 )
 
 var (
-	slugifyReg       = regexp.MustCompile(`[^a-z0-9\s-]+`)
+	slugifyReg       = regexp.MustCompile(`[^a-z0-9\s_-]+`)
 	slugifyRegDouble = regexp.MustCompile(`-+`)
 )
 
