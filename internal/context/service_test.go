@@ -98,3 +98,23 @@ func TestInject_ReplaceExisting(t *testing.T) {
 		t.Error("trailing content lost")
 	}
 }
+
+func BenchmarkExtractDocuments(b *testing.B) {
+	raw := `NODE JWT Middleware [src=internal/auth/middleware.go]
+EDGE JWT Middleware --calls--> TokenValidator [src=internal/auth/validator.go]
+NODE Authentication Flow [src=docs/architecture/ROADMAP.md]`
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		extractDocuments(raw)
+	}
+}
+
+func BenchmarkExtractConcepts(b *testing.B) {
+	raw := `NODE JWT Middleware [src=internal/auth/middleware.go]
+NODE TokenValidator [src=internal/auth/validator.go]
+EDGE JWT Middleware --calls--> TokenValidator`
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		extractConcepts(raw)
+	}
+}

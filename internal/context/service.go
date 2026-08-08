@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -59,30 +58,67 @@ func (s *ContextService) Query(query string, budget int) (*QueryResult, error) {
 }
 
 func extractDocuments(raw string) []string {
-	re := regexp.MustCompile(`\[src=([^\]]+)\]`)
-	matches := re.FindAllStringSubmatch(raw, -1)
 	seen := make(map[string]bool)
 	var docs []string
-	for _, m := range matches {
-		p := strings.TrimSpace(m[1])
+
+	idx := 0
+	for {
+		i := strings.Index(raw[idx:], "[src=")
+		if i == -1 {
+			break
+		}
+
+		start := idx + i + 5
+		end := strings.IndexByte(raw[start:], ']')
+		if end == -1 {
+			break
+		}
+
+		p := strings.TrimSpace(raw[start : start+end])
 		if !seen[p] {
 			seen[p] = true
 			docs = append(docs, p)
 		}
+
+		idx = start + end + 1
 	}
 	return docs
 }
 
 func extractConcepts(raw string) []string {
-	re := regexp.MustCompile(`NODE ([^\[]+)`)
-	matches := re.FindAllStringSubmatch(raw, -1)
 	seen := make(map[string]bool)
 	var concepts []string
-	for _, m := range matches {
-		c := strings.TrimSpace(m[1])
-		if !seen[c] && len(c) > 3 {
-			seen[c] = true
-			concepts = append(concepts, c)
+
+	idx := 0
+	for {
+		i := strings.Index(raw[idx:], "NODE ")
+		if i == -1 {
+			break
+		}
+
+		start := idx + i + 5
+
+		// find next [ or newline
+		var end int = -1
+		for j := start; j < len(raw); j++ {
+			if raw[j] == '[' || raw[j] == '\n' {
+				end = j - start
+				break
+			}
+		}
+
+		var p string
+		if end == -1 {
+			p = strings.TrimSpace(raw[start:])
+			idx = len(raw)
+		} else {
+			p = strings.TrimSpace(raw[start : start+end])
+			idx = start + end
+		}
+
+		if !seen[p] && len(p) > 3 {
+			seen[p] = true
+			concepts = append(concepts, p)
 		}
 	}
 	return concepts
