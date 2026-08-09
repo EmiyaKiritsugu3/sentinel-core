@@ -40,6 +40,7 @@ export function FilterToolbar({ packages }: FilterToolbarProps) {
 
       <input
         type="text"
+        aria-label="Search nodes"
         className="filter-toolbar__search"
         placeholder="Search nodes..."
         value={searchText}
@@ -47,6 +48,7 @@ export function FilterToolbar({ packages }: FilterToolbarProps) {
       />
 
       <select
+        aria-label="Filter by package"
         className="filter-toolbar__select"
         value={selectedPackage ?? ''}
         onChange={e => setSelectedPackage(e.target.value || null)}
@@ -57,7 +59,7 @@ export function FilterToolbar({ packages }: FilterToolbarProps) {
         ))}
       </select>
 
-      <button className="filter-toolbar__reset" onClick={reset}>
+      <button type="button" className="filter-toolbar__reset" onClick={reset}>
         Reset
       </button>
     </div>
