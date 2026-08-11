@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useEventLogStore } from '../stores';
 import type { GraphEvent } from '../stores/types';
 import './EventLog.css';
@@ -55,7 +55,10 @@ export function EventLog() {
   );
 }
 
-function EventRow({ event }: { event: GraphEvent }) {
+// ⚡ Bolt: Wrapped EventRow in React.memo()
+// When events are appended to the log, only the new rows render while existing rows remain unchanged.
+// Impact: Changes render complexity from O(n) to O(1) in the number of events.
+const EventRow = React.memo(function EventRow({ event }: { event: GraphEvent }) {
   const time = event.timestamp
     ? new Date(event.timestamp).toLocaleTimeString()
     : '';
@@ -74,7 +77,7 @@ function EventRow({ event }: { event: GraphEvent }) {
       )}
     </div>
   );
-}
+});
 
 /** Produces a concise one-line summary from the event payload. */
 function summarizePayload(event: GraphEvent): string {
