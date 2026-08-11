@@ -207,5 +207,11 @@ func (s *Server) StartHTTP(port int, db *sqlite.DB) error {
 	addr := fmt.Sprintf(":%d", port)
 	slog.Info("liveview server listening", "addr", addr)
 
-	return http.ListenAndServe(addr, nil) //nolint:gosec // nosemgrep: go.lang.security.audit.net.use-tls.use-tls -- local-only dev tool, TLS not applicable
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           nil,
+		ReadHeaderTimeout: 3 * time.Second,
+	}
+
+	return srv.ListenAndServe() //nolint:gosec // nosemgrep: go.lang.security.audit.net.use-tls.use-tls -- local-only dev tool, TLS not applicable
 }
