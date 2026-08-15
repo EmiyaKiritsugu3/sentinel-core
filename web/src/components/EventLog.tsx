@@ -33,7 +33,7 @@ export function EventLog() {
         <span className="event-log__title">Event Log</span>
         <span className="event-log__count">{events.length}</span>
         {events.length > 0 && (
-          <button className="event-log__clear" onClick={clear} title="Clear events">
+          <button className="event-log__clear" type="button" aria-label="Clear events" onClick={clear} title="Clear events">
             ✕
           </button>
         )}
