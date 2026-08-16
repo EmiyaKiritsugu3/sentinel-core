@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"regexp"
 	"strings"
 )
 
@@ -19,25 +18,29 @@ func SanitizeID(id string) string {
 
 // Slugify transforms a string into a file-name-friendly format
 func Slugify(text string) string {
-	// 1. Lowercase
-	res := strings.ToLower(text)
+	var b strings.Builder
+	b.Grow(len(text))
 
-	// 2. Remove special characters (keep only letters, numbers and spaces)
-	reg := regexp.MustCompile(`[^a-z0-9\s-]+`)
-	res = reg.ReplaceAllString(res, "")
+	lastDash := true // true to prevent leading dash
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') {
+			b.WriteByte(c)
+			lastDash = false
+		} else if c >= 'A' && c <= 'Z' {
+			b.WriteByte(c + ('a' - 'A'))
+			lastDash = false
+		} else if c == ' ' || c == '_' || c == '-' {
+			if !lastDash {
+				b.WriteByte('-')
+				lastDash = true
+			}
+		}
+	}
 
-	// 3. Replace spaces and underscores with hyphens
-	res = strings.ReplaceAll(res, " ", "-")
-	res = strings.ReplaceAll(res, "_", "-")
+	res := b.String()
+	res = strings.TrimRight(res, "-")
 
-	// 4. Remove duplicate hyphens
-	regDouble := regexp.MustCompile(`-+`)
-	res = regDouble.ReplaceAllString(res, "-")
-
-	// 5. Trim hyphens at edges
-	res = strings.Trim(res, "-")
-
-	// Fallback in case the slug results in empty string
 	if res == "" {
 		return "unnamed-decision"
 	}
