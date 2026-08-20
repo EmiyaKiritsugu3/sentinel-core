@@ -315,7 +315,8 @@ func scanFileMatches(re *regexp.Regexp, path string) ([]string, error) {
 	scanner := bufio.NewScanner(file)
 	lineNum := 1
 	for scanner.Scan() {
-		if re.MatchString(scanner.Text()) {
+		// PERF: Use scanner.Bytes() to avoid string allocation on non-matching lines
+		if re.Match(scanner.Bytes()) {
 			matches = append(matches, fmt.Sprintf("%s:%d: %s", path, lineNum, scanner.Text()))
 		}
 		if len(matches) > 100 {
