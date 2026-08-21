@@ -1,9 +1,9 @@
 module github.com/EmiyaKiritsugu3/sentinel-core
 
-go 1.26.2
+go 1.25.0
 
 require (
-	github.com/go-playground/validator/v10 v10.30.2
+	github.com/go-playground/validator/v10 v10.14.0
 	github.com/google/generative-ai-go v0.20.1
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/google/uuid v1.6.0
