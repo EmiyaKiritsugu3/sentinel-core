@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -59,30 +58,70 @@ func (s *ContextService) Query(query string, budget int) (*QueryResult, error) {
 }
 
 func extractDocuments(raw string) []string {
-	re := regexp.MustCompile(`\[src=([^\]]+)\]`)
-	matches := re.FindAllStringSubmatch(raw, -1)
 	seen := make(map[string]bool)
 	var docs []string
-	for _, m := range matches {
-		p := strings.TrimSpace(m[1])
+
+	for {
+		start := strings.Index(raw, "[src=")
+		if start == -1 {
+			break
+		}
+		raw = raw[start+5:]
+
+		end := strings.Index(raw, "]")
+		if end == -1 {
+			break
+		}
+
+		p := strings.TrimSpace(raw[:end])
 		if !seen[p] {
 			seen[p] = true
 			docs = append(docs, p)
 		}
+
+		raw = raw[end+1:]
 	}
 	return docs
 }
 
 func extractConcepts(raw string) []string {
-	re := regexp.MustCompile(`NODE ([^\[]+)`)
-	matches := re.FindAllStringSubmatch(raw, -1)
 	seen := make(map[string]bool)
 	var concepts []string
-	for _, m := range matches {
-		c := strings.TrimSpace(m[1])
+
+	for {
+		start := strings.Index(raw, "NODE ")
+		if start == -1 {
+			break
+		}
+		raw = raw[start+5:]
+
+		newlineEnd := strings.Index(raw, "\n")
+		var line string
+		if newlineEnd == -1 {
+			line = raw
+			raw = ""
+		} else {
+			line = raw[:newlineEnd]
+			raw = raw[newlineEnd+1:]
+		}
+
+		bracketEnd := strings.Index(line, "[")
+
+		var p string
+		if bracketEnd == -1 {
+			p = line
+		} else {
+			p = line[:bracketEnd]
+		}
+
+		c := strings.TrimSpace(p)
 		if !seen[c] && len(c) > 3 {
 			seen[c] = true
 			concepts = append(concepts, c)
+		}
+
+		if raw == "" {
+			break
 		}
 	}
 	return concepts
