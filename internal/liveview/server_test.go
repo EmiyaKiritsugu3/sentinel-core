@@ -100,3 +100,70 @@ func TestServer_ConcurrentNotify(t *testing.T) {
 	wg.Wait()
 	// Should not block or panic
 }
+
+func TestServer_StartHTTP_InvalidDB(t *testing.T) {
+	s := NewServer()
+	err := s.StartHTTP(8080, nil)
+	if err == nil || !strings.Contains(err.Error(), "liveview: nil db") {
+		t.Fatalf("expected error for nil db, got %v", err)
+	}
+}
+
+func TestServer_ServeWS_NoUpgrade(t *testing.T) {
+	s := NewServer()
+	req := httptest.NewRequest(http.MethodGet, "/ws", nil)
+	rec := httptest.NewRecorder()
+
+	s.serveWS(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected bad request, got %d", rec.Code)
+	}
+}
+
+func TestServer_RunContext(t *testing.T) {
+	s := NewServer()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		s.Notify(graph.GraphEvent{Type: "TEST"})
+		time.Sleep(10 * time.Millisecond)
+		cancel()
+	}()
+
+	err := s.Run(ctx)
+	if err != context.Canceled {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+}
+
+func TestServer_ServeWS_ValidOrigin(t *testing.T) {
+	checkOrigin := upgrader.CheckOrigin
+	req := httptest.NewRequest(http.MethodGet, "/ws", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
+
+	if !checkOrigin(req) {
+		t.Fatalf("expected origin to be allowed")
+	}
+
+	req2 := httptest.NewRequest(http.MethodGet, "/ws", nil)
+	req2.Header.Set("Origin", "http://malicious.com")
+
+	if checkOrigin(req2) {
+		t.Fatalf("expected origin to be rejected")
+	}
+
+	req3 := httptest.NewRequest(http.MethodGet, "/ws", nil)
+
+	if !checkOrigin(req3) {
+		t.Fatalf("expected empty origin to be allowed")
+	}
+
+	req4 := httptest.NewRequest(http.MethodGet, "/ws", nil)
+	req4.Header.Set("Origin", "::1%invalid")
+
+	if checkOrigin(req4) {
+		t.Fatalf("expected invalid origin to be rejected")
+	}
+}
