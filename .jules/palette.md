@@ -1,0 +1,3 @@
+## 2024-10-24 - Accessible Icon Buttons and Explicit Types
+**Learning:** Icon-only buttons (like the clear events '✕' or info panel close 'X') often rely solely on the `title` attribute, which provides inconsistent screen reader support compared to proper `aria-label` attributes. Furthermore, omitting `type="button"` on newly modified buttons can trigger maintainability violations on 'New Code', as they default to `type="submit"`.
+**Action:** Always include an explicit `aria-label` when designing icon-only buttons to ensure robust screen reader accessibility, and explicitly define `type="button"` to prevent unintended form submissions and pass static analysis checks.
