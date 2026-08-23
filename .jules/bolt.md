@@ -1,3 +1,3 @@
-## 2026-05-23 - Avoid strings.TrimSpace on unbounded text chunks
-**Learning:** `strings.TrimSpace` evaluates both the beginning and the end of a string. When parsing large agent output chunks to check if they start with a thought block prefix (e.g. `<think>`), this causes an unnecessary `O(N)` traversal of potentially massive trailing content (actions, logs, etc.) just to check the prefix.
-**Action:** When validating string prefixes with potential leading whitespace, manually scan and skip the leading whitespace using a fast loop rather than calling `strings.TrimSpace`, especially when the string can be unbounded in length.
+## 2026-05-23 - Use scanner.Bytes() for hot loop regex matching
+**Learning:** Using `regexp.MatchString(scanner.Text())` in a hot loop (like reading files line by line) creates unnecessary string allocations on every iteration.
+**Action:** Use `regexp.Match(scanner.Bytes())` instead to work directly with the byte slice and prevent memory overhead, improving performance particularly on large files.
