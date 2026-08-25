@@ -166,6 +166,7 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://127.0.0.1")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 

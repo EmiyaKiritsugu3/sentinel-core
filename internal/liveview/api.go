@@ -24,12 +24,7 @@ func setCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	if origin == "" {
 		return
 	}
-	u, err := url.Parse(origin)
-	if err != nil {
-		return
-	}
-	host := u.Hostname()
-	if host == "localhost" || host == "127.0.0.1" {
+	if u, err := url.Parse(origin); err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1") {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 	}
 }
