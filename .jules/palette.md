@@ -1,0 +1,3 @@
+## 2025-02-14 - Missing ARIA Labels and Button Types on Icon-Only Controls
+**Learning:** In this application's React components, icon-only buttons (like those using 'X' or '✕' for close/clear actions) frequently rely only on `title` attributes for accessibility and lack an explicit `type="button"`, which can cause them to default to submit behavior in forms and provides insufficient context for screen readers.
+**Action:** When creating or modifying icon-only buttons in this design system, always provide an explicit `aria-label` (e.g., `aria-label="Close"`) and set `type="button"` to ensure robust accessibility and prevent unintended form submissions.
