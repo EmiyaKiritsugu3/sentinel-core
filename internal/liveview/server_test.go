@@ -2,6 +2,7 @@ package liveview
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/EmiyaKiritsugu3/sentinel-core/internal/graph"
+	"github.com/EmiyaKiritsugu3/sentinel-core/pkg/sqlite"
 	"github.com/gorilla/websocket"
 )
 
@@ -99,4 +101,47 @@ func TestServer_ConcurrentNotify(t *testing.T) {
 
 	wg.Wait()
 	// Should not block or panic
+}
+
+func TestServer_StartHTTP_ValidDB(t *testing.T) {
+	t.Parallel()
+	server := NewServer()
+
+	// Start a real server but tell it to close immediately
+	// Note: We need a valid DB for this. Let's create an in-memory one with valid schema.
+	// Wait, StartHTTP blocks. So we must run it in a goroutine and then shut it down.
+	// But since this is a unit test that we just want coverage for,
+	// we will mock it slightly. The simplest way to test `ListenAndServe`
+	// is to give it an invalid port so it errors out immediately instead of blocking.
+
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+	// the validation requires "nodes", "edges", "tasks" tables
+	createTasksTable(t, rawDB)
+	_, _ = rawDB.Exec(`CREATE TABLE nodes(id TEXT PRIMARY KEY, name TEXT, type TEXT, file_path TEXT, start_line INTEGER, end_line INTEGER, hash TEXT, last_indexed TIMESTAMP)`)
+	_, _ = rawDB.Exec(`CREATE TABLE edges(from_node_id TEXT, to_node_id TEXT, relation_type TEXT)`)
+
+	// Port -1 should fail immediately on listen
+	err = server.StartHTTP(-1, db)
+	if err == nil {
+		t.Fatal("expected error with invalid port")
+	}
+}
+
+func TestServer_StartHTTP_InvalidDB(t *testing.T) {
+	t.Parallel()
+	server := NewServer()
+
+	// db param is nil
+	err := server.StartHTTP(0, nil)
+	if err == nil {
+		t.Fatal("expected error with nil db")
+	}
+	if !strings.Contains(err.Error(), "liveview: nil db") {
+		t.Fatalf("unexpected error message: %v", err)
+	}
 }

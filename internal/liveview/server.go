@@ -193,19 +193,25 @@ func (s *Server) StartHTTP(port int, db *sqlite.DB) error {
 		return fmt.Errorf("liveview: %w", err)
 	}
 
-	http.HandleFunc("/ws", s.serveWS)
-	http.HandleFunc("/api/graph", handleGetGraph(db))
-	http.HandleFunc("/api/status", handleGetStatus(db))
-	http.HandleFunc("/api/code", handleGetCode(db))
-	http.HandleFunc("/api/adr", handleListADR(db))
-	http.HandleFunc("/api/adr/", handleGetADR(db))
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", s.serveWS)
+	mux.HandleFunc("/api/graph", handleGetGraph(db))
+	mux.HandleFunc("/api/status", handleGetStatus(db))
+	mux.HandleFunc("/api/code", handleGetCode(db))
+	mux.HandleFunc("/api/adr", handleListADR(db))
+	mux.HandleFunc("/api/adr/", handleGetADR(db))
 
 	// Serve the Vite build
 	fs := http.FileServer(http.Dir("./web/dist"))
-	http.Handle("/", fs)
+	mux.Handle("/", fs)
 
 	addr := fmt.Sprintf(":%d", port)
 	slog.Info("liveview server listening", "addr", addr)
 
-	return http.ListenAndServe(addr, nil) //nolint:gosec // nosemgrep: go.lang.security.audit.net.use-tls.use-tls -- local-only dev tool, TLS not applicable
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	return srv.ListenAndServe() //nolint:gosec // nosemgrep: go.lang.security.audit.net.use-tls.use-tls -- local-only dev tool, TLS not applicable
 }
