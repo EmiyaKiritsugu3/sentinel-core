@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+var (
+	// ⚡ Bolt Optimization: Hoist regular expressions to package level variables
+	// so they are only compiled once.
+	docRe     = regexp.MustCompile(`\[src=([^\]]+)\]`)
+	conceptRe = regexp.MustCompile(`NODE ([^\[]+)`)
+)
+
 const sectionHeader = "## Sentinel Context"
 const sectionFooter = "<!-- end Sentinel Context -->"
 
@@ -59,8 +66,7 @@ func (s *ContextService) Query(query string, budget int) (*QueryResult, error) {
 }
 
 func extractDocuments(raw string) []string {
-	re := regexp.MustCompile(`\[src=([^\]]+)\]`)
-	matches := re.FindAllStringSubmatch(raw, -1)
+	matches := docRe.FindAllStringSubmatch(raw, -1)
 	seen := make(map[string]bool)
 	var docs []string
 	for _, m := range matches {
@@ -74,8 +80,7 @@ func extractDocuments(raw string) []string {
 }
 
 func extractConcepts(raw string) []string {
-	re := regexp.MustCompile(`NODE ([^\[]+)`)
-	matches := re.FindAllStringSubmatch(raw, -1)
+	matches := conceptRe.FindAllStringSubmatch(raw, -1)
 	seen := make(map[string]bool)
 	var concepts []string
 	for _, m := range matches {
