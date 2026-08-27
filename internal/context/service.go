@@ -58,9 +58,11 @@ func (s *ContextService) Query(query string, budget int) (*QueryResult, error) {
 	}, nil
 }
 
+// Hoist compiled regex to package level to prevent recompilation on every call
+var docRe = regexp.MustCompile(`\[src=([^\]]+)\]`)
+
 func extractDocuments(raw string) []string {
-	re := regexp.MustCompile(`\[src=([^\]]+)\]`)
-	matches := re.FindAllStringSubmatch(raw, -1)
+	matches := docRe.FindAllStringSubmatch(raw, -1)
 	seen := make(map[string]bool)
 	var docs []string
 	for _, m := range matches {
@@ -73,9 +75,11 @@ func extractDocuments(raw string) []string {
 	return docs
 }
 
+// Hoist compiled regex to package level to prevent recompilation on every call
+var conceptRe = regexp.MustCompile(`NODE ([^\[]+)`)
+
 func extractConcepts(raw string) []string {
-	re := regexp.MustCompile(`NODE ([^\[]+)`)
-	matches := re.FindAllStringSubmatch(raw, -1)
+	matches := conceptRe.FindAllStringSubmatch(raw, -1)
 	seen := make(map[string]bool)
 	var concepts []string
 	for _, m := range matches {
