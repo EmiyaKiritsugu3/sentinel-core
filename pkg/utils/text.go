@@ -17,21 +17,24 @@ func SanitizeID(id string) string {
 	return replacer.Replace(id)
 }
 
+var (
+	regSlugify = regexp.MustCompile(`[^a-z0-9\s-]+`)
+	regDouble  = regexp.MustCompile(`-+`)
+)
+
 // Slugify transforms a string into a file-name-friendly format
 func Slugify(text string) string {
 	// 1. Lowercase
 	res := strings.ToLower(text)
 
 	// 2. Remove special characters (keep only letters, numbers and spaces)
-	reg := regexp.MustCompile(`[^a-z0-9\s-]+`)
-	res = reg.ReplaceAllString(res, "")
+	res = regSlugify.ReplaceAllString(res, "")
 
 	// 3. Replace spaces and underscores with hyphens
 	res = strings.ReplaceAll(res, " ", "-")
 	res = strings.ReplaceAll(res, "_", "-")
 
 	// 4. Remove duplicate hyphens
-	regDouble := regexp.MustCompile(`-+`)
 	res = regDouble.ReplaceAllString(res, "-")
 
 	// 5. Trim hyphens at edges
