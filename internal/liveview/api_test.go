@@ -218,3 +218,36 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 		t.Errorf("expected error message, got %q", errBody["error"])
 	}
 }
+
+func TestOtherHandlers_CORS(t *testing.T) {
+	t.Parallel()
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rawDB.Close()
+	db := &sqlite.DB{Conn: rawDB}
+
+	handlers := []struct {
+		path    string
+		handler http.HandlerFunc
+	}{
+		{"/api/graph", handleGetGraph(db)},
+		{"/api/code?path=nonexistent", handleGetCode(db)},
+		{"/api/adr", handleListADR(db)},
+		{"/api/adr/ADR-001.md", handleGetADR(db)},
+	}
+
+	for _, h := range handlers {
+		t.Run(h.path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, h.path, nil)
+			req.Header.Set("Origin", "http://localhost:3000")
+			rec := httptest.NewRecorder()
+			h.handler.ServeHTTP(rec, req)
+
+			if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:3000" {
+				t.Errorf("expected CORS header for %s, got %q", h.path, acao)
+			}
+		})
+	}
+}
