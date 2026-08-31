@@ -37,6 +37,37 @@ func createTasksTable(t *testing.T, db *sql.DB) {
 	}
 }
 
+func TestSetCORS(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		origin     string
+		wantHeader string
+	}{
+		{"Empty Origin", "", ""},
+		{"Valid Localhost", "http://localhost:3000", "http://localhost:3000"},
+		{"Valid 127.0.0.1", "http://127.0.0.1:5173", "http://127.0.0.1:5173"},
+		{"Invalid Origin Host", "http://evil.com", ""},
+		{"Invalid URL", ":/invalid", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+			setCORS(rec, req)
+			got := rec.Header().Get("Access-Control-Allow-Origin")
+			if got != tt.wantHeader {
+				t.Errorf("expected Access-Control-Allow-Origin %q, got %q", tt.wantHeader, got)
+			}
+		})
+	}
+}
+
 func TestHandleGetStatus_NoTasks(t *testing.T) {
 	t.Parallel()
 
