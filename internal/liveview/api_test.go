@@ -187,3 +187,33 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 		t.Errorf("expected error message, got %q", errBody["error"])
 	}
 }
+
+func TestSetCORS(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		wantOrigin string
+	}{
+		{"Valid localhost", "http://localhost:3000", "http://localhost:3000"},
+		{"Valid 127.0.0.1", "http://127.0.0.1:8080", "http://127.0.0.1:8080"},
+		{"Invalid origin spoofing", "http://localhost.evil.com", ""},
+		{"Empty origin", "", ""},
+		{"Invalid URL format", "://invalid-url", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			w := httptest.NewRecorder()
+
+			setCORS(w, req)
+
+			if got := w.Header().Get("Access-Control-Allow-Origin"); got != tt.wantOrigin {
+				t.Errorf("setCORS() got = %v, want %v", got, tt.wantOrigin)
+			}
+		})
+	}
+}
