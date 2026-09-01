@@ -51,6 +51,7 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -60,8 +61,8 @@ func TestHandleGetStatus_NoTasks(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://localhost:3000" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:3000, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -111,6 +112,7 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 
 	handler := handleGetStatus(db)
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	req.Header.Set("Origin", "http://127.0.0.1:8080")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -120,8 +122,8 @@ func TestHandleGetStatus_WithTask(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", ct)
 	}
-	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin *, got %q", acao)
+	if acao := rec.Header().Get("Access-Control-Allow-Origin"); acao != "http://127.0.0.1:8080" {
+		t.Errorf("expected Access-Control-Allow-Origin http://127.0.0.1:8080, got %q", acao)
 	}
 
 	var status TaskStatus
@@ -183,5 +185,72 @@ func TestHandleGetStatus_DBError(t *testing.T) {
 	}
 	if errBody["error"] != "internal server error" {
 		t.Errorf("expected error message, got %q", errBody["error"])
+	}
+}
+
+func TestSetCORS(t *testing.T) {
+	tests := []struct {
+		name       string
+		origin     string
+		wantOrigin string
+	}{
+		{"Valid localhost", "http://localhost:3000", "http://localhost:3000"},
+		{"Valid 127.0.0.1", "http://127.0.0.1:8080", "http://127.0.0.1:8080"},
+		{"Invalid origin spoofing", "http://localhost.evil.com", ""},
+		{"Empty origin", "", ""},
+		{"Invalid URL format", "://invalid-url", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			w := httptest.NewRecorder()
+
+			setCORS(w, req)
+
+			if got := w.Header().Get("Access-Control-Allow-Origin"); got != tt.wantOrigin {
+				t.Errorf("setCORS() got = %v, want %v", got, tt.wantOrigin)
+			}
+		})
+	}
+}
+func TestHandlersCORS(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	// Just checking the headers for these, no need to fully populate the DB
+	_, _ = db.Conn.ExecContext(context.Background(), "CREATE TABLE nodes (id TEXT, name TEXT, type TEXT, file_path TEXT, start_line INTEGER, end_line INTEGER, hash TEXT, last_indexed TIMESTAMP)")
+	_, _ = db.Conn.ExecContext(context.Background(), "CREATE TABLE edges (from_node_id TEXT, to_node_id TEXT, relation_type TEXT)")
+
+	tests := []struct {
+		name    string
+		handler http.HandlerFunc
+		path    string
+	}{
+		{"handleGetGraph", handleGetGraph(db), "/api/graph"},
+		{"handleGetCode", handleGetCode(db), "/api/code?path=test.go"},
+		{"handleListADR", handleListADR(db), "/api/adr"},
+		{"handleGetADR", handleGetADR(db), "/api/adr/ADR-001.md"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			req.Header.Set("Origin", "http://localhost:3000")
+			rec := httptest.NewRecorder()
+
+			tt.handler.ServeHTTP(rec, req)
+
+			if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:3000" {
+				t.Errorf("%s Access-Control-Allow-Origin = %v, want http://localhost:3000", tt.name, got)
+			}
+		})
 	}
 }

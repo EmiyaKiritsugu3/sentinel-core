@@ -1,4 +1,3 @@
-// Package liveview provides a WebSocket-based live graph viewer.
 package liveview
 
 import (
@@ -8,6 +7,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -21,6 +21,21 @@ import (
 type GraphSnapshot struct {
 	Nodes []graph.Node `json:"nodes"`
 	Edges []graph.Edge `json:"edges"`
+}
+
+func setCORS(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return
+	}
+	host := u.Hostname()
+	if host == "localhost" || host == "127.0.0.1" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	}
 }
 
 // TaskStatus is the JSON response for GET /api/status.
@@ -37,7 +52,7 @@ type TaskStatus struct {
 func handleGetGraph(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers for local development
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setCORS(w, r)
 		w.Header().Set("Content-Type", "application/json")
 
 		// Query Nodes
@@ -89,7 +104,7 @@ func handleGetGraph(db *sqlite.DB) http.HandlerFunc {
 
 func handleGetStatus(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setCORS(w, r)
 		w.Header().Set("Content-Type", "application/json")
 
 		row := db.Conn.QueryRow(
@@ -137,7 +152,7 @@ func handleGetStatus(db *sqlite.DB) http.HandlerFunc {
 
 func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setCORS(w, r)
 		w.Header().Set("Content-Type", "application/json")
 
 		filePath := r.URL.Query().Get("path")
@@ -147,7 +162,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			return
 		}
 
-			cleanPath := filepath.Clean(filePath)
+		cleanPath := filepath.Clean(filePath)
 		if filepath.IsAbs(cleanPath) || strings.HasPrefix(cleanPath, "..") {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
@@ -240,7 +255,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 
 func handleListADR(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setCORS(w, r)
 		w.Header().Set("Content-Type", "application/json")
 
 		entries, err := os.ReadDir("docs/architecture/adr")
@@ -288,7 +303,7 @@ func handleListADR(db *sqlite.DB) http.HandlerFunc {
 
 func handleGetADR(db *sqlite.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setCORS(w, r)
 		w.Header().Set("Content-Type", "application/json")
 
 		filename := strings.TrimPrefix(r.URL.Path, "/api/adr/")
