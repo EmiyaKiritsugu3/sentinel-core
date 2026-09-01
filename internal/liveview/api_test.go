@@ -217,3 +217,40 @@ func TestSetCORS(t *testing.T) {
 		})
 	}
 }
+func TestHandlersCORS(t *testing.T) {
+	rawDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = rawDB.Close() }()
+	db := &sqlite.DB{Conn: rawDB}
+
+	// Just checking the headers for these, no need to fully populate the DB
+	_, _ = db.Conn.ExecContext(context.Background(), "CREATE TABLE nodes (id TEXT, name TEXT, type TEXT, file_path TEXT, start_line INTEGER, end_line INTEGER, hash TEXT, last_indexed TIMESTAMP)")
+	_, _ = db.Conn.ExecContext(context.Background(), "CREATE TABLE edges (from_node_id TEXT, to_node_id TEXT, relation_type TEXT)")
+
+	tests := []struct {
+		name    string
+		handler http.HandlerFunc
+		path    string
+	}{
+		{"handleGetGraph", handleGetGraph(db), "/api/graph"},
+		{"handleGetCode", handleGetCode(db), "/api/code?path=test.go"},
+		{"handleListADR", handleListADR(db), "/api/adr"},
+		{"handleGetADR", handleGetADR(db), "/api/adr/ADR-001.md"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			req.Header.Set("Origin", "http://localhost:3000")
+			rec := httptest.NewRecorder()
+
+			tt.handler.ServeHTTP(rec, req)
+
+			if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:3000" {
+				t.Errorf("%s Access-Control-Allow-Origin = %v, want http://localhost:3000", tt.name, got)
+			}
+		})
+	}
+}

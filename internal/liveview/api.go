@@ -1,4 +1,3 @@
-// Package liveview provides a WebSocket-based live graph viewer.
 package liveview
 
 import (
