@@ -57,7 +57,7 @@ export function FilterToolbar({ packages }: FilterToolbarProps) {
         ))}
       </select>
 
-      <button className="filter-toolbar__reset" onClick={reset}>
+      <button type="button" className="filter-toolbar__reset" onClick={reset}>
         Reset
       </button>
     </div>

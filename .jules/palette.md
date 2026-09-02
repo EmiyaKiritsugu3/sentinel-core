@@ -1,0 +1,3 @@
+## 2025-03-02 - Icon-Only Button Accessibility and Type Safety
+**Learning:** Icon-only buttons (like the clear '✕' and close 'X' buttons in EventLog and InfoPanel) often rely solely on visual cues or HTML title attributes, which are insufficient for screen readers. Furthermore, React buttons lacking an explicit type="button" attribute default to submit, potentially causing unintended form submissions and failing SonarCloud maintainability checks.
+**Action:** Always add explicit aria-label attributes to icon-only buttons to ensure clear descriptions for assistive technologies, and consistently apply type="button" to all interactive buttons used for JS event handling to prevent default submission behaviors.
