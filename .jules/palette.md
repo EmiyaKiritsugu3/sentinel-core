@@ -1,0 +1,3 @@
+## 2026-09-04 - Accessibility Improvements in React Components
+**Learning:** Icon-only buttons relying purely on `title` attributes can provide insufficient context for some screen readers, and missing `type="button"` attributes on interactive elements can cause accidental form submissions in React apps. Inputs and selects without explicit labels (`<label>`) need `aria-label` for screen reader accessibility.
+**Action:** Always include explicit `type="button"` on `<button>` elements meant for JS event handling. Add `aria-label` to icon-only buttons and to `<input>`/`<select>` elements that lack an explicit text label.
