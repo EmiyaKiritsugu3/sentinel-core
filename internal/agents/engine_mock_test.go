@@ -594,8 +594,8 @@ func TestEngine_Execute_SubTaskOrchestration(t *testing.T) {
 									Args: map[string]interface{}{
 										"subtasks": []interface{}{
 											map[string]interface{}{
-												"description": "Implement feature X",
-												"branch_name": "subtask-branch-1",
+												"description":  "Implement feature X",
+												"branch_name":  "subtask-branch-1",
 												"capabilities": []interface{}{"go"},
 											},
 										},
@@ -1311,8 +1311,8 @@ func TestEngine_Execute_SubTaskOrchestrationFailure(t *testing.T) {
 									Args: map[string]interface{}{
 										"subtasks": []interface{}{
 											map[string]interface{}{
-												"description": "Fail feature",
-												"branch_name": "subtask-branch-fail",
+												"description":  "Fail feature",
+												"branch_name":  "subtask-branch-fail",
 												"capabilities": []interface{}{"unknown-capability"},
 											},
 										},
@@ -1403,7 +1403,7 @@ func TestEngine_Execute_HardGateValidationFailureCommand(t *testing.T) {
 								genai.FunctionCall{
 									Name: "read_file",
 									Args: map[string]interface{}{
-										"path": "dummy.txt",
+										"path":    "dummy.txt",
 										"command": "rm -rf /; echo",
 									},
 								},
@@ -1448,7 +1448,7 @@ func TestEngine_Execute_HardGateValidationFailureCommand(t *testing.T) {
 
 type dummyTool struct{}
 
-func (t *dummyTool) Name() string { return "dummy_tool" }
+func (t *dummyTool) Name() string        { return "dummy_tool" }
 func (t *dummyTool) Description() string { return "dummy description" }
 func (t *dummyTool) Definition() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{Name: t.Name(), Description: t.Description()}
@@ -1630,6 +1630,3 @@ func TestEngine_Execute_ToolExecutionFailure(t *testing.T) {
 		t.Fatalf("Execute failed: %v", err)
 	}
 }
-
-
-
