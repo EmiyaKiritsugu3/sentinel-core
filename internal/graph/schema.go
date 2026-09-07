@@ -288,8 +288,8 @@ var pragmaTableInfo = map[string]string{
 	"standards":           "PRAGMA table_info(standards)",
 	"performance_logs":    "PRAGMA table_info(performance_logs)",
 	"patterns":            "PRAGMA table_info(patterns)",
-	"knowledge_sessions": "PRAGMA table_info(knowledge_sessions)",
-	"session_events":     "PRAGMA table_info(session_events)",
+	"knowledge_sessions":  "PRAGMA table_info(knowledge_sessions)",
+	"session_events":      "PRAGMA table_info(session_events)",
 }
 
 // columnExistsInTx reports whether the named column exists in the specified table

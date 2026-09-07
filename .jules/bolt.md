@@ -1,3 +1,3 @@
-## 2026-05-23 - Avoid strings.TrimSpace on unbounded text chunks
-**Learning:** `strings.TrimSpace` evaluates both the beginning and the end of a string. When parsing large agent output chunks to check if they start with a thought block prefix (e.g. `<think>`), this causes an unnecessary `O(N)` traversal of potentially massive trailing content (actions, logs, etc.) just to check the prefix.
-**Action:** When validating string prefixes with potential leading whitespace, manually scan and skip the leading whitespace using a fast loop rather than calling `strings.TrimSpace`, especially when the string can be unbounded in length.
+## 2025-02-28 - Compile regexes outside of loop
+**Learning:** `regexp.MustCompile` is slow, so it is better to hoist compiling regex out of frequently called functions/loops so it's only done once during initialization.
+**Action:** Replace inline `regexp.MustCompile` with package-level precompiled regexes to improve performance.
