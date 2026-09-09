@@ -147,7 +147,7 @@ func handleGetCode(db *sqlite.DB) http.HandlerFunc {
 			return
 		}
 
-			cleanPath := filepath.Clean(filePath)
+		cleanPath := filepath.Clean(filePath)
 		if filepath.IsAbs(cleanPath) || strings.HasPrefix(cleanPath, "..") {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid path"})
